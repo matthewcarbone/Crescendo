@@ -37,13 +37,13 @@ jobs:
     - name: Install dependencies on ${{ matrix.os }}
       run: |
         conda config --set always_yes yes
-        conda install pytorch torchvision cpuonly -c pytorch
+        conda install -q pytorch torchvision cpuonly -c pytorch
         #macOS: conda install -q pytorch torchvision -c pytorch
         conda install -q -c dglteam dgl
         conda install -q -c anaconda networkx
         conda install -q -c anaconda pandas
         conda install -q -c anaconda pytest
-        conda install --q c conda-forge pytest-cov
+        conda install -q c conda-forge pytest-cov
         conda install -q -c anaconda flake8
 
     - name: Lint with flake8
