@@ -1,4 +1,5 @@
 # crescendo
+[![codecov](https://codecov.io/gh/x94carbone/crescendo/branch/master/graph/badge.svg?token=0M8IGBBWXQ)](https://codecov.io/gh/x94carbone/crescendo)
 A greatly abstracted artificial intelligence and machine learning suite built for ease of use and broad-spectrum application.
 
 ## Installation
