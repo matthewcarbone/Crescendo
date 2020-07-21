@@ -24,3 +24,13 @@ conda install -c conda-forge matplotlib
 conda install -c anaconda pandas
 conda install -c anaconda pytest
 ```
+
+## Testing
+To run the unit tests, we generally use
+```bash
+coverage run --source=crescendo test.py
+```
+and to view the report,
+```bash
+coverage report -m
+```
