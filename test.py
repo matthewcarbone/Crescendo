@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 
+import inspect
 import pytest
 import numpy as np
 
 from crescendo.samplers.base import Sampler
 from crescendo.loaders.base import BaseDataset
 from crescendo.loaders.text_loaders import CSVDataSet
+
+from crescendo.utils.logger import logger_default
 
 
 class TestDataset:
@@ -123,3 +126,18 @@ class TestSampler:
         tvt_split = s.split(p_test=0.2, p_valid=0.2, p_train=0.4)
         with pytest.raises(TypeError):
             tvt_split['train'][0] = 12345
+
+
+def run_all_methods(obj):
+    attrs = (getattr(obj, name) for name in dir(obj))
+    methods = filter(inspect.ismethod, attrs)
+    for method in methods:
+        method()
+
+
+if __name__ == '__main__':
+
+    logger_default.disabled = True
+    run_all_methods(TestDataset())
+    run_all_methods(TestSampler())
+    logger_default.disabled = False
