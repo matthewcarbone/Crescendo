@@ -53,8 +53,14 @@ jobs:
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=80 --statistics
 
-    - name: Unit tests and code coverage
-      run: coverage run --source=crescendo test.py
+    - name: Code coverage
+      uses: codecov/codecov-action@v1.0.11
+      with:
+        # Repository upload token - get it from codecov.io. Required only for private repositories
+        token: f4c6c7b7-1cf1-4928-a3b6-672eb9e3f6e8
+        # Specify whether or not CI build should fail if Codecov runs into an error during upload
+        fail_ci_if_error: yes
+        run: coverage run --source=crescendo test.py
 
     - name: Upload coverage
       shell: pwsh
