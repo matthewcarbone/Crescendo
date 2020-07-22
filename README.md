@@ -7,7 +7,7 @@ A greatly abstracted artificial intelligence and machine learning suite built fo
 ## Installation
 We recommend installing via `conda`.
 
-### Manual installation
+### Developer installation
 These represent the packages (and the order) in which they were installed in the tests and should almost definitely work on a fresh `conda` environment using `python 3.7.7`.
 ```bash
 conda create -n crescendo python=3.7.7
@@ -27,6 +27,13 @@ conda install -c conda-forge matplotlib
 conda install -c anaconda pandas
 conda install -c anaconda pytest
 ```
+
+## Logging protocol
+This package uses the `loggin` module to provide the user with information about what is happening during the program execution. The default logging stream pipes to the terminal and is usually abbreviated as `dlog` in the code. The following guidelines should be obeyed when logging.
+* Inform the user of critical terminating issues via the `critical` level. These should be used right before raising an error.
+* Inform the user of a potentially critical issue via the `error` level. These are intended to be similar to critical except it is not the case that the program is immediately terminated. Likely, there will be another error thrown later on.
+* Inform the user of possible issues with their use of the program with the `warning` level.
+* Log everything that the user should know with `dlog.info("...")`.
 
 ## Testing
 To run the unit tests, we generally use
