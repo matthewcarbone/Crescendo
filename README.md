@@ -1,4 +1,7 @@
 # crescendo
+[![codecov](https://codecov.io/gh/x94carbone/crescendo/branch/master/graph/badge.svg?token=0M8IGBBWXQ)](https://codecov.io/gh/x94carbone/crescendo)
+![Python package](https://github.com/x94carbone/crescendo/workflows/Python%20package/badge.svg?branch=master)
+
 A greatly abstracted artificial intelligence and machine learning suite built for ease of use and broad-spectrum application.
 
 ## Installation
