@@ -4,8 +4,8 @@
 name: Python package
 
 on:
-  push:
-    branches: [ master ]
+  #push:
+  #  branches: [ master ]
   pull_request:
     branches: [ master ]
   workflow_dispatch:
@@ -63,13 +63,13 @@ jobs:
         token: f4c6c7b7-1cf1-4928-a3b6-672eb9e3f6e8
         # Specify whether or not CI build should fail if Codecov runs into an error during upload
         fail_ci_if_error: yes
-        comment: true
-        layout: "reach, diff, flags, files"
-        behavior: default
-        require_changes: false  # if true: only post the comment if coverage changes
-        require_base: no        # [yes :: must have a base report to post]
-        require_head: yes       # [yes :: must have a head report to post]
-        branches: "master"
+        # comment: true
+        # layout: "reach, diff, flags, files"
+        # behavior: default
+        # require_changes: false  # if true: only post the comment if coverage changes
+        # require_base: no        # [yes :: must have a base report to post]
+        # require_head: yes       # [yes :: must have a head report to post]
+        # branches: "master"
 
     #- name: Upload coverage
     #  shell: pwsh
