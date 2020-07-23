@@ -2,133 +2,102 @@
 
 import pandas as pd
 
-from crescendo.loaders.base import BaseDataset
+from crescendo.loaders.base import _CrescendoBaseDataLoader
 from crescendo.utils.logger import logger_default as dlog
 
 
-class CSVDataSet(BaseDataset):
+class CSVLoader(_CrescendoBaseDataLoader):
     """A simple loader designed to read data from a .csv file using pandas.
     The general approach is that each row of the .csv is a data point and
-    each column is a feature. The user has to specify which columns to use as
-    features and which columns to use as targets. The entire .csv is initially
-    ingested and then only the relevant columns are selected."""
+    each column is a feature. Each instance of the CSVLoader should contain
+    either the features or targets for the problem. Alternatively, the user
+    can load in all data (featuers and targets) and then specify how to split
+    that data into features and targets, returning two instances of
+    CSVLoader."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def load(self, path, header=True, usecols=None):
+    def load(self, path, data_kind):
         """Ingests the .csv file.
 
         Parameters
         ----------
         path : str
             The path to the .csv file.
-        header : bool
-            Whether or not the raw text data has headers for the columns.
-            This argument is passed directly to pd.read_csv. Default is True.
-        usecols : list, optional
-            A list of integers indicating the columns to load. Note that this
-            does not select any feature or target, it will simply downsample
-            the entire dataset by using less columns. This argument is passed
-            directly to pd.read_csv. Default is None.
+        data_kind : {'features', 'targets', 'all', 'meta'}
+            The type of data being loaded. This is critical as the label will
+            be used downstream for model compatibility.
+            * 'features': the loaded csv corresponds to the features of the
+                data.
+            * 'targets': the loaded csv corresponds to the targets of the data.
+            * 'all': the loaded csv contains all data (features and targets
+                in different columns).
+            * 'meta': the loaded csv contains extra data that is neither the
+                features nor targets.
         """
 
-        dlog.info(f"Loading data from {path}")
-        dlog.info(f"Use headers is {header}")
+        if data_kind not in ['features', 'targets', 'all', 'meta']:
+            critical = \
+                f"Argument 'data_kind' {data_kind} not valid. Choices " \
+                f"are 'features', 'targets', 'all', 'meta'."
+            dlog.critical(critical)
+            raise RuntimeError(critical)
+        self.data_kind = data_kind
 
-        if usecols is not None:
-            if not all(isinstance(xx, int) for xx in usecols):
-                dlog.error(
-                    "Argument usecols is not all of type int, expect unknown "
-                    "behavior"
-                )
-
-        self.raw = pd.read_csv(path, header=header, usecols=usecols)
-
+        dlog.info(f"Loading data [{data_kind}] from {path}")
+        self.raw = pd.read_csv(path)
         s0 = self.raw.shape[0]
         s1 = self.raw.shape[1]
         dlog.info(f"Read DataFrame is of shape {s0} (rows) x {s1} (columns)")
 
-    def _select_specific_columns(self, cols, datatype='Unknown'):
-        """Helper method that works generally for any subset of columns.
-        Selects the columns based on the logic in ml_ready."""
+    def get(self, what, columns):
+        """If the loaded data corresponds to data_type 'all', this method
+        returns a subset of the columns as a new instance of CSVLoader.
 
-        if datatype == 'Unknown':
-            dlog.warning("Datatype not specified, logging as 'Unknown'")
+        Parameters
+        ----------
+        what : {'features', 'targets', 'meta'}
+            Indicates the data_type attribute of the returned CSVLoader class.
+        columns : list
+            Either a list of strings or list of integers corresponding to the
+            columns of the returned CSVLoader.raw. Note that if the list is
+            all integers, the data is accessed via self.raw.iloc and if
+            the list is all strings, the data is accessed via self.raw.loc.
 
-        if all(isinstance(xx, int) for xx in cols):
-            dlog.info(
-                f"{datatype} list is of type integer, selecting using iloc"
+        Returns
+        -------
+        CSVLoader
+            A fresh instance of the CSVLoader with the data_kind attribute set
+            via the 'what' argument.
+        """
+
+        if self.data_kind != 'all':
+            dlog.warning(
+                f"Sampling {what} from a dataset labeled {self.data_kind}, "
+                f"the user should ensure this is intended."
             )
-            return self.raw.iloc[:, cols]
 
-        if all(isinstance(xx, str) for xx in cols):
-            dlog.info(
-                f"{datatype} list is of type string, selecting using loc"
-            )
-            return self.raw.loc[:, cols]
-
-        if len(cols) == 2:
-            if cols[0] is None and isinstance(cols[1], int):
-                dlog.info(
-                    f"{datatype} list will select via .iloc[:, :{cols[1]}]"
-                )
-                if cols[1] < 0:
-                    dlog.warning(
-                        f"Note {cols[1]} < 0, ensure this behavior is desired"
-                    )
-                return self.raw.iloc[:, :cols[1]]
-            elif isinstance(cols[0]) and cols[1] is None:
-                dlog.info(
-                    f"{datatype} list will select via .iloc[:, {cols[0]}:]"
-                )
-                if cols[0] < 0:
-                    dlog.warning(
-                        f"Note {cols[0]} < 0, ensure this behavior is desired"
-                    )
-                return self.raw.iloc[:, cols[0]:]
-
-        critical = \
-            "Unknown cols input - should be list of str, list of int, or of " \
-            "the form [None, int] or [int, None] for list slicing. See " \
-            "'ml_ready' docstring for more details."
-        dlog.critical(critical)
-        raise NotImplementedError(critical)
-
-    def _select_features_targets(self, features, targets):
-        """Helper method for parsing the input to ml_ready."""
-
-        # Ensures that the iputs are of type list
-        if not isinstance(features, list) or not isinstance(targets, list):
+        if what not in ['features', 'targets', 'meta']:
             critical = \
-                f"Selected features/targets are not of type list: " \
-                f"({type(features)}/{type(targets)})"
+                f"Argument 'data_kind' {what} not valid. Choices " \
+                f"are 'features', 'targets', 'meta'."
             dlog.critical(critical)
             raise RuntimeError(critical)
 
-        f_data = self._select_specific_columns(features, datatype='Features')
-        t_data = self._select_specific_columns(targets, datatype='Targets')
-        dlog.info(
-            f"Feature and target DataFrames are of shapes "
-            f"{f_data.shape[0]}/{f_data.shape[1]} and "
-            f"{t_data.shape[0]}/{t_data.shape[0]}"
-        )
-        return f_data, t_data
+        loader = CSVLoader()
+        loader.data_kind = what
 
-    def ml_ready(self, features, targets):
-        """Converts the raw data into the machine learning-ready format.
-        This amounts to peforming the following: 1) selecting the features,
-        2) selecting the targets, and 3) converting the data into a format
-        that can be processed by pytorch.
+        if all(isinstance(xx, int) for xx in columns):
+            loader.raw = self.raw.loc[:, columns]
+            return loader
 
-        features, targets : list
-            If a list of strings, uses the loc method to select the columns
-            by header name. If a list of integers, uses the iloc method to
-            select columns by index. A third option is feeding the input a
-            term like [5, None], which will translate to .iloc[:, 5:] in
-            list comprehension. Similarly, [None, 3] translates to
-            .iloc[:, :3].
-        """
+        elif all(isinstance(xx, str) for xx in columns):
+            loader.raw = self.raw.iloc[:, columns]
+            return loader
 
-        # The returned f_data and t_data are the feature and target DataFrames
-        f_data, t_data = self._select_features_targets(features, targets)
+        critical = \
+            "Invalid input for columns. Should be list of str or " \
+            "list of int only."
+        dlog.critical(critical)
+        raise RuntimeError(critical)
