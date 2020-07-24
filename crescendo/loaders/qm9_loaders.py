@@ -115,13 +115,14 @@ def read_qm9_xyz(xyz_path, canonical=True):
     return (qm9_id, _smiles, other_props, xyzs, elements, zwitter)
 
 
-class QMXDataset(_CrescendoBaseDataLoader):
+class QMXLoader(_CrescendoBaseDataLoader):
     """Container for the QMX data, where X is some integer. Although not the
-    proper notation, we refer to X as in general, either 8 or 9, where
-    X=max number of heavy atoms/molecule."""
+    proper notation, we refer to X as in general, either 8 or 9 (usually),
+    where X=max number of heavy atoms (C, N, O and F)/molecule."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.raw = dict()
 
     @property
     def geometry_path(self):
@@ -164,17 +165,6 @@ class QMXDataset(_CrescendoBaseDataLoader):
         dlog.info(f"Canonical SMILES set to {c}")
         self._canonical = c
 
-    @property
-    def debug(self):
-        return self._debug
-
-    @debug.setter
-    def debug(self, d):
-        assert isinstance(d, int)
-        assert d == -1 or d > 0
-        dlog.info(f"Debug variable set to {d}")
-        self._debug = d
-
     @time_func(dlog)
     def load(
         self,
@@ -206,12 +196,13 @@ class QMXDataset(_CrescendoBaseDataLoader):
             If True, will use the canonical SMILES codes. Default is True.
         """
 
+        self.geometry_path = path
         self.max_heavy_atoms = max_heavy_atoms
         self.keep_zwitter = keep_zwitter
         self.canonical = canonical
 
         # Get a list of all of the paths of the xyz files
-        all_xyz_paths = glob2.glob(self.geometry_path + "/*.xyz")
+        all_xyz_paths = glob2.glob(path + "/*.xyz")
         total_xyz = len(all_xyz_paths)
 
         # Trim the total dataset if we're debugging and want to go fast
@@ -220,16 +211,16 @@ class QMXDataset(_CrescendoBaseDataLoader):
         dlog.info(f"Loading from {total_xyz} geometry files")
 
         # Load in all of the data.
-        for ii, path in enumerate(all_xyz_paths):
+        for ii, current_path in enumerate(all_xyz_paths):
 
             if ii % log_every == 0 and ii != 0:
                 pc = ii / total_xyz * 100.0
                 dlog.info(
-                    f"latest read from: {basename(path)} ({pc:.00f}%)"
+                    f"latest read from: {basename(current_path)} ({pc:.00f}%)"
                 )
 
             (qm9_id, smiles, other_props, xyzs, elements, zwitter) = \
-                read_qm9_xyz(path, canonical=self.canonical)
+                read_qm9_xyz(current_path, canonical=self.canonical)
 
             # No need to do any of this work if we're taking all of the
             # possible molecules in the QM9 dataset.
