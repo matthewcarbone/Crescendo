@@ -5,7 +5,7 @@ from crescendo.utils.logger import logger_default as dlog
 
 class _CrescendoBaseDataLoader:
 
-    def __init__(self, *, debug=False, data_kind='unknown'):
+    def __init__(self, *, debug=-1, data_kind='unknown'):
         """Base initializer.
 
         Parameters
@@ -28,18 +28,36 @@ class _CrescendoBaseDataLoader:
                 label other than the index (row).
         """
 
-        self.path = None
         self.raw = None
         self.debug = debug
+        self.data_kind = data_kind
 
-        dlog.info(f"Initializng Loader for {data_kind} data")
+    @property
+    def debug(self):
+        return self._debug
+
+    @debug.setter
+    def debug(self, d):
+        assert isinstance(d, int)
+        assert d == -1 or d > 0
+        dlog.info(f"Loader debug variable set to {d}")
+        self._debug = d
+
+    @property
+    def data_kind(self):
+        return self._data_kind
+
+    @data_kind.setter
+    def data_kind(self, data_kind):
+        assert isinstance(data_kind, str)
         if data_kind not in ['features', 'targets', 'all', 'meta', 'id']:
             critical = \
                 f"Argument 'data_kind' {data_kind} not valid. Choices " \
                 f"are 'features', 'targets', 'all', 'meta', 'id'."
             dlog.critical(critical)
             raise RuntimeError(critical)
-        self.data_kind = data_kind
+        dlog.info(f"Initializing Loader for {data_kind} data")
+        self._data_kind = data_kind
 
     def load(self):
         raise NotImplementedError

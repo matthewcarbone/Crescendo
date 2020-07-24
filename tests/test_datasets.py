@@ -4,6 +4,7 @@ import pytest
 
 from crescendo.loaders.base import _CrescendoBaseDataLoader
 from crescendo.loaders.text_loaders import CSVLoader
+from crescendo.loaders.qm9_loaders import QMXLoader
 
 
 class TestBaseLoader:
@@ -18,7 +19,7 @@ class TestBaseLoader:
 
 class TestCSVLoader:
 
-    def test_csv_load(self):
+    def test_load(self):
         """Ensures that the testing csv files are loaded properly."""
 
         ds = CSVLoader(data_kind='all')
@@ -69,3 +70,10 @@ class TestCSVLoader:
 
         with pytest.raises(Exception):
             targets.assert_integrity(raise_error=True)
+
+
+class TestQMXLoader:
+
+    def test_load(self):
+        ds = QMXLoader(data_kind='all')
+        ds.load("data/qm9_test_data")
