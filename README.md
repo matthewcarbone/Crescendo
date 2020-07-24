@@ -5,9 +5,17 @@
 A greatly abstracted artificial intelligence and machine learning suite built for ease of use and broad-spectrum application.
 
 ## Installation
-We recommend installing via `conda`.
+We recommend installing via `conda`:
+```bash
+conda env create -f environment.yml  # creates `crescendo` virtual environment
+```
 
-### Developer installation
+After making changes to the required packages, export the changes via
+```bash
+conda env export | grep -v "prefix" > environment.yml
+```
+
+### Manual developer installation
 These represent the packages (and the order) in which they were installed in the tests and should almost definitely work on a fresh `conda` environment using `python 3.7.7`.
 ```bash
 conda create -n crescendo python=3.7.7
