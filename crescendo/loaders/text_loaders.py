@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import numpy as np
 import pandas as pd
 
 from crescendo.loaders.base import _CrescendoBaseDataLoader
@@ -89,11 +90,11 @@ class CSVLoader(_CrescendoBaseDataLoader):
         loader.data_kind = what
 
         if all(isinstance(xx, int) for xx in columns):
-            loader.raw = self.raw.loc[:, columns]
+            loader.raw = self.raw.iloc[:, columns]
             return loader
 
         elif all(isinstance(xx, str) for xx in columns):
-            loader.raw = self.raw.iloc[:, columns]
+            loader.raw = self.raw.loc[:, columns]
             return loader
 
         critical = \
@@ -101,3 +102,48 @@ class CSVLoader(_CrescendoBaseDataLoader):
             "list of int only."
         dlog.critical(critical)
         raise RuntimeError(critical)
+
+    def assert_integrity(
+        self, skip_column_name_check=False, skip_row_check=False,
+        raise_error=False
+    ):
+        """Runs integrity checks on the data. Highly recommended in general.
+        * Ensures there are no duplicate columns. Note that we require column
+          headers. This checks the column names only.
+        * Ensures there are no duplicate rows. Expensive numerical comparison.
+        Any of these checks can be skipped via specifying the appropriate flag.
+
+        Parameters
+        ----------
+        skip_column_name_check, skip_row_check : bool
+            If True, skips the column name, duplicate row or duplicate column
+            checks, respectively. Default is False.
+        raise : bool
+            If True, will raise a RuntimeError if an integrity check fails.
+            Else, will log an error. Default is False
+        """
+
+        if not skip_column_name_check:
+            condition = np.all(~self.raw.columns.duplicated())
+            if not condition:
+                error = \
+                    "Column name check failed. Check for duplicate columns."
+                dlog.error(error)
+                if raise_error:
+                    raise RuntimeError(error)
+
+        if not skip_row_check:
+            initial_shape = self.raw.shape
+            new_df = self.raw.drop_duplicates()
+            new_shape = new_df.shape
+            if new_shape[0] != initial_shape[0]:
+                error = \
+                    f"Initial number of trials, {initial_shape[0]} != " \
+                    f"number of trials after dropping duplciate rows, " \
+                    f"{new_shape[0]}"
+                dlog.error(error)
+                if raise_error:
+                    raise RuntimeError(error)
+
+
+

@@ -24,3 +24,6 @@ class _CrescendoBaseDataLoader:
 
     def get(self):
         raise NotImplementedError
+
+    def assert_integrity(self):
+        raise NotImplementedError

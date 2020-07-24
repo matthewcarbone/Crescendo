@@ -3,64 +3,66 @@
 import numpy as np
 import pytest
 
-from crescendo.datasets.base import BaseDataset
-from crescendo.loaders.text_loaders import CSVDataSet
+from crescendo.loaders.base import _CrescendoBaseDataLoader
+from crescendo.loaders.text_loaders import CSVLoader
 
 
-class TestDataset:
+class TestBaseLoader:
 
     def test_base_init(self):
-        ds = BaseDataset(name='my_test')
-        assert ds.raw is None
-        assert ds.ml_data is None
-        assert ds.name == 'my_test'
+        _ = _CrescendoBaseDataLoader()
+
+
+class TestCSVLoader:
 
     def test_csv_load(self):
         """Ensures that the testing csv files are loaded properly."""
 
-        ds = CSVDataSet()
-        ds.load("data/test_3_column.csv")
+        ds = CSVLoader()
+        ds.load("data/test_3_column.csv", data_kind='all')
         assert ds.raw.shape[0] == 1000
         assert ds.raw.shape[1] == 3
 
-        ds = CSVDataSet()
-        ds.load("data/test_10_column.csv")
+        ds = CSVLoader()
+        ds.load("data/test_10_column.csv", data_kind='features')
         assert ds.raw.shape[0] == 1000
         assert ds.raw.shape[1] == 10
 
-    def test__select_specific_columns_errors(self):
-        """Ensures proper use case for the helper method
-        _select_specific_columns."""
-
-        ds = CSVDataSet()
-        ds.load("data/test_10_column.csv")
-
+        ds = CSVLoader()
         with pytest.raises(Exception):
-            ds._select_specific_columns(cols=["1", 1, 2, 3])
+            ds.load("data/test_10_column.csv", data_kind='incorrect_data_kind')
 
+    def test_get(self):
+        """Tests the get method."""
+
+        ds = CSVLoader()
+        ds.load("data/test_10_column.csv", data_kind='features')
+        features = ds.get('features', [0, 1, 2])
+        assert features.raw.shape[0] == 1000
+        assert features.raw.shape[1] == 3
+
+        ds = CSVLoader()
+        ds.load("data/test_10_column.csv", data_kind='features')
+        _ = ds.get('features', [0, 1, 2])
+        _ = ds.get('targets', [0, 1, 2])
+        _ = ds.get('meta', [0, 1, 2])
         with pytest.raises(Exception):
-            ds._select_specific_columns(cols=[1.0, 1, 2, 3])
+            _ = ds.get('incorrect_data_kind', [0, 1, 2])
 
-        with pytest.raises(Exception):
-            ds._select_specific_columns(cols=[np.array([1, 2, 3]), 1, 2, 3])
+    def test_assert_integrity(self):
+        """"""
 
-        with pytest.raises(Exception):
-            ds._select_specific_columns(cols=["1", "2", "3", "4", 5])
+        ds = CSVLoader()
+        ds.load("data/test_10_column.csv", data_kind='features')
+        ds.assert_integrity(raise_error=True)
+        features = ds.get(
+            'features', ['feature_1', 'feature_2', 'feature_7', 'feature_9']
+        )
+        features.assert_integrity(raise_error=True)
 
-    def test__select_specific_columns_selection(self):
-        """Makes sure the user can select columns in the appropriate ways."""
-
-        ds = CSVDataSet()
-        ds.load("data/test_10_column.csv")
-        ds.ml_ready(
-            [0, 1, 2], ["feature_3", "feature_4", "feature_5"],
-            assert_integrity=True, assert_level='raise'
+        targets = ds.get(
+            'targets', [1, 2, 3, 5, 4, 3]
         )
 
-        ds = CSVDataSet()
-        ds.load("data/test_10_column.csv")
         with pytest.raises(Exception):
-            ds.ml_ready(
-                [0, 1, 2], [None, 5], assert_integrity=True,
-                assert_level='raise'
-            )
+            targets.assert_integrity(raise_error=True)
