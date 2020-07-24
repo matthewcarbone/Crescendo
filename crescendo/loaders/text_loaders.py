@@ -19,34 +19,16 @@ class CSVLoader(_CrescendoBaseDataLoader):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def load(self, path, data_kind):
+    def load(self, path):
         """Ingests the .csv file.
 
         Parameters
         ----------
         path : str
             The path to the .csv file.
-        data_kind : {'features', 'targets', 'all', 'meta'}
-            The type of data being loaded. This is critical as the label will
-            be used downstream for model compatibility.
-            * 'features': the loaded csv corresponds to the features of the
-                data.
-            * 'targets': the loaded csv corresponds to the targets of the data.
-            * 'all': the loaded csv contains all data (features and targets
-                in different columns).
-            * 'meta': the loaded csv contains extra data that is neither the
-                features nor targets.
         """
 
-        if data_kind not in ['features', 'targets', 'all', 'meta']:
-            critical = \
-                f"Argument 'data_kind' {data_kind} not valid. Choices " \
-                f"are 'features', 'targets', 'all', 'meta'."
-            dlog.critical(critical)
-            raise RuntimeError(critical)
-        self.data_kind = data_kind
-
-        dlog.info(f"Loading data [{data_kind}] from {path}")
+        dlog.info(f"Loading data from {path}")
         self.raw = pd.read_csv(path)
         s0 = self.raw.shape[0]
         s1 = self.raw.shape[1]
@@ -79,15 +61,14 @@ class CSVLoader(_CrescendoBaseDataLoader):
                 f"the user should ensure this is intended."
             )
 
-        if what not in ['features', 'targets', 'meta']:
+        if what not in ['features', 'targets', 'meta', 'id']:
             critical = \
                 f"Argument 'data_kind' {what} not valid. Choices " \
-                f"are 'features', 'targets', 'meta'."
+                f"are 'features', 'targets', 'meta', 'id'."
             dlog.critical(critical)
             raise RuntimeError(critical)
 
-        loader = CSVLoader()
-        loader.data_kind = what
+        loader = CSVLoader(data_kind=what)
 
         if all(isinstance(xx, int) for xx in columns):
             loader.raw = self.raw.iloc[:, columns]
