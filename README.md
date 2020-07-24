@@ -26,6 +26,7 @@ conda install -c anaconda networkx
 conda install -c conda-forge matplotlib
 conda install -c anaconda pandas
 conda install -c anaconda pytest
+conda install -c conda-forge glob2
 ```
 
 ## Logging protocol
