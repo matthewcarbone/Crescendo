@@ -5,7 +5,7 @@
 from rdkit import Chem
 
 
-class QM9Datum:
+class QM9SmilesDatum:
     """Functions for determining structures from a smiles input using rdkit
     chem.
     Current Structure types
@@ -22,24 +22,23 @@ class QM9Datum:
     Example
     -------
     #Molecule Benzene aromatic structure
-    >>> QM9Datum('C1=CC=CC=C1').aromatic
+    >>> d = QM9SmilesDatum('C1=CC=CC=C1')
+    >>> d.is_aromatic()
     True
     """
-    
-    ringpattern= Chem.MolFromSmarts('[r]')
-    ring5pattern= Chem.MolFromSmarts('[r5]')
-    ring4pattern= Chem.MolFromSmarts('[r4]')
-    aromaticpattern=  Chem.MolFromSmarts('[a]')
-    DBpattern1 = Chem.MolFromSmarts('C=C')
-    DBpattern2 = Chem.MolFromSmarts('C=O')
-    DBpattern3 = Chem.MolFromSmarts('C=N')
-    DBpattern4 = Chem.MolFromSmarts('O=O')
-    DBpattern5 = Chem.MolFromSmarts('O=N')
-    DBpattern6 = Chem.MolFromSmarts('N=N')
-    TBpattern1 = Chem.MolFromSmarts('C#C')
-    TBpattern2 = Chem.MolFromSmarts('C#N')
-    TBpattern3 = Chem.MolFromSmarts('N#N')
-    
+
+    aromatic_pattern = Chem.MolFromSmarts('[a]')
+
+    double_bond_patterns = [
+        Chem.MolFromSmarts('C=C'), Chem.MolFromSmarts('C=O'),
+        Chem.MolFromSmarts('C=N'), Chem.MolFromSmarts('O=O'),
+        Chem.MolFromSmarts('O=N'), Chem.MolFromSmarts('N=N')
+    ]
+
+    triple_bond_patterns = [
+        Chem.MolFromSmarts('C#C'), Chem.MolFromSmarts('C#N'),
+        Chem.MolFromSmarts('N#N')
+    ]
 
     def __init__(self, smiles):
         """
@@ -52,34 +51,66 @@ class QM9Datum:
         self.smile = smiles
         self.mol = Chem.MolFromSmiles(smiles)
 
-    @property
-    def ring(self):
-        return self.mol.HasSubstructMatch(QM9Datum.ringpattern)
+    def has_n_membered_ring(self, n=None):
+        """Returns True if the mol attribute (the molecule object in rdkit
+        representing the Smiles string) has an n-membered ring.
 
-    @property
-    def ring5(self):
-        return self.mol.HasSubstructMatch(QM9Datum.ring5pattern)
+        Parameters
+        ----------
+        n : int, optional
+            The size of the ring. If None, will simply check if the molecule
+            has any ring (using the substructure matching string '[r]' instead
+            of [f'r{n}']). Default is None.
 
-    @property
-    def ring4(self):
-        return self.mol.HasSubstructMatch(QM9Datum.ring4pattern)
+        Returns
+        -------
+        bool
+            True if a match is found. False otherwise.
+        """
 
-    @property
-    def aromatic(self):
-        return self.mol.HasSubstructMatch(QM9Datum.aromaticpattern)
+        n = '' if n is None else n
+        return self.mol.HasSubstructMatch(Chem.MolFromSmarts(f'[r{n}]'))
 
-    @property
-    def doublebond(self):
-        DBval1 = self.mol.HasSubstructMatch(QM9Datum.DBpattern1) or self.mol.HasSubstructMatch(QM9Datum.DBpattern2) or self.mol.HasSubstructMatch(QM9Datum.DBpattern3)
-        DBval2=  self.mol.HasSubstructMatch(QM9Datum.DBpattern4) or self.mol.HasSubstructMatch(QM9Datum.DBpattern5) or self.mol.HasSubstructMatch(QM9Datum.DBpattern6) 
-        DBval= DBval1 or DBval2
-        return DBval
+    def is_aromatic(self):
+        """If the molecule has any aromatic pattern, returns True, else
+        returns False. This is checked by trying to locate the substructure
+        match for the string '[a]'.
 
-    @property
-    def triplebond(self):
-        TBval = self.mol.HasSubstructMatch(QM9Datum.TBpattern1) or self.mol.HasSubstructMatch(QM9Datum.TBpattern2) or self.mol.HasSubstructMatch(QM9Datum.TBpattern3)
-        return TBval
+        Returns
+        -------
+        bool
+        """
 
-    @property
-    def singlebond(self):
-        return not self.doublebond and not self.triplebond and not self.aromatic
+        return self.mol.HasSubstructMatch(QM9SmilesDatum.aromatic_pattern)
+
+    def has_double_bond(self):
+        """Checks the molecule for double bonds. Note that by default this
+        method assumes the data point is from QM9, and only checks the
+        atoms capable of forming double bonds in QM9, so, it will only check
+        C, N and O, and their 6 combinations.
+
+        Returns
+        -------
+        bool
+        """
+
+        return any([
+            self.mol.HasSubstructMatch(p)
+            for p in QM9SmilesDatum.double_bond_patterns
+        ])
+
+    def has_triple_bond(self):
+        """Checks the molecule for triple bonds. Note that by default this
+        method assumes the data point is from QM9, and only checks the
+        atoms capable of forming double bonds in QM9, so, it will only check
+        C#C, C#N and N#N.
+
+        Returns
+        -------
+        bool
+        """
+
+        return any([
+            self.mol.HasSubstructMatch(p)
+            for p in QM9SmilesDatum.triple_bond_patterns
+        ])
