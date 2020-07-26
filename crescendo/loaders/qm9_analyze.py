@@ -5,7 +5,7 @@
 from rdkit import Chem
 
 
-class Structure:
+class QM9Datum:
     """Functions for determining structures from a smiles input using rdkit
     chem.
     Current Structure types
@@ -22,9 +22,24 @@ class Structure:
     Example
     -------
     #Molecule Benzene aromatic structure
-    >>> structure('C1=CC=CC=C1').aromatic
+    >>> QM9Datum('C1=CC=CC=C1').aromatic
     True
     """
+    
+    ringpattern= Chem.MolFromSmarts('[r]')
+    ring5pattern= Chem.MolFromSmarts('[r5]')
+    ring4pattern= Chem.MolFromSmarts('[r4]')
+    aromaticpattern=  Chem.MolFromSmarts('[a]')
+    DBpattern1 = Chem.MolFromSmarts('C=C')
+    DBpattern2 = Chem.MolFromSmarts('C=O')
+    DBpattern3 = Chem.MolFromSmarts('C=N')
+    DBpattern4 = Chem.MolFromSmarts('O=O')
+    DBpattern5 = Chem.MolFromSmarts('O=N')
+    DBpattern6 = Chem.MolFromSmarts('N=N')
+    TBpattern1 = Chem.MolFromSmarts('C#C')
+    TBpattern2 = Chem.MolFromSmarts('C#N')
+    TBpattern3 = Chem.MolFromSmarts('N#N')
+    
 
     def __init__(self, smiles):
         """
@@ -39,42 +54,31 @@ class Structure:
 
     @property
     def ring(self):
-        pattern = Chem.MolFromSmarts('[r]')
-        return self.mol.HasSubstructMatch(pattern)
+        return self.mol.HasSubstructMatch(QM9Datum.ringpattern)
 
     @property
     def ring5(self):
-        pattern = Chem.MolFromSmarts('[r5]')
-        return self.mol.HasSubstructMatch(pattern)
+        return self.mol.HasSubstructMatch(QM9Datum.ring5pattern)
 
     @property
     def ring4(self):
-        pattern = Chem.MolFromSmarts('[r4]')
-        return self.mol.HasSubstructMatch(pattern)
+        return self.mol.HasSubstructMatch(QM9Datum.ring4pattern)
 
     @property
     def aromatic(self):
-        pattern = Chem.MolFromSmarts('[a]')
-        return self.mol.HasSubstructMatch(pattern)
+        return self.mol.HasSubstructMatch(QM9Datum.aromaticpattern)
 
     @property
     def doublebond(self):
-        pattern1 = Chem.MolFromSmarts('C=C')
-        pattern2 = Chem.MolFromSmarts('C=O')
-        pattern3 = Chem.MolFromSmarts('C=N')
-        pattern4 = Chem.MolFromSmarts('O=O')
-        pattern5 = Chem.MolFromSmarts('O=N')
-        pattern6 = Chem.MolFromSmarts('N=N')
-        val = self.mol.HasSubstructMatch(pattern1) or self.mol.HasSubstructMatch(pattern2) or self.mol.HasSubstructMatch(pattern3) or self.mol.HasSubstructMatch(pattern4) or self.mol.HasSubstructMatch(pattern5) or self.mol.HasSubstructMatch(pattern6)
-        return val
+        DBval1 = self.mol.HasSubstructMatch(QM9Datum.DBpattern1) or self.mol.HasSubstructMatch(QM9Datum.DBpattern2) or self.mol.HasSubstructMatch(QM9Datum.DBpattern3)
+        DBval2=  self.mol.HasSubstructMatch(QM9Datum.DBpattern4) or self.mol.HasSubstructMatch(QM9Datum.DBpattern5) or self.mol.HasSubstructMatch(QM9Datum.DBpattern6) 
+        DBval= DBval1 or DBval2
+        return DBval
 
     @property
     def triplebond(self):
-        pattern1 = Chem.MolFromSmarts('C#C')
-        pattern2 = Chem.MolFromSmarts('C#N')
-        pattern3 = Chem.MolFromSmarts('N#N')
-        val = self.mol.HasSubstructMatch(pattern1) or self.mol.HasSubstructMatch(pattern2) or self.mol.HasSubstructMatch(pattern3)
-        return val
+        TBval = self.mol.HasSubstructMatch(QM9Datum.TBpattern1) or self.mol.HasSubstructMatch(QM9Datum.TBpattern2) or self.mol.HasSubstructMatch(QM9Datum.TBpattern3)
+        return TBval
 
     @property
     def singlebond(self):
