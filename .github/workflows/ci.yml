@@ -51,6 +51,7 @@ jobs:
         conda install -q -c anaconda pandas
         conda install -q -c anaconda pytest
         conda install -q -c conda-forge glob2
+        conda install -q -c rdkit rdkit
         conda install -q -c conda-forge pytest-cov
         conda install -q -c anaconda flake8
 

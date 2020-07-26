@@ -1,5 +1,6 @@
-name: crescendo2
+name: crescendo
 channels:
+  - rdkit
   - pytorch
   - anaconda
   - dglteam
@@ -14,7 +15,9 @@ dependencies:
   - blas=1.0=mkl
   - bleach=3.1.5=pyh9f0ad1d_0
   - brotlipy=0.7.0=py37h9bfed18_1000
+  - bzip2=1.0.8=h0b31af3_2
   - ca-certificates=2020.6.20=hecda079_0
+  - cairo=1.14.12=hc4e6be7_4
   - certifi=2020.6.20=py37hc8dfbb8_0
   - cffi=1.14.0=py37hc512035_1
   - chardet=3.0.4=py37hc8dfbb8_1006
@@ -24,8 +27,12 @@ dependencies:
   - defusedxml=0.6.0=py_0
   - dgl=0.4.3post2=py37_0
   - entrypoints=0.3=py37hc8dfbb8_1001
+  - fontconfig=2.13.0=h5d5b041_1
   - freetype=2.10.2=h8da9a1a_0
+  - gettext=0.19.8.1=h1f1d5ed_1
+  - glib=2.65.0=hc5f4afa_0
   - glob2=0.7=py_0
+  - icu=58.2=h0a44026_1000
   - idna=2.10=pyh9f0ad1d_0
   - importlib-metadata=1.7.0=py37hc8dfbb8_0
   - importlib_metadata=1.7.0=0
@@ -43,13 +50,16 @@ dependencies:
   - jupyterlab_server=1.2.0=py_0
   - kiwisolver=1.2.0=py37ha1cc60f_0
   - lcms2=2.11=h174193d_0
+  - libboost=1.67.0=hebc422b_4
   - libcxx=10.0.1=h5f48129_0
   - libffi=3.3=hb1e8313_2
   - libgfortran=3.0.1=0
+  - libiconv=1.16=h1de35cc_0
   - libpng=1.6.37=hbbe82c9_1
   - libsodium=1.0.17=h01d97ff_0
   - libtiff=4.1.0=h2ae36a8_6
   - libwebp-base=1.1.0=h0b31af3_3
+  - libxml2=2.9.10=h3b9e6c8_1
   - llvm-openmp=10.0.1=h28b9765_0
   - lz4-c=1.9.2=h4a8c4bd_1
   - markupsafe=1.1.1=py37h9bfed18_1
@@ -76,15 +86,18 @@ dependencies:
   - pandoc=2.10.1=haf1e3a3_0
   - pandocfilters=1.4.2=py_1
   - parso=0.7.1=pyh9f0ad1d_0
+  - pcre=8.44=h4a8c4bd_0
   - pexpect=4.8.0=py37hc8dfbb8_1
   - pickleshare=0.7.5=py37hc8dfbb8_1001
   - pillow=7.2.0=py37hfd78ece_1
   - pip=20.1.1=py_1
+  - pixman=0.38.0=h01d97ff_1003
   - pluggy=0.13.1=py37_0
   - prometheus_client=0.8.0=pyh9f0ad1d_0
   - prompt-toolkit=3.0.5=py_1
   - ptyprocess=0.6.0=py_1001
   - py=1.9.0=py_0
+  - py-boost=1.67.0=py37h6440ff4_4
   - pycparser=2.20=pyh9f0ad1d_2
   - pygments=2.6.1=py_0
   - pyopenssl=19.1.0=py_1
@@ -98,6 +111,7 @@ dependencies:
   - pytorch=1.5.1=py3.7_0
   - pytz=2020.1=py_0
   - pyzmq=19.0.1=py37haec44b1_0
+  - rdkit=2020.03.3.0=py37h65625ec_1
   - readline=8.0=h0678c8f_2
   - requests=2.24.0=pyh9f0ad1d_0
   - scipy=1.5.0=py37h912ce22_0
