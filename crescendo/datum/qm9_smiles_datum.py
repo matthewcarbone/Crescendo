@@ -45,7 +45,7 @@ class QM9SmilesDatum:
         Chem.MolFromSmarts('N~O')
     ]
 
-    def __init__(self, smiles):
+    def __init__(self, smiles, other_props, xyz, elements, zwitter):
         """
         Parameters
         ----------
@@ -55,6 +55,15 @@ class QM9SmilesDatum:
 
         self.smile = smiles
         self.mol = Chem.MolFromSmiles(smiles)
+        self.other_props = other_props
+        self.xyz = xyz
+        self.elements = elements
+        self.zwitter = zwitter
+
+    def to_graph(parameters):
+        # Big TODO
+
+        raise NotImplementedError
 
     def has_n_membered_ring(self, n=None):
         """Returns True if the mol attribute (the molecule object in rdkit
