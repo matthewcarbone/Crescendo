@@ -7,7 +7,7 @@ from ntpath import basename
 import numpy as np
 
 from crescendo.utils.logger import logger_default as dlog
-from crescendo.loaders.base import _CrescendoBaseDataLoader
+from crescendo.loaders.base import _AllDataset
 from crescendo.utils.timing import time_func
 
 
@@ -115,14 +115,15 @@ def read_qm9_xyz(xyz_path, canonical=True):
     return (qm9_id, _smiles, other_props, xyzs, elements, zwitter)
 
 
-class QMXLoader(_CrescendoBaseDataLoader):
+class QMXLoader(_AllDataset):
     """Container for the QMX data, where X is some integer. Although not the
     proper notation, we refer to X as in general, either 8 or 9 (usually),
     where X=max number of heavy atoms (C, N, O and F)/molecule."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, debug=-1, **kwargs):
         super().__init__(*args, **kwargs)
         self.raw = dict()
+        self.debug = debug
 
     @property
     def geometry_path(self):
@@ -236,3 +237,9 @@ class QMXLoader(_CrescendoBaseDataLoader):
                 (smiles, other_props, xyzs, elements, zwitter)
 
         dlog.info(f"Total number of data points: {len(self.raw)}")
+
+    def featurize(self):
+        """This method is the workhorse of the QMXLoader. It will featurize
+        the raw data depending on the user settings."""
+
+        raise NotImplementedError
