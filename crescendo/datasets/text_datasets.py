@@ -44,7 +44,7 @@ class CSVDataset(_SplitDataset):
 
         self.ml_data = [
             BaseDatum(
-                name=self.name[ii], feature=self.features.iloc[ii],
+                name=self.names[ii], feature=self.features.iloc[ii],
                 target=self.targets.iloc[ii]
             ) for ii in range(len(self.features.index))
         ]

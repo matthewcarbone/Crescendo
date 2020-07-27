@@ -31,6 +31,13 @@ class TestCSVDatasets:
         assert ds.features.shape == (1000, 2)
         assert ds.targets.shape == (1000, 8)
 
+    def test_init_ml(self):
+        df = pd.read_csv("data/csv_test_data/test_10_column.csv")
+        features = df.iloc[:, :2]
+        targets = df.iloc[:, 2:]
+        ds = CSVDataset(ArrayContainer(features), ArrayContainer(targets))
+        ds.init_ml()
+
 
 class TestQMXDataset:
 
