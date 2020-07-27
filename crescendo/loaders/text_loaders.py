@@ -8,123 +8,111 @@ from crescendo.utils.logger import logger_default as dlog
 
 
 class CSVLoader(_CrescendoBaseDataLoader):
-    """A simple loader designed to read data from a .csv file using pandas.
-    The general approach is that each row of the .csv is a data point and
-    each column is a feature. Each instance of the CSVLoader should contain
-    either the features or targets for the problem. Alternatively, the user
-    can load in all data (featuers and targets) and then specify how to split
-    that data into features and targets, returning two instances of
-    CSVLoader."""
+    """A simple dataset designed to initialize a ML database from csv
+    features and targets."""
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def load(self, path):
-        """Ingests the .csv file.
+    def __init__(self, features, targets, **kwargs):
+        """Initializes the CSVLoader object with pd.DataFrame features and
+        targets that the user loads beforehand.
 
         Parameters
         ----------
-        path : str
-            The path to the .csv file.
+        features, targets : pd.DataFrame
+            Note that the features and targets may contain different numbers
+            of columns, but must have the same number of rows (data points).
+            Each column corresponds to a different property of a single data
+            point which may be a feature or target.
         """
 
-        dlog.info(f"Loading data from {path}")
-        self.raw = pd.read_csv(path)
-        s0 = self.raw.shape[0]
-        s1 = self.raw.shape[1]
-        dlog.info(f"Read DataFrame is of shape {s0} (rows) x {s1} (columns)")
+        super().__init__(**kwargs)
+        self.features = features
+        self.targets = targets
 
-    def get(self, what, columns):
-        """If the loaded data corresponds to data_type 'all', this method
-        returns a subset of the columns as a new instance of CSVLoader.
+    @property
+    def features(self):
+        return self._features
 
-        Parameters
-        ----------
-        what : {'features', 'targets', 'meta'}
-            Indicates the data_type attribute of the returned CSVLoader class.
-        columns : list
-            Either a list of strings or list of integers corresponding to the
-            columns of the returned CSVLoader.raw. Note that if the list is
-            all integers, the data is accessed via self.raw.iloc and if
-            the list is all strings, the data is accessed via self.raw.loc.
+    @features.setter
+    def features(self, f):
 
-        Returns
-        -------
-        CSVLoader
-            A fresh instance of the CSVLoader with the data_kind attribute set
-            via the 'what' argument.
-        """
-
-        if self.data_kind != 'all':
-            dlog.warning(
-                f"Sampling {what} from a dataset labeled {self.data_kind}, "
-                f"the user should ensure this is intended."
-            )
-
-        if what not in ['features', 'targets', 'meta', 'id']:
+        if not isinstance(f, pd.DataFrame):
             critical = \
-                f"Argument 'data_kind' {what} not valid. Choices " \
-                f"are 'features', 'targets', 'meta', 'id'."
+                f"Features are of type {type(f)} but must be pd.DataFrame"
             dlog.critical(critical)
             raise RuntimeError(critical)
 
-        loader = CSVLoader(data_kind=what)
+        condition = np.all(~f.columns.duplicated())
+        if not condition:
+            error = "Duplicate columns found in features"
+            dlog.error(error)
+            if self.raise_error:
+                raise RuntimeError(error)
 
-        if all(isinstance(xx, int) for xx in columns):
-            loader.raw = self.raw.iloc[:, columns]
-            return loader
+        s1 = f.shape[0]
+        s2 = f.shape[1]
+        dlog.info(f"Init features of shape {s1} x {s2}")
+        self._features = f
 
-        elif all(isinstance(xx, str) for xx in columns):
-            loader.raw = self.raw.loc[:, columns]
-            return loader
+    @property
+    def targets(self):
+        return self._targets
 
-        critical = \
-            "Invalid input for columns. Should be list of str or " \
-            "list of int only."
-        dlog.critical(critical)
-        raise RuntimeError(critical)
+    @targets.setter
+    def targets(self, t):
 
-    def assert_integrity(
-        self, skip_column_name_check=False, skip_row_check=False,
-        raise_error=False
-    ):
+        if not isinstance(t, pd.DataFrame):
+            critical = \
+                f"Targets are of type {type(t)} but must be pd.DataFrame"
+            dlog.critical(critical)
+            raise RuntimeError(critical)
+
+        condition = np.all(~t.columns.duplicated())
+        if not condition:
+            error = "Duplicate columns found in features"
+            dlog.error(error)
+            if self.raise_error:
+                raise RuntimeError(error)
+
+        s1 = t.shape[0]
+        s2 = t.shape[1]
+        dlog.info(f"Init targets of shape {s1} x {s2}")
+        self._targets = t
+
+    def check_duplicate_data(self, on):
         """Runs integrity checks on the data. Highly recommended in general.
-        * Ensures there are no duplicate columns. Note that we require column
-          headers. This checks the column names only.
-        * Ensures there are no duplicate rows. Expensive numerical comparison.
-        Any of these checks can be skipped via specifying the appropriate flag.
+        Ensures there are no duplicate data points.
 
         Parameters
         ----------
-        skip_column_name_check, skip_row_check : bool
-            If True, skips the column name, duplicate row or duplicate column
-            checks, respectively. Default is False.
-        raise : bool
-            If True, will raise a RuntimeError if an integrity check fails.
-            Else, will log an error. Default is False
+        on : {'features', 'targets'}
+            Which set of data to run the integrity checks on. Both the features
+            and targets are pd.DataFrame objects, but it is possible that
+            the user is confident in one and not the other, or that one of the
+            DataFrames is extremely large, and thus it will be hard to run on
+            the larger one. Thus, while asserting the integrity of both the
+            features and targets is recommended, the user can choose which
+            if not both.
         """
 
-        if not skip_column_name_check:
-            condition = np.all(~self.raw.columns.duplicated())
-            if not condition:
-                error = \
-                    "Column name check failed. Check for duplicate columns."
-                dlog.error(error)
-                if raise_error:
-                    raise RuntimeError(error)
+        if on == 'features':
+            raw = self.features
+        elif on == 'targets':
+            raw = self.targets
+        else:
+            critical = \
+                "Can only run integrity checks on 'features' or 'targets' " \
+                f"but {on} was specified"
+            dlog.critical(critical)
+            raise RuntimeError(critical)
 
-        if not skip_row_check:
-            initial_shape = self.raw.shape
-            new_df = self.raw.drop_duplicates()
-            new_shape = new_df.shape
-            if new_shape[0] != initial_shape[0]:
-                error = \
-                    f"Initial number of trials, {initial_shape[0]} != " \
-                    f"number of trials after dropping duplciate rows, " \
-                    f"{new_shape[0]}"
-                dlog.error(error)
-                if raise_error:
-                    raise RuntimeError(error)
-
-
-
+        initial_shape = raw.shape
+        new_df = raw.drop_duplicates()  # Returns copy by default
+        new_shape = new_df.shape
+        if new_shape[0] != initial_shape[0]:
+            error = \
+                f"Initial number of trials, {initial_shape[0]} != " \
+                "number of trials after dropping duplciate rows, " \
+                f"{new_shape[0]}"
+            dlog.error(error)
+            if self.raise_error:
+                raise RuntimeError(error)
