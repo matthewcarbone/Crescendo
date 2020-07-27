@@ -6,7 +6,7 @@ import pytest
 from crescendo.loaders.base import _BaseCore, _AllDataset, _SplitDataset
 from crescendo.data_containers.standard import ArrayContainer
 from crescendo.loaders.text_loaders import CSVLoader
-# from crescendo.loaders.qm9_loaders import QMXLoader
+from crescendo.loaders.qm9_loaders import QMXLoader
 
 
 class TestBaseLoaders:
@@ -32,10 +32,8 @@ class TestCSVLoader:
         assert ds.targets.shape == (1000, 8)
 
 
-"""
 class TestQMXLoader:
 
     def test_load(self):
         ds = QMXLoader()
         ds.load("data/qm9_test_data")
-"""
