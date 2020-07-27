@@ -9,6 +9,7 @@ import numpy as np
 from crescendo.utils.logger import logger_default as dlog
 from crescendo.datasets.base import _AllDataset
 from crescendo.utils.timing import time_func
+from crescendo.datum.qm9_smiles_datum import QM9SmilesDatum
 
 
 def parse_QM9_scalar_properties(
@@ -233,10 +234,16 @@ class QMXDataset(_AllDataset):
             if not self.keep_zwitter and zwitter:
                 continue
 
-            self.raw[qm9_id] = \
-                (smiles, other_props, xyzs, elements, zwitter)
+            self.raw[qm9_id] = QM9SmilesDatum(
+                smiles, other_props, xyzs, elements, zwitter
+            )
 
         dlog.info(f"Total number of data points: {len(self.raw)}")
+
+    def analyze(self):
+        """Performs the analysis of the currently loaded QM9 Dataset."""
+
+        raise NotImplementedError
 
     def featurize(self):
         """This method is the workhorse of the QMXLoader. It will featurize
