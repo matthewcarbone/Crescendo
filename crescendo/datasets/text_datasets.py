@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
-from crescendo.loaders.base import _SplitDataset
+from crescendo.datasets.base import _SplitDataset
 from crescendo.datum.base import BaseDatum
 
 # from crescendo.utils.logger import logger_default as dlog
 
 
-class CSVLoader(_SplitDataset):
+class CSVDataset(_SplitDataset):
     """A simple dataset designed to initialize a ML database from csv
     features and targets."""
 

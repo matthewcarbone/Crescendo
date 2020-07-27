@@ -7,7 +7,7 @@ from ntpath import basename
 import numpy as np
 
 from crescendo.utils.logger import logger_default as dlog
-from crescendo.loaders.base import _AllDataset
+from crescendo.datasets.base import _AllDataset
 from crescendo.utils.timing import time_func
 
 
@@ -115,7 +115,7 @@ def read_qm9_xyz(xyz_path, canonical=True):
     return (qm9_id, _smiles, other_props, xyzs, elements, zwitter)
 
 
-class QMXLoader(_AllDataset):
+class QMXDataset(_AllDataset):
     """Container for the QMX data, where X is some integer. Although not the
     proper notation, we refer to X as in general, either 8 or 9 (usually),
     where X=max number of heavy atoms (C, N, O and F)/molecule."""

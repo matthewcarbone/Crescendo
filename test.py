@@ -5,7 +5,8 @@ import inspect
 from crescendo.utils.logger import logger_default
 
 # Import submodules for testing
-from tests.test_datasets import TestBaseLoaders, TestCSVLoader, TestQMXLoader
+from tests.test_datasets import TestBaseDatasets, TestCSVDatasets, \
+    TestQMXDataset
 from tests.test_samplers import TestSampler
 from tests.test_data_containers import TestBaseContainer, TestArrayContainer
 
@@ -20,9 +21,9 @@ def run_all_methods(obj):
 if __name__ == '__main__':
 
     logger_default.disabled = True
-    run_all_methods(TestBaseLoaders())
-    run_all_methods(TestCSVLoader())
-    run_all_methods(TestQMXLoader())
+    run_all_methods(TestBaseDatasets())
+    run_all_methods(TestCSVDatasets())
+    run_all_methods(TestQMXDataset())
     run_all_methods(TestSampler())
     run_all_methods(TestBaseContainer())
     run_all_methods(TestArrayContainer())
