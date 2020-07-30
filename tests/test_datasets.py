@@ -6,7 +6,7 @@ import pytest
 from crescendo.datasets.base import _BaseCore, _AllDataset, _SplitDataset
 from crescendo.data_containers.standard import ArrayContainer
 from crescendo.datasets.text_datasets import CSVDataset
-from crescendo.datasets.gm9_dataset import QMXDataset
+from crescendo.datasets.qm9_dataset import QMXDataset
 
 
 class TestBaseDatasets:
