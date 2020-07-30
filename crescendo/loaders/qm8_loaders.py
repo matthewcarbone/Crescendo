@@ -4,7 +4,7 @@
 
 def parse_QM8_electronic_properties(
     props,
-    selected_properties=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+    selected_properties=[0, 13, 14, 15, 16]
 ):
     """Parses a list of strings into the correct floats that correspond to the
     electronic properties in the QM8 database.
