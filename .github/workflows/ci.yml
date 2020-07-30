@@ -71,7 +71,7 @@ jobs:
         # Repository upload token - get it from codecov.io. Required only for private repositories
         token: f4c6c7b7-1cf1-4928-a3b6-672eb9e3f6e8
         # Specify whether or not CI build should fail if Codecov runs into an error during upload
-        fail_ci_if_error: yes
+        fail_ci_if_error: false
         # comment: true
         # layout: "reach, diff, flags, files"
         # behavior: default
