@@ -39,6 +39,11 @@ class QM9SmilesDatum:
         Chem.MolFromSmarts('C#C'), Chem.MolFromSmarts('C#N'),
         Chem.MolFromSmarts('N#N')
     ]
+    
+    hetero_bond_patterns = [
+        Chem.MolFromSmarts('C~O'), Chem.MolFromSmarts('C~N'), 
+        Chem.MolFromSmarts('N~O')
+    ]
 
     def __init__(self, smiles):
         """
@@ -102,7 +107,7 @@ class QM9SmilesDatum:
     def has_triple_bond(self):
         """Checks the molecule for triple bonds. Note that by default this
         method assumes the data point is from QM9, and only checks the
-        atoms capable of forming double bonds in QM9, so, it will only check
+        atoms capable of forming triple bonds in QM9, so, it will only check
         C#C, C#N and N#N.
 
         Returns
@@ -114,3 +119,19 @@ class QM9SmilesDatum:
             self.mol.HasSubstructMatch(p)
             for p in QM9SmilesDatum.triple_bond_patterns
         ])
+    def has_hetero_bond(self):
+        """Checks the molecule for heter bonds. Note that by default this
+        method assumes the data point is from QM9, and only checks the
+        atoms capable of forming hetero bonds in QM9, so, it will only check
+        C~O, C~N and N~O.
+
+        Returns
+        -------
+        bool
+        """
+
+        return any([
+            self.mol.HasSubstructMatch(p)
+            for p in QM9SmilesDatum.hetero_bond_patterns
+        ])
+    
