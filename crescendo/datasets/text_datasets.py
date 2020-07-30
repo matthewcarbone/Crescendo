@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import torch
+
 from crescendo.datasets.base import _SplitDataset
 from crescendo.datum.base import BaseDatum
 
@@ -48,3 +50,15 @@ class CSVDataset(_SplitDataset):
                 target=self.targets.iloc[ii]
             ) for ii in range(len(self.features.index))
         ]
+
+    @staticmethod
+    def collating_function(batch):
+        """Properly converts the DataSet objects into ones the DataLoader can
+        use. The batch is a list of Datum objects, which is iterated over and
+        concatenated."""
+
+        return BaseDatum(
+            [sub_batch.name for sub_batch in batch],
+            torch.tensor([sub_batch.feature for sub_batch in batch]),
+            torch.tensor([sub_batch.target for sub_batch in batch])
+        )
