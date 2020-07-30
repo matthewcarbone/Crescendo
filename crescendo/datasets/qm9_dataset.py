@@ -12,6 +12,79 @@ from crescendo.utils.timing import time_func
 from crescendo.datum.qm9_smiles_datum import QM9SmilesDatum
 
 
+def parse_QM8_electronic_properties(
+    props,
+    selected_properties=[0, 13, 14, 15, 16]
+):
+    """Parses a list of strings into the correct floats that correspond to the
+    electronic properties in the QM8 database.
+
+    the properties are as follows (1-indexed):
+        1  : index
+        2  : RI-CC2/def2TZVP E1 in au
+        3  : RI-CC2/def2TZVP E2 in au
+        4  : RI-CC2/def2TZVP f1 in au in length representation
+        5  : RI-CC2/def2TZVP f2 in au in length representation
+        6  : LR-TDPBE0/def2SVP E1 in au
+        7  : LR-TDPBE0/def2SVP E2 in au
+        8  : LR-TDPBE0/def2SVP f1 in au in length representation
+        9  : LR-TDPBE0/def2SVP f2 in au in length representation
+        10 : LR-TDPBE0/def2TZVP E1 in au
+        11 : LR-TDPBE0/def2TZVP E2 in au
+        12 : LR-TDPBE0/def2TZVP f1 in au in length representation
+        13 : LR-TDPBE0/def2TZVP f2 in au in length representation
+        14 : LR-TDCAM-B3LYP/def2TZVP E1 in au
+        15 : LR-TDCAM-B3LYP/def2TZVP E2 in au
+        16 : LR-TDCAM-B3LYP/def2TZVP f1 in au in length representation
+        17 : LR-TDCAM-B3LYP/def2TZVP f2 in au in length representation
+
+    Note `au` = atomic units
+
+    Parameters
+    ----------
+    props : list[str]
+        Initial properties in string format.
+    selected_properties : List[int]
+
+    Returns
+    -------
+    int, list[float]
+        The QM9 ID and list of properties (list[float]).
+    """
+
+    qm8_id = int(props[0])
+    other = props[1:]
+    other = [
+        float(prop) for ii, prop in enumerate(other)
+        if ii in selected_properties
+    ]
+    return (qm8_id, other)
+
+
+def read_qm8(qm8_path):
+    """Function for reading Electronic Spectra for QM8 files.
+
+    Parameters
+    ----------
+    qm8_path : str
+        Absolute path to the  file.
+
+    Returns
+    -------
+    int, list[float]
+        The QM8 ID and list of properties (list[float]).
+    """
+
+    with open(qm8_path, 'r') as file:
+        line = '#'
+        while '#' in line:
+            line = file.readline()
+        qm8_id, props = \
+            parse_QM8_electronic_properties(line.split())
+
+    return (qm8_id, props)
+
+
 def parse_QM9_scalar_properties(
     props,
     selected_properties=[0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 14]
