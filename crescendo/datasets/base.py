@@ -4,6 +4,8 @@ import torch
 
 # from crescendo.utils.logger import logger_default as dlog
 
+import torch.utils.data
+
 
 class _BaseCore(torch.utils.data.Dataset):
 
