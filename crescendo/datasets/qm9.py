@@ -72,7 +72,7 @@ class QM9SmilesDatum:
             smiles of target molecule as string
         """
 
-        self.smile = smiles
+        self.smiles = smiles
         self.mol = Chem.MolFromSmiles(smiles)
         self.other_props = other_props
         self.xyz = xyz
@@ -85,7 +85,20 @@ class QM9SmilesDatum:
         atom_type=True,
         hybridization=True
     ):
-        """Initializes the graph attribute of the molecule object."""
+        """Initializes the graph attribute of the molecule object.
+
+        Parameters
+        ----------
+        atom_type : bool
+            If True, include the atom type in node features. Default is True.
+        hybridization : bool
+            If True, include the hybridization type in the node features.
+            Default is True.
+
+        Returns
+        -------
+        DGLGraph
+        """
 
         g = DGLGraph()
         n_atoms = self.mol.GetNumAtoms()
@@ -113,7 +126,7 @@ class QM9SmilesDatum:
             # Append the atom type to the feature vector
             if atom_type:
                 atom_features.append(atom_symbols_map.get(
-                    atom.getSymbol(), 0)
+                    atom.GetSymbol(), 0)
                 )
 
             # Append the atom hybridization to the feature vector
@@ -124,7 +137,9 @@ class QM9SmilesDatum:
 
             all_features.append(atom_features)
 
-        g.ndata['feat'] = torch.LongTensor(all_features)
+        if len(all_features) != 0:
+            g.ndata['features'] = torch.LongTensor(all_features)
+
         return g
 
     def has_n_membered_ring(self, n=None):
