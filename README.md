@@ -51,6 +51,9 @@ conda install -c dglteam dgl
 # or CUDA binaries
 # see here: https://docs.dgl.ai/en/0.4.x/install/index.html#install-from-conda
 
+conda install -c dglteam dgllife
+# For the MPNN
+
 conda install -c conda-forge jupyterlab
 conda install -c anaconda networkx
 conda install -c conda-forge matplotlib
