@@ -42,7 +42,7 @@ conda install -c anaconda flake8
 ```
 
 ## Logging protocol
-This package uses the `loggin` module to provide the user with information about what is happening during the program execution. The default logging stream pipes to the terminal and is usually abbreviated as `dlog` in the code. The following guidelines should be obeyed when logging.
+This package uses the `logging` module to provide the user with information about what is happening during the program execution. The default logging stream pipes to the terminal and is usually abbreviated as `dlog` in the code. The following guidelines should be obeyed when logging.
 * Inform the user of critical terminating issues via the `critical` level. These should be used right before raising an error.
 * Inform the user of a potentially critical issue via the `error` level. These are intended to be similar to critical except it is not the case that the program is immediately terminated. Likely, there will be another error thrown later on.
 * Inform the user of possible issues with their use of the program with the `warning` level.
