@@ -2,14 +2,44 @@
 
 """Module for loading in data from the QM9 database."""
 
+from dgl import DGLGraph
 import glob2
 from ntpath import basename
 import numpy as np
 from rdkit import Chem
+import torch
 
 from crescendo.utils.logger import logger_default as dlog
 from crescendo.datasets.base import _BaseCore
 from crescendo.utils.timing import time_func
+
+
+aromatic_pattern = Chem.MolFromSmarts('[a]')
+
+double_bond_patterns = [
+    Chem.MolFromSmarts('C=C'), Chem.MolFromSmarts('C=O'),
+    Chem.MolFromSmarts('C=N'), Chem.MolFromSmarts('O=O'),
+    Chem.MolFromSmarts('O=N'), Chem.MolFromSmarts('N=N')
+]
+
+triple_bond_patterns = [
+    Chem.MolFromSmarts('C#C'), Chem.MolFromSmarts('C#N'),
+    Chem.MolFromSmarts('N#N')
+]
+
+hetero_bond_patterns = [
+    Chem.MolFromSmarts('C~O'), Chem.MolFromSmarts('C~N'),
+    Chem.MolFromSmarts('N~O')
+]
+
+# Only some atoms are allowed in the QM9 database
+atom_symbols_map = {'H': 1, 'C': 2, 'N': 3, 'O': 4, 'F': 5}
+
+hybridization_map = {
+    Chem.rdchem.HybridizationType.SP: 1,
+    Chem.rdchem.HybridizationType.SP2: 2,
+    Chem.rdchem.HybridizationType.SP3: 3
+}
 
 
 class QM9SmilesDatum:
@@ -34,25 +64,7 @@ class QM9SmilesDatum:
     True
     """
 
-    aromatic_pattern = Chem.MolFromSmarts('[a]')
-
-    double_bond_patterns = [
-        Chem.MolFromSmarts('C=C'), Chem.MolFromSmarts('C=O'),
-        Chem.MolFromSmarts('C=N'), Chem.MolFromSmarts('O=O'),
-        Chem.MolFromSmarts('O=N'), Chem.MolFromSmarts('N=N')
-    ]
-
-    triple_bond_patterns = [
-        Chem.MolFromSmarts('C#C'), Chem.MolFromSmarts('C#N'),
-        Chem.MolFromSmarts('N#N')
-    ]
-
-    hetero_bond_patterns = [
-        Chem.MolFromSmarts('C~O'), Chem.MolFromSmarts('C~N'),
-        Chem.MolFromSmarts('N~O')
-    ]
-
-    def __init__(self, smiles, other_props, xyz, elements, zwitter):
+    def __init__(self, smiles, other_props, xyz, elements, zwitter, qm9_id):
         """
         Parameters
         ----------
@@ -60,17 +72,75 @@ class QM9SmilesDatum:
             smiles of target molecule as string
         """
 
-        self.smile = smiles
+        self.smiles = smiles
         self.mol = Chem.MolFromSmiles(smiles)
         self.other_props = other_props
         self.xyz = xyz
         self.elements = elements
         self.zwitter = zwitter
+        self.qm9_id = qm9_id
 
-    def to_graph(parameters):
-        # Big TODO
+    def to_graph(
+        self,
+        atom_type=True,
+        hybridization=True
+    ):
+        """Initializes the graph attribute of the molecule object.
 
-        raise NotImplementedError
+        Parameters
+        ----------
+        atom_type : bool
+            If True, include the atom type in node features. Default is True.
+        hybridization : bool
+            If True, include the hybridization type in the node features.
+            Default is True.
+
+        Returns
+        -------
+        DGLGraph
+        """
+
+        g = DGLGraph()
+        n_atoms = self.mol.GetNumAtoms()
+        n_bonds = self.mol.GetNumBonds()
+        g.add_nodes(n_atoms)
+
+        # In this initial stage, we construct the actual graph by connecting
+        # nodes via the edges corresponding to molecular bonds.
+        for bond_index in range(n_bonds):
+            bond = self.mol.GetBondWithIdx(bond_index)
+            u = bond.GetBeginAtomIdx()
+            v = bond.GetEndAtomIdx()
+
+            # DGL graphs are by default *directed*. We make this an undirected
+            # graph by adding "edges" in both directions, meaning u -> v and
+            # v -> u.
+            g.add_edges([u, v], [v, u])
+
+        # Iterate through all nodes (atoms) and assign various features.
+        all_features = []
+        for atom_index in range(n_atoms):
+            atom_features = []
+            atom = self.mol.GetAtomWithIdx(atom_index)
+
+            # Append the atom type to the feature vector
+            if atom_type:
+                atom_features.append(atom_symbols_map.get(
+                    atom.GetSymbol(), 0)
+                )
+
+            # Append the atom hybridization to the feature vector
+            if hybridization:
+                atom_features.append(hybridization_map.get(
+                    atom.GetHybridization(), 0)
+                )
+
+            all_features.append(atom_features)
+
+        if len(all_features) != 0:
+            g.ndata['features'] = torch.LongTensor(all_features)
+
+        return g
 
     def has_n_membered_ring(self, n=None):
         """Returns True if the mol attribute (the molecule object in rdkit
@@ -102,7 +172,7 @@ class QM9SmilesDatum:
         bool
         """
 
-        return self.mol.HasSubstructMatch(QM9SmilesDatum.aromatic_pattern)
+        return self.mol.HasSubstructMatch(aromatic_pattern)
 
     def has_double_bond(self):
         """Checks the molecule for double bonds. Note that by default this
@@ -117,7 +187,7 @@ class QM9SmilesDatum:
 
         return any([
             self.mol.HasSubstructMatch(p)
-            for p in QM9SmilesDatum.double_bond_patterns
+            for p in double_bond_patterns
         ])
 
     def has_triple_bond(self):
@@ -133,7 +203,7 @@ class QM9SmilesDatum:
 
         return any([
             self.mol.HasSubstructMatch(p)
-            for p in QM9SmilesDatum.triple_bond_patterns
+            for p in triple_bond_patterns
         ])
 
     def has_hetero_bond(self):
@@ -149,7 +219,7 @@ class QM9SmilesDatum:
 
         return any([
             self.mol.HasSubstructMatch(p)
-            for p in QM9SmilesDatum.hetero_bond_patterns
+            for p in hetero_bond_patterns
         ])
 
 
@@ -449,7 +519,7 @@ class QMXDataset(_BaseCore):
                 continue
 
             self.raw[qm9_id] = QM9SmilesDatum(
-                smiles, other_props, xyzs, elements, zwitter
+                smiles, other_props, xyzs, elements, zwitter, qm9_id
             )
 
         dlog.info(f"Total number of data points: {len(self.raw)}")
