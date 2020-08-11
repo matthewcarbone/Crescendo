@@ -272,28 +272,26 @@ def parse_QM8_electronic_properties(
     return (qm8_id, other)
 
 
-def read_qm8_elecronic_properties(qm8_path):
-    """Function for reading Electronic properties for QM8 files.
+def loadspectra(qm8_path):
+    """Function for loading Electronic properties for QM8 files.
 
-    Parameters
-    ----------
-    qm8_path : str
-        Absolute path to the file.
-
-    Returns
-    -------
-    int, list[float]
-        The QM8 ID and list of properties (list[float]).
-    """
-
+        Parameters
+        ----------
+        qm8_path : str
+            Absolute path to the file.
+        """
+        
+    QM8_data=dict()
     with open(qm8_path, 'r') as file:
         line = '#'
         while '#' in line:
             line = file.readline()
-        qm8_id, props = \
-            parse_QM8_electronic_properties(line.split())
-
-    return (qm8_id, props)
+        while line != '':
+            qm8_id, props = \
+                parse_QM8_electronic_properties(line.split())
+            QM8_data[qm8_id]=props
+            line=file.readline()
+    return QM8_data
 
 
 def parse_QM9_scalar_properties(
