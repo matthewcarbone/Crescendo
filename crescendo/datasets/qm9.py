@@ -272,27 +272,6 @@ def parse_QM8_electronic_properties(
     return (qm8_id, other)
 
 
-def loadspectra(qm8_path):
-    """Function for loading Electronic properties for QM8 files.
-
-        Parameters
-        ----------
-        qm8_path : str
-            Absolute path to the file.
-        """
-        
-    QM8_data=dict()
-    with open(qm8_path, 'r') as file:
-        line = '#'
-        while '#' in line:
-            line = file.readline()
-        while line != '':
-            qm8_id, props = \
-                parse_QM8_electronic_properties(line.split())
-            QM8_data[qm8_id]=props
-            line=file.readline()
-    return QM8_data
-
 
 def parse_QM9_scalar_properties(
     props,
@@ -521,6 +500,29 @@ class QMXDataset(_BaseCore):
             )
 
         dlog.info(f"Total number of data points: {len(self.raw)}")
+
+    
+    
+    def loadspectra(self,qm8_path):
+        """Function for loading Electronic properties for QM8 files.
+        
+        Parameters
+        ----------
+        qm8_path : str
+        Absolute path to the file.
+        """
+        
+        self.spectra=dict()
+        with open(qm8_path, 'r') as file:
+            line = '#'
+            while '#' in line:
+                line = file.readline()
+            while line != '':
+                qm8_id, props = \
+                    parse_QM8_electronic_properties(line.split())
+                self.spectra[qm8_id]=props
+                line=file.readline()
+        
 
     
     def analyze(self,n=None):
