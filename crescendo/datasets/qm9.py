@@ -272,29 +272,6 @@ def parse_QM8_electronic_properties(
     return (qm8_id, other)
 
 
-def read_qm8_elecronic_properties(qm8_path):
-    """Function for reading Electronic properties for QM8 files.
-
-    Parameters
-    ----------
-    qm8_path : str
-        Absolute path to the file.
-
-    Returns
-    -------
-    int, list[float]
-        The QM8 ID and list of properties (list[float]).
-    """
-
-    with open(qm8_path, 'r') as file:
-        line = '#'
-        while '#' in line:
-            line = file.readline()
-        qm8_id, props = \
-            parse_QM8_electronic_properties(line.split())
-
-    return (qm8_id, props)
-
 
 def parse_QM9_scalar_properties(
     props,
@@ -524,10 +501,67 @@ class QMXDataset(_BaseCore):
 
         dlog.info(f"Total number of data points: {len(self.raw)}")
 
-    def analyze(self):
-        """Performs the analysis of the currently loaded QM9 Dataset."""
+    
+    
+    def loadspectra(self,qm8_path):
+        """Function for loading Electronic properties for QM8 files.
+        
+        Parameters
+        ----------
+        qm8_path : str
+        Absolute path to the file.
+        """
+        
+        self.spectra=dict()
+        with open(qm8_path, 'r') as file:
+            line = '#'
+            while '#' in line:
+                line = file.readline()
+            while line != '':
+                qm8_id, props = \
+                    parse_QM8_electronic_properties(line.split())
+                self.spectra[qm8_id]=props
+                line=file.readline()
+        
 
-        raise NotImplementedError
+    
+    def analyze(self,n=None):
+        """Performs the analysis of the currently loaded QM9 Dataset.
+        
+        Parameters
+        ----------
+        n : int, optional
+            The size of the rings it checking the data set for
+
+        Returns
+        -------
+        A Dictionary containing the amount of molecules containing each structure contained in the loaded data
+            Current Structures
+                aramotic
+                double bonds
+                triple bonds
+                hetero bonds
+                n membered rings
+        """
+        analysis= {
+            'num_aromatic':0,
+            'num_double_bond':0,
+            'num_triple_bond':0,
+            'num_hetero_bond':0,
+            'num_n_membered_ring':0
+            }
+        for qmx_id in self.raw:
+            if self.raw[qmx_id].is_aromatic():
+                analysis['num_aromatic']+=1
+            if self.raw[qmx_id].has_double_bond():
+                analysis['num_double_bond']+=1
+            if self.raw[qmx_id].has_triple_bond():
+                analysis['num_triple_bond']+=1
+            if self.raw[qmx_id].has_hetero_bond():
+                analysis['num_hetero_bond']+=1
+            if self.raw[qmx_id].has_n_membered_ring(n):
+                analysis['num_n_membered_ring']+=1
+        return analysis
 
     def featurize(self):
         """This method is the workhorse of the QMXLoader. It will featurize

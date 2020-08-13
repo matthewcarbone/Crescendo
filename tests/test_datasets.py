@@ -9,3 +9,11 @@ class TestQMXDataset:
     def test_load(self):
         ds = QMXDataset()
         ds.load("data/qm9_test_data")
+        
+        
+    def test_loadspectra(self):
+        qm8_test = QMXDataset()
+        qm8_test.loadspectra("data/qm8_test_data.txt")
+        S1= qm8_test.spectra[1]
+        assert S1 == [0.43295186, 0.40993872, 0.1832, 0.1832]
+            
