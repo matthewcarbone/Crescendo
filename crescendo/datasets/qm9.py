@@ -2,12 +2,23 @@
 
 """Module for loading in data from the QM9 database."""
 
+import os as os
+import pickle as pickle
 from dgl import DGLGraph
 import glob2
 from ntpath import basename
 import numpy as np
 from rdkit import Chem
 import torch
+
+from typing import List
+
+try:
+    # Used for to_pmg_molecule method
+    import pymatgen.core.structure as pmgstruc
+    _pmg_present = True
+except ImportError:
+    _pmg_present = False
 
 from crescendo.utils.logger import logger_default as dlog
 from crescendo.datasets.base import _BaseCore
@@ -142,7 +153,7 @@ class QM9SmilesDatum:
 
         return g
 
-    def has_n_membered_ring(self, n=None):
+    def has_n_membered_ring(self, n=None) -> bool:
         """Returns True if the mol attribute (the molecule object in rdkit
         representing the Smiles string) has an n-membered ring.
 
@@ -162,7 +173,7 @@ class QM9SmilesDatum:
         n = '' if n is None else n
         return self.mol.HasSubstructMatch(Chem.MolFromSmarts(f'[r{n}]'))
 
-    def is_aromatic(self):
+    def is_aromatic(self)->bool:
         """If the molecule has any aromatic pattern, returns True, else
         returns False. This is checked by trying to locate the substructure
         match for the string '[a]'.
@@ -174,7 +185,7 @@ class QM9SmilesDatum:
 
         return self.mol.HasSubstructMatch(aromatic_pattern)
 
-    def has_double_bond(self):
+    def has_double_bond(self) -> bool:
         """Checks the molecule for double bonds. Note that by default this
         method assumes the data point is from QM9, and only checks the
         atoms capable of forming double bonds in QM9, so, it will only check
@@ -190,7 +201,7 @@ class QM9SmilesDatum:
             for p in double_bond_patterns
         ])
 
-    def has_triple_bond(self):
+    def has_triple_bond(self) -> bool:
         """Checks the molecule for triple bonds. Note that by default this
         method assumes the data point is from QM9, and only checks the
         atoms capable of forming triple bonds in QM9, so, it will only check
@@ -221,6 +232,28 @@ class QM9SmilesDatum:
             self.mol.HasSubstructMatch(p)
             for p in hetero_bond_patterns
         ])
+
+    def to_pmg_molecule(self):
+        """
+        Convenience method which turns the current QM9 datum
+        into a Pymatgen Molecule, which can be processed further
+        in other useful ways due to that classes' built-in
+        methods.
+        """
+        return pmgstruc.Molecule(species=self.elements, coords=self.xyz)
+
+    def as_dict(self) -> dict:
+        """
+        Convenience method which turns the current QM9 datum
+        into a dictionary formatted by the attributes of the object.
+        Can be used for serialization or de-serialization in a JSON
+        format.
+        """
+        return dict(vars(self))
+
+    @staticmethod
+    def from_dict(dictionary):
+        return QM9SmilesDatum(**dictionary)
 
 
 def parse_QM8_electronic_properties(
@@ -376,6 +409,58 @@ def read_qm9_xyz(xyz_path, canonical=True):
 
     return (qm9_id, _smiles, other_props, xyzs, elements, zwitter)
 
+
+def generate_qm9_pickle(qm9_directory:str = None,
+                        write_loc: str = './qm9_data.pickle',
+                        custom_range: List[int] = None) -> List:
+    """
+    Given a path to the QM9 directory, creates and writes a .pickle file
+    representing the entire QM9 database.
+
+    Parameters
+    ----------
+    qm9_directory: Location of QM9 database files. Can load from path.
+    write_loc: Where pickle file should be written.
+    custom_range: Subset of integers to selectively load in.
+
+    Returns
+    -------
+    List of QM9 molecules formatted by the read_qm9_xyz function.
+    """
+
+    if qm9_directory is None:
+        qm9_directory = os.environ.get("QM9_FILES", None)
+        if qm9_directory is None:
+            error_msg = "No path specified for QM9 directory, either "\
+                       "as argument or environment variable $QM9_FILES."
+
+            dlog.error(error_msg)
+            raise ValueError(error_msg)
+
+    entries = glob2.glob(qm9_directory + "/*.xyz")
+
+    if custom_range:
+        prefix = 'dsgdb9nsd_'
+        suffix = '.xyz'
+        # Isolate the numbers of available QM9 values
+        entry_numbers = {int(entry.split('_')[1].split('.')[0]) for entry in
+                        entries}
+        use_numbers = entry_numbers.intersection(set(custom_range))
+        to_use_entries = [prefix + str(entry).zfill(6) + suffix for entry in
+                          use_numbers]
+    else:
+        to_use_entries = entries
+
+    molecules = []
+    for ent in to_use_entries:
+        mol_path = os.path.join(qm9_directory, ent)
+        molecules.append(read_qm9_xyz(mol_path))
+
+    if write_loc:
+        with open(write_loc, 'wb') as f:
+            pickle.dump(molecules, f)
+
+    return molecules
 
 class QMXDataset(_BaseCore):
     """Container for the QMX data, where X is some integer. Although not the
@@ -563,8 +648,19 @@ class QMXDataset(_BaseCore):
                 analysis['num_n_membered_ring']+=1
         return analysis
 
-    def featurize(self):
+    def featurize(self, featurizer):
         """This method is the workhorse of the QMXLoader. It will featurize
         the raw data depending on the user settings."""
 
         raise NotImplementedError
+
+    def write_file(self, filename: str = 'QMdb', format: str = 'pickle'):
+        """
+        Write dataset into serialized form for later access.
+        """
+        if format in ['pickle', 'pckl', 'binary']:
+            if len(filename.split('.')) == 1:
+                filename += '.pickle'
+            pickle.dump(self, open(filename, "wb"))
+        else:
+            raise ValueError("Your specified format is not supported.")
