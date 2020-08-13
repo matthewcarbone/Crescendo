@@ -12,7 +12,7 @@ from crescendo.featurizers.base import Featurizer
 _spread_map = {"H": 0.53, "C": 0.67, "N": 0.56, "O": 0.48, "F": 0.42, "S": 0.88}
 
 
-class PdfFeaturizer(object):
+class PdfFeaturizer:
     def featurize(
         xyz: np.ndarray,
         elements: List[str],
