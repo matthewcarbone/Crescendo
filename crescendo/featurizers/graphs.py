@@ -62,6 +62,15 @@ def mol_to_graph_via_DGL(mol, atom_feature_list, bond_feature_list):
     # Iterate through all nodes (atoms) and assign various features.
     all_node_features = []
     for atom_index in range(n_atoms):
+
+        # In the case in which the user wants no atomic information specified,
+        # we simply append the same value for every atom, which is the same
+        # as including no information at all, but this way it is still
+        # compatible with the DGL architecture.
+        if len(atom_feature_list) == 0:
+            all_node_features.append([0])
+            continue
+
         atom_features = []
         atom = mol.GetAtomWithIdx(atom_index)
 
@@ -83,6 +92,11 @@ def mol_to_graph_via_DGL(mol, atom_feature_list, bond_feature_list):
     # assign the edge features.
     all_edge_features = []
     for bond_index in range(n_bonds):
+
+        if len(bond_feature_list) == 0:
+            all_edge_features.extend([[0], [0]])
+            continue
+
         bond_features = []
         bond = mol.GetBondWithIdx(bond_index)
         bond_type = bond_type_map.get(bond.GetBondType(), 0)
