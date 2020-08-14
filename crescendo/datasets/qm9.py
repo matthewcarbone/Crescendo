@@ -56,6 +56,7 @@ hybridization_map = {
 class QM9SmilesDatum:
     """Functions for determining structures from a smiles input using rdkit
     chem.
+
     Current Structure types
         .ring -contains any ring
         .ring5 -contains a 5 atom ring
@@ -173,7 +174,7 @@ class QM9SmilesDatum:
         n = '' if n is None else n
         return self.mol.HasSubstructMatch(Chem.MolFromSmarts(f'[r{n}]'))
 
-    def is_aromatic(self)->bool:
+    def is_aromatic(self) -> bool:
         """If the molecule has any aromatic pattern, returns True, else
         returns False. This is checked by trying to locate the substructure
         match for the string '[a]'.
@@ -217,7 +218,7 @@ class QM9SmilesDatum:
             for p in triple_bond_patterns
         ])
 
-    def has_hetero_bond(self):
+    def has_hetero_bond(self) -> bool:
         """Checks the molecule for heter bonds. Note that by default this
         method assumes the data point is from QM9, and only checks the
         atoms capable of forming hetero bonds in QM9, so, it will only check
@@ -234,21 +235,17 @@ class QM9SmilesDatum:
         ])
 
     def to_pmg_molecule(self):
-        """
-        Convenience method which turns the current QM9 datum
-        into a Pymatgen Molecule, which can be processed further
-        in other useful ways due to that classes' built-in
-        methods.
+        """Convenience method which turns the current QM9 datum into a Pymatgen
+        Molecule, which can be processed further in other useful ways due to
+        that classes' built-in methods.
         """
         return pmgstruc.Molecule(species=self.elements, coords=self.xyz)
 
     def as_dict(self) -> dict:
-        """
-        Convenience method which turns the current QM9 datum
-        into a dictionary formatted by the attributes of the object.
-        Can be used for serialization or de-serialization in a JSON
-        format.
-        """
+        """Convenience method which turns the current QM9 datum into a
+        dictionary formatted by the attributes of the object. Can be used for
+        serialization or de-serialization in a JSON format."""
+
         return dict(vars(self))
 
     @staticmethod
@@ -303,7 +300,6 @@ def parse_QM8_electronic_properties(
         if ii in selected_properties
     ]
     return (qm8_id, other)
-
 
 
 def parse_QM9_scalar_properties(
@@ -410,18 +406,21 @@ def read_qm9_xyz(xyz_path, canonical=True):
     return (qm9_id, _smiles, other_props, xyzs, elements, zwitter)
 
 
-def generate_qm9_pickle(qm9_directory:str = None,
-                        write_loc: str = './qm9_data.pickle',
-                        custom_range: List[int] = None) -> List:
-    """
-    Given a path to the QM9 directory, creates and writes a .pickle file
+def generate_qm9_pickle(
+    qm9_directory: str = None, write_loc: str = './qm9_data.pickle',
+    custom_range: List[int] = None
+) -> List:
+    """Given a path to the QM9 directory, creates and writes a .pickle file
     representing the entire QM9 database.
 
     Parameters
     ----------
-    qm9_directory: Location of QM9 database files. Can load from path.
-    write_loc: Where pickle file should be written.
-    custom_range: Subset of integers to selectively load in.
+    qm9_directory : str
+        Location of QM9 database files. Can load from path.
+    write_loc : str
+        Where pickle file should be written.
+    custom_range : list
+        Subset of integers to selectively load in.
 
     Returns
     -------
@@ -431,23 +430,27 @@ def generate_qm9_pickle(qm9_directory:str = None,
     if qm9_directory is None:
         qm9_directory = os.environ.get("QM9_FILES", None)
         if qm9_directory is None:
-            error_msg = "No path specified for QM9 directory, either "\
-                       "as argument or environment variable $QM9_FILES."
-
+            error_msg = \
+                "No path specified for QM9 directory, either " \
+                "as argument or environment variable $QM9_FILES."
             dlog.error(error_msg)
             raise ValueError(error_msg)
 
     entries = glob2.glob(qm9_directory + "/*.xyz")
 
-    if custom_range:
+    if custom_range is not None:
         prefix = 'dsgdb9nsd_'
         suffix = '.xyz'
         # Isolate the numbers of available QM9 values
-        entry_numbers = {int(entry.split('_')[1].split('.')[0]) for entry in
-                        entries}
+        entry_numbers = {
+            int(entry.split('_')[1].split('.')[0]) for entry in entries
+        }
         use_numbers = entry_numbers.intersection(set(custom_range))
-        to_use_entries = [prefix + str(entry).zfill(6) + suffix for entry in
-                          use_numbers]
+        to_use_entries = [
+            prefix + str(entry).zfill(6) + suffix for entry in
+            use_numbers
+        ]
+
     else:
         to_use_entries = entries
 
@@ -461,6 +464,7 @@ def generate_qm9_pickle(qm9_directory:str = None,
             pickle.dump(molecules, f)
 
     return molecules
+
 
 class QMXDataset(_BaseCore):
     """Container for the QMX data, where X is some integer. Although not the
@@ -586,18 +590,17 @@ class QMXDataset(_BaseCore):
 
         dlog.info(f"Total number of data points: {len(self.raw)}")
 
-    
-    
-    def loadspectra(self,qm8_path):
+    def load_spectra(self, qm8_path):
         """Function for loading Electronic properties for QM8 files.
-        
+
         Parameters
         ----------
         qm8_path : str
-        Absolute path to the file.
+            Absolute path to the file containing the spectral information
+            in the QM8 database.
         """
-        
-        self.spectra=dict()
+
+        self.spectra = dict()
         with open(qm8_path, 'r') as file:
             line = '#'
             while '#' in line:
@@ -605,14 +608,12 @@ class QMXDataset(_BaseCore):
             while line != '':
                 qm8_id, props = \
                     parse_QM8_electronic_properties(line.split())
-                self.spectra[qm8_id]=props
-                line=file.readline()
-        
+                self.spectra[qm8_id] = props
+                line = file.readline()
 
-    
-    def analyze(self,n=None):
+    def analyze(self, n=None):
         """Performs the analysis of the currently loaded QM9 Dataset.
-        
+
         Parameters
         ----------
         n : int, optional
@@ -620,7 +621,8 @@ class QMXDataset(_BaseCore):
 
         Returns
         -------
-        A Dictionary containing the amount of molecules containing each structure contained in the loaded data
+        A Dictionary containing the amount of molecules containing each
+        structure contained in the loaded data
             Current Structures
                 aramotic
                 double bonds
@@ -628,24 +630,27 @@ class QMXDataset(_BaseCore):
                 hetero bonds
                 n membered rings
         """
-        analysis= {
-            'num_aromatic':0,
-            'num_double_bond':0,
-            'num_triple_bond':0,
-            'num_hetero_bond':0,
-            'num_n_membered_ring':0
+
+        analysis = {
+            'num_aromatic': 0,
+            'num_double_bond': 0,
+            'num_triple_bond': 0,
+            'num_hetero_bond': 0,
+            'num_n_membered_ring': 0
             }
+
         for qmx_id in self.raw:
             if self.raw[qmx_id].is_aromatic():
-                analysis['num_aromatic']+=1
+                analysis['num_aromatic'] += 1
             if self.raw[qmx_id].has_double_bond():
-                analysis['num_double_bond']+=1
+                analysis['num_double_bond'] += 1
             if self.raw[qmx_id].has_triple_bond():
-                analysis['num_triple_bond']+=1
+                analysis['num_triple_bond'] += 1
             if self.raw[qmx_id].has_hetero_bond():
-                analysis['num_hetero_bond']+=1
+                analysis['num_hetero_bond'] += 1
             if self.raw[qmx_id].has_n_membered_ring(n):
-                analysis['num_n_membered_ring']+=1
+                analysis['num_n_membered_ring'] += 1
+
         return analysis
 
     def featurize(self, featurizer):
@@ -654,13 +659,17 @@ class QMXDataset(_BaseCore):
 
         raise NotImplementedError
 
-    def write_file(self, filename: str = 'QMdb', format: str = 'pickle'):
-        """
-        Write dataset into serialized form for later access.
-        """
-        if format in ['pickle', 'pckl', 'binary']:
+    def write_file(self, filename: str = 'QMdb', fmt: str = 'pickle'):
+        """Write dataset into serialized form for later access."""
+
+        if fmt in ['pickle', 'pckl', 'pkl', 'binary']:
             if len(filename.split('.')) == 1:
-                filename += '.pickle'
-            pickle.dump(self, open(filename, "wb"))
+                filename = f'{filename}.pkl'
+            pickle.dump(
+                self, open(filename, "wb"), protocol=pickle.HIGHEST_PROTOCOL
+            )
+
         else:
-            raise ValueError("Your specified format is not supported.")
+            critical = f"Your specified format {fmt} is not supported."
+            dlog.critical(critical)
+            raise ValueError(critical)
