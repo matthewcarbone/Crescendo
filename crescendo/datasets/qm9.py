@@ -4,12 +4,10 @@
 
 import os as os
 import pickle as pickle
-from dgl import DGLGraph
 import glob2
 from ntpath import basename
 import numpy as np
 from rdkit import Chem
-import torch
 
 from typing import List
 
@@ -23,6 +21,7 @@ except ImportError:
 from crescendo.utils.logger import logger_default as dlog
 from crescendo.datasets.base import _BaseCore
 from crescendo.utils.timing import time_func
+from crescendo.featurizers.graphs import mol_to_graph_via_DGL
 
 
 aromatic_pattern = Chem.MolFromSmarts('[a]')
@@ -42,15 +41,6 @@ hetero_bond_patterns = [
     Chem.MolFromSmarts('C~O'), Chem.MolFromSmarts('C~N'),
     Chem.MolFromSmarts('N~O')
 ]
-
-# Only some atoms are allowed in the QM9 database
-atom_symbols_map = {'H': 1, 'C': 2, 'N': 3, 'O': 4, 'F': 5}
-
-hybridization_map = {
-    Chem.rdchem.HybridizationType.SP: 1,
-    Chem.rdchem.HybridizationType.SP2: 2,
-    Chem.rdchem.HybridizationType.SP3: 3
-}
 
 
 class QM9SmilesDatum:
@@ -93,66 +83,15 @@ class QM9SmilesDatum:
         self.qm9_id = qm9_id
 
     def to_graph(
-        self,
-        atom_type=True,
-        hybridization=True
+        self, atom_feature_list=['type', 'hybridization'],
+        bond_feature_list=['type']
     ):
-        """Initializes the graph attribute of the molecule object.
+        """Initializes the graph attribute of the molecule object. See
+        crescendo.featurizer.graphs.mol_to_graph_via_DGL for more details."""
 
-        Parameters
-        ----------
-        atom_type : bool
-            If True, include the atom type in node features. Default is True.
-        hybridization : bool
-            If True, include the hybridization type in the node features.
-            Default is True.
-
-        Returns
-        -------
-        DGLGraph
-        """
-
-        g = DGLGraph()
-        n_atoms = self.mol.GetNumAtoms()
-        n_bonds = self.mol.GetNumBonds()
-        g.add_nodes(n_atoms)
-
-        # In this initial stage, we construct the actual graph by connecting
-        # nodes via the edges corresponding to molecular bonds.
-        for bond_index in range(n_bonds):
-            bond = self.mol.GetBondWithIdx(bond_index)
-            u = bond.GetBeginAtomIdx()
-            v = bond.GetEndAtomIdx()
-
-            # DGL graphs are by default *directed*. We make this an undirected
-            # graph by adding "edges" in both directions, meaning u -> v and
-            # v -> u.
-            g.add_edges([u, v], [v, u])
-
-        # Iterate through all nodes (atoms) and assign various features.
-        all_features = []
-        for atom_index in range(n_atoms):
-            atom_features = []
-            atom = self.mol.GetAtomWithIdx(atom_index)
-
-            # Append the atom type to the feature vector
-            if atom_type:
-                atom_features.append(atom_symbols_map.get(
-                    atom.GetSymbol(), 0)
-                )
-
-            # Append the atom hybridization to the feature vector
-            if hybridization:
-                atom_features.append(hybridization_map.get(
-                    atom.GetHybridization(), 0)
-                )
-
-            all_features.append(atom_features)
-
-        if len(all_features) != 0:
-            g.ndata['features'] = torch.LongTensor(all_features)
-
-        return g
+        return mol_to_graph_via_DGL(
+            self.mol, atom_feature_list, bond_feature_list
+        )
 
     def has_n_membered_ring(self, n=None) -> bool:
         """Returns True if the mol attribute (the molecule object in rdkit
@@ -237,8 +176,8 @@ class QM9SmilesDatum:
     def to_pmg_molecule(self):
         """Convenience method which turns the current QM9 datum into a Pymatgen
         Molecule, which can be processed further in other useful ways due to
-        that classes' built-in methods.
-        """
+        that classes' built-in methods."""
+
         return pmgstruc.Molecule(species=self.elements, coords=self.xyz)
 
     def as_dict(self) -> dict:
