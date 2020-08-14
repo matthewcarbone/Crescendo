@@ -21,7 +21,8 @@ except ImportError:
 from crescendo.utils.logger import logger_default as dlog
 from crescendo.datasets.base import _BaseCore
 from crescendo.utils.timing import time_func
-from crescendo.featurizers.graphs import mol_to_graph_via_DGL
+from crescendo.featurizers.graphs import mol_to_graph_via_DGL, \
+    get_number_of_classes_per_feature
 
 
 aromatic_pattern = Chem.MolFromSmarts('[a]')
@@ -413,6 +414,7 @@ class QMXDataset(_BaseCore):
     def __init__(self, *args, debug=-1, **kwargs):
         super().__init__(*args, **kwargs)
         self.raw = dict()
+        self.featurized = dict()
         self.debug = debug
 
     @property
@@ -592,11 +594,30 @@ class QMXDataset(_BaseCore):
 
         return analysis
 
-    def featurize(self, featurizer):
+    def featurize(self, featurizer, **kwargs):
         """This method is the workhorse of the QMXLoader. It will featurize
         the raw data depending on the user settings."""
 
-        raise NotImplementedError
+        if featurizer == 'to_graph':
+
+            # Get the number of classes per feature, used in initializing
+            # the MPNN later.
+            atom_f_list = kwargs['atom_feature_list']
+            bond_f_list = kwargs['bond_feature_list']
+            n_class_per_feature = get_number_of_classes_per_feature(
+                atom_f_list, bond_f_list
+            )
+
+            # Convert every object in self.raw -> graphs
+            return {
+                _id: datum.to_graph(atom_f_list, bond_f_list)
+                for _id, datum in self.raw.items()
+            }, n_class_per_feature
+
+        else:
+            critical = f"Unknown featurizer: {featurizer}"
+            dlog.critical(critical)
+            raise RuntimeError(critical)
 
     def write_file(self, filename: str = 'QMdb', fmt: str = 'pickle'):
         """Write dataset into serialized form for later access."""

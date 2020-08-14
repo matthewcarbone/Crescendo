@@ -26,6 +26,33 @@ bond_type_map = {
 }
 
 
+def get_number_of_classes_per_feature(atom_feature_list, bond_feature_list):
+    """A simple helper that returns the number of possible class options per
+    choice of feature. For example for bond_types, there are actually four
+    classes: single, double, triple and unknown. This helper simply indexes
+    the number of choices for atom and bond features, as it is necessary
+    for initializing the MPNN. The order of the entries in the list must
+    correspond to that in mol_to_graph_via_DGL."""
+
+    if len(atom_feature_list) == 0:
+        node_options = [1]
+    else:
+        node_options = []
+        if 'type' in atom_feature_list:
+            node_options.append(len(atom_symbols_map) + 1)
+        if 'hybridization' in atom_feature_list:
+            node_options.append(len(hybridization_map) + 1)
+
+    if len(bond_feature_list) == 0:
+        edge_options = [1]
+    else:
+        edge_options = []
+        if 'type' in bond_feature_list:
+            edge_options.append(len(bond_type_map) + 1)
+
+    return node_options, edge_options
+
+
 def mol_to_graph_via_DGL(mol, atom_feature_list, bond_feature_list):
     """Converts a rdkit.Chem.mol object into a graph using DGL.
 
