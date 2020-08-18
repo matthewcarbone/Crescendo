@@ -423,6 +423,7 @@ class QMXDataset(_BaseCore):
     def __init__(self, *args, debug=-1, **kwargs):
         super().__init__(*args, **kwargs)
         self.raw = dict()
+        self.qm8_electronic_properties = None
         self.featurized = dict()
         self.debug = debug
 
@@ -535,25 +536,26 @@ class QMXDataset(_BaseCore):
 
         dlog.info(f"Total number of data points: {len(self.raw)}")
 
-    def load_spectra(self, qm8_path):
+    def load_qm8_electronic_properties(self, path):
         """Function for loading Electronic properties for QM8 files.
 
         Parameters
         ----------
-        qm8_path : str
+        path : str
             Absolute path to the file containing the spectral information
             in the QM8 database.
         """
 
-        self.spectra = dict()
-        with open(qm8_path, 'r') as file:
+        self.qm8_electronic_properties = dict()
+
+        with open(path, 'r') as file:
             line = '#'
             while '#' in line:
                 line = file.readline()
             while line != '':
                 qm8_id, props = \
                     parse_QM8_electronic_properties(line.split())
-                self.spectra[qm8_id] = props
+                self.qm8_electronic_properties[qm8_id] = props
                 line = file.readline()
 
     def analyze(self, n=None):
