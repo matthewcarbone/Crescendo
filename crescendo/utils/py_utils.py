@@ -16,3 +16,18 @@ def flatten_list(full_list):
     """
 
     return [item for sublist in full_list for item in sublist]
+
+
+def intersection(list1, list2):
+    """Returns the intersection of two lists.
+
+    Parameters
+    ----------
+    list1, list2 : list
+
+    Returns
+    -------
+    list
+    """
+
+    return list(set(list1) & set(list2))
