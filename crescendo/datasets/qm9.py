@@ -44,6 +44,21 @@ hetero_bond_patterns = [
 ]
 
 
+def check_for_qm9_environment_variable():
+    """Checks the os.environ dictionary for the QM9_DATA_PATH environment
+    variable. If it exists, returns the path, else raises a ValueError and
+    logs a critical level error to the logger."""
+
+    qm9_directory = os.environ.get("QM9_DATA_PATH", None)
+    if qm9_directory is None:
+        error_msg = \
+            "No path specified for QM9 directory, either " \
+            "as argument or environment variable $QM9_DATA_PATH."
+        dlog.critical(error_msg)
+        raise RuntimeError(error_msg)
+    return qm9_directory
+
+
 class QM9SmilesDatum:
     """Functions for determining structures from a smiles input using rdkit
     chem.
@@ -368,13 +383,7 @@ def generate_qm9_pickle(
     """
 
     if qm9_directory is None:
-        qm9_directory = os.environ.get("QM9_FILES", None)
-        if qm9_directory is None:
-            error_msg = \
-                "No path specified for QM9 directory, either " \
-                "as argument or environment variable $QM9_FILES."
-            dlog.error(error_msg)
-            raise ValueError(error_msg)
+        qm9_directory = check_for_qm9_environment_variable()
 
     entries = glob2.glob(qm9_directory + "/*.xyz")
 
@@ -418,16 +427,6 @@ class QMXDataset(_BaseCore):
         self.debug = debug
 
     @property
-    def geometry_path(self):
-        return self._geometry_path
-
-    @geometry_path.setter
-    def geometry_path(self, p):
-        assert isinstance(p, str)
-        dlog.info(f"Geometry path set to {p}")
-        self._geometry_path = p
-
-    @property
     def max_heavy_atoms(self):
         return self._max_heavy_atoms
 
@@ -461,7 +460,7 @@ class QMXDataset(_BaseCore):
     @time_func(dlog)
     def load(
         self,
-        path,
+        path=None,
         max_heavy_atoms=9,
         keep_zwitter=False,
         canonical=True,
@@ -475,7 +474,9 @@ class QMXDataset(_BaseCore):
         path : str
             Path to the directory containing the qm9 .xyz files. For instance,
             if your xyz files are in directory /Users/me/data, then that should
-            be the path.
+            be the path. If path is None by default, it will check the
+            os.environ dictionary for QM9_DATA_PATH, and if that does not
+            exist, it will throw an error.
         max_heavy_atoms : int
             Maximum number of total heavy atoms (C, N, O, F) allowed in the
             dataset. By default, QM9 allows for... wait for it... 9 heavy
@@ -489,7 +490,10 @@ class QMXDataset(_BaseCore):
             If True, will use the canonical SMILES codes. Default is True.
         """
 
-        self.geometry_path = path
+        if path is None:
+            path = check_for_qm9_environment_variable()
+        dlog.info(f"Loading QM9 from {path}")
+
         self.max_heavy_atoms = max_heavy_atoms
         self.keep_zwitter = keep_zwitter
         self.canonical = canonical
