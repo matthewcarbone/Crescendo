@@ -10,6 +10,7 @@ import glob2
 from ntpath import basename
 import numpy as np
 from rdkit import Chem
+from rdkit.Chem.Descriptors import MolWt
 import torch
 
 try:
@@ -70,6 +71,10 @@ class QM9SmilesDatum:
     >>> d = QM9SmilesDatum('C1=CC=CC=C1')
     >>> d.is_aromatic()
     True
+
+    Attributes
+    ----------
+    TODO
     """
 
     def __init__(self, smiles, other_props, xyz, elements, zwitter, qm9_id):
@@ -82,6 +87,7 @@ class QM9SmilesDatum:
 
         self.smiles = smiles
         self.mol = Chem.MolFromSmiles(smiles)
+        self.mw = MolWt(self.mol)
         self.other_props = other_props
         self.xyz = xyz
         self.elements = elements
@@ -419,12 +425,12 @@ class QMXDataset(torch.utils.data.Dataset):
         Default as None, this is initialized by the
         load_qm8_electronic_properties, which loads in the qm8 electronic
         properties from a specified path and stores them, again by QM9 ID.
-    featurized : dict
-        A result of the featurize method. This will always be a dictionary,
-        once again indexed by QM9 ID, of lists, where each list has 3 entries,
-        [feature, target, metadata]. The format of these features, targets and
-        metadata will of course depend on the type of featurizer the user
-        specifies.
+    ml_ready : list
+        A result of the featurize method. This will always be a list of lists,
+        where each list has 3 entries, [feature, target, metadata]. The format
+        of these features, targets and metadata will of course depend on the
+        type of featurizer the user specifies. The metadata will tend to be
+        some combination of an identifier and perhaps other information.
     debug : int
         Default as -1, the debug flag simply indexes the max number of
         geometries to load. Will load all by default (indicated by -1).
@@ -438,7 +444,7 @@ class QMXDataset(torch.utils.data.Dataset):
         super().__init__(*args, **kwargs)
         self.raw = dict()
         self.qm8_electronic_properties = None
-        self.featurized = dict()
+        self.ml_data = None
         self.debug = debug
         self.n_class_per_feature = None
 
@@ -622,9 +628,13 @@ class QMXDataset(torch.utils.data.Dataset):
 
         return analysis
 
+    @staticmethod
+    def collating_function_graph_to_vector(batch):
+        """Collates the """
+
     @time_func(dlog)
     def _qm8_EP_featurizer(self, atom_f_list, bond_f_list):
-        """constructs the featurized dictionary by pairing QM9 structures with
+        """constructs the ml_ready list by pairing QM9 structures with
         the corresponding electronic properties as read in by the
         load_qm8_electronic_properties method. Requires atom_feature_list and
         bond_feature_list as kwargs (in featurizer) and stores an attribute
@@ -660,22 +670,22 @@ class QMXDataset(torch.utils.data.Dataset):
             f"Storing self.n_class_per_feature: {self.n_class_per_feature}"
         )
 
-        self.featurized = {
-            _id: [
-                self.raw[_id].to_graph(atom_f_list, bond_f_list),
-                self.qm8_electronic_properties[_id],
-                None
+        self.ml_data = [
+                (
+                    self.raw[_id].to_graph(atom_f_list, bond_f_list),
+                    self.qm8_electronic_properties[_id], int(_id)
+                ) for _id in ids_to_featurize
             ]
-            for _id in ids_to_featurize
-        }
+
         dlog.info(
-            "Initialized `self.featurized` of length "
-            f"{len(self.featurized)}"
+            "Initialized `self.ml_data` of length "
+            f"{len(self.ml_data)}"
         )
 
-    def pair(self, featurizer, **kwargs):
+    def ml_ready(self, featurizer, **kwargs):
         """This method is the workhorse of the QMXLoader. It will featurize
-        the raw data depending on the user settings.
+        the raw data depending on the user settings. Also based on the
+        featurizer, it will construct the appropriate data loader objects.
 
         Parameters
         ----------
@@ -683,6 +693,10 @@ class QMXDataset(torch.utils.data.Dataset):
             The featurizer options are described henceforth or in docstrings:
             * to_graph : temporary debugging, just returns graphs and metadata
             * qm8_EP : see _qm8_EP_featurizer
+        seed : int, optional
+            The most important seed step in the entire pipeline, as this
+            determines the train/validation/test split. It is used to seed the
+            sampler.
         """
 
         dlog.info(f"Attempting to run featurizer: {featurizer}")
@@ -712,6 +726,11 @@ class QMXDataset(torch.utils.data.Dataset):
             critical = f"Unknown featurizer: {featurizer}"
             dlog.critical(critical)
             raise RuntimeError(critical)
+
+    def get_splits(self, p_test, p_valid, seed=None, method='random'):
+        """Utilizes the DGL library or related code to split the self.ml_ready
+        attribute into test, validation and training splits."""
+        pass
 
     def write_file(self, filename: str = 'QMdb', fmt: str = 'pickle'):
         """Write dataset into serialized form for later access."""
