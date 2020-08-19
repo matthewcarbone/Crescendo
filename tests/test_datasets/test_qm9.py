@@ -29,6 +29,20 @@ class TestQMXDataset:
         ds.ml_data.sort(key=lambda x: x[2])  # sort by ID
         assert ds.ml_data[0][1] == [0.43295186, 0.40993872, 0.1832, 0.1832]
 
+    def test_to_dataloaders(self):
+        ds = QMXDataset()
+        ds.load("data/qm9_test_data")
+        ds.load_qm8_electronic_properties("data/qm8_test_data.txt")
+        ds.ml_ready(
+            'qm8_EP',
+            atom_feature_list=['type', 'hybridization'],
+            bond_feature_list=['type']
+        )
+        ds.get_data_loaders(
+            p_tvt=(0.1, 0.1, None), seed=1234, method='random',
+            batch_sizes=(32, 32, 32)
+        )
+
 
 @pytest.fixture
 def data():

@@ -51,7 +51,7 @@ def data():
 
 class TestAuxiliary:
 
-    def test_get_number_of_classes_per_feature(self):
+    def test_get_n_classes_per_feature(self):
         nf = get_number_of_classes_per_feature(None, None)
         node_options = nf[0]
         edge_options = nf[1]
