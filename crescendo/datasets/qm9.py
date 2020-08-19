@@ -21,7 +21,8 @@ except ImportError:
 from crescendo.utils.logger import logger_default as dlog
 from crescendo.datasets.base import _BaseCore
 from crescendo.utils.timing import time_func
-from crescendo.utils.py_utils import intersection
+from crescendo.utils.py_utils import intersection, \
+    check_for_environment_variable
 from crescendo.featurizers.graphs import mol_to_graph_via_DGL, \
     get_number_of_classes_per_feature
 
@@ -46,20 +47,6 @@ hetero_bond_patterns = [
 
 QM9_ENV_VAR = "QM9_DATA_PATH"
 QM8_EP_ENV_VAR = "QM8_EP_DATA_PATH"
-
-
-def check_for_environment_variable(var):
-    """Checks the os.environ dictionary for the specified environment
-    variable. If it exists, returns the path, else raises a ValueError and
-    logs a critical level error to the logger."""
-
-    qm9_directory = os.environ.get(var, None)
-    if qm9_directory is None:
-        error_msg = \
-            f"Environment variable {var} not found and no path specified"
-        dlog.critical(error_msg)
-        raise RuntimeError(error_msg)
-    return qm9_directory
 
 
 class QM9SmilesDatum:
