@@ -5,27 +5,23 @@
 import os as os
 from typing import List
 
-import pickle as pickle
+import dgl
 import glob2
 from ntpath import basename
 import numpy as np
+import pickle as pickle
+import pymatgen.core.structure as pmgstruc
 from rdkit import Chem
 from rdkit.Chem.Descriptors import MolWt
 import torch
 
-try:
-    # Used for to_pmg_molecule method
-    import pymatgen.core.structure as pmgstruc
-    _pmg_present = True
-except ImportError:
-    _pmg_present = False
-
-from crescendo.utils.logger import logger_default as dlog
-from crescendo.utils.timing import time_func
-from crescendo.utils.py_utils import intersection, \
-    check_for_environment_variable
 from crescendo.featurizers.graphs import mol_to_graph_via_DGL, \
     get_number_of_classes_per_feature
+from crescendo.samplers.base import Sampler
+from crescendo.utils.logger import logger_default as dlog
+from crescendo.utils.py_utils import intersection, \
+    check_for_environment_variable
+from crescendo.utils.timing import time_func
 
 
 aromatic_pattern = Chem.MolFromSmarts('[a]')
@@ -448,6 +444,12 @@ class QMXDataset(torch.utils.data.Dataset):
         self.debug = debug
         self.n_class_per_feature = None
 
+    def __getitem__(self, ii):
+        return self.ml_data[ii]
+
+    def __len__(self):
+        return len(self.ml_dat)
+
     @property
     def max_heavy_atoms(self):
         return self._max_heavy_atoms
@@ -630,7 +632,15 @@ class QMXDataset(torch.utils.data.Dataset):
 
     @staticmethod
     def collating_function_graph_to_vector(batch):
-        """Collates the """
+        """Collates the graph-fixed length vector combination. Recall that
+        in this case, each element of batch is a three vector containing the
+        graph, the target and the ID."""
+
+        _ids = torch.tensor([xx[2] for xx in batch]).long()
+        targets = torch.tensor([xx[1] for xx in batch]).float()
+        graphs = dgl.batch([xx[0] for xx in batch])
+
+        return (graphs, targets, _ids)
 
     @time_func(dlog)
     def _qm8_EP_featurizer(self, atom_f_list, bond_f_list):
@@ -727,10 +737,81 @@ class QMXDataset(torch.utils.data.Dataset):
             dlog.critical(critical)
             raise RuntimeError(critical)
 
-    def get_splits(self, p_test, p_valid, seed=None, method='random'):
-        """Utilizes the DGL library or related code to split the self.ml_ready
-        attribute into test, validation and training splits."""
-        pass
+    def _execute_random_points_sampling(self, p_test, p_valid, p_train, seed):
+        """Initializes a sampler, performs random sampling and returns a
+        dictionary of the split indexes."""
+
+        s = Sampler(len(self.ml_data))
+        s.shuffle_(seed)
+        assert s.indexes_modified
+        return s.split(p_test, p_valid, p_train=p_train)
+
+    def get_data_loaders(
+        self, p_tvt=(0.1, 0.1, None), seed=None, method='random',
+        batch_sizes=(32, 32, 32)
+    ):
+        """Utilizes the DGL library or related code (samplers) to split the
+        self.ml_ready attribute into test, validation and training splits.
+
+        Parameters
+        ----------
+        p_tvt : tuple
+            A length 3 tuple containing the proportion of testing, validation
+            and training data desired. If the sum of the elements in the tuple
+            sums to less than one, then we downsample the training set
+            accordingly.
+        seed : int, optional
+            Used to seed the sampler RNG. Ensures reproducibility.
+        method : {'random'}
+            The method of choice for sampling the splits.
+        batch_sizes : tuple
+            The batch sizes for the testing, validation and training loaders.
+
+        Returns
+        -------
+        dict, optional
+            Dictionary of loaders of type torch.utils.data.DataLoader. Returns
+            None in the event of an error.
+        """
+
+        if self.ml_data is None:
+            error = "Run ml_ready before calling this method - doing nothing"
+            dlog.error(error)
+            return None
+
+        # Execute the sampling method of choice to produce the T/V/T splits
+        # dictionary.
+        if method == 'random':
+            tvt_dict = self._execute_random_points_sampling(*p_tvt, seed)
+        else:
+            critical = f'Method {method} not implemented'
+            dlog.critical(critical)
+            raise RuntimeError(critical)
+
+        # Initialize the subset objects
+        testSubset = torch.utils.data.Subset(self, tvt_dict['test'])
+        validSubset = torch.utils.data.Subset(self, tvt_dict['valid'])
+        trainSubset = torch.utils.data.Subset(self, tvt_dict['train'])
+
+        # Initialize the loader objects
+        testLoader = torch.utils.data.DataLoader(
+            testSubset, batch_size=batch_sizes[0], shuffle=False,
+            collate_fn=QMXDataset.collating_function_graph_to_vector
+        )
+        validLoader = torch.utils.data.DataLoader(
+            validSubset, batch_size=batch_sizes[1], shuffle=False,
+            collate_fn=QMXDataset.collating_function_graph_to_vector
+        )
+        trainLoader = torch.utils.data.DataLoader(
+            trainSubset, batch_size=batch_sizes[2], shuffle=True,
+            collate_fn=QMXDataset.collating_function_graph_to_vector
+        )
+
+        return {
+            'test': testLoader,
+            'valid': validLoader,
+            'train': trainLoader
+        }
 
     def write_file(self, filename: str = 'QMdb', fmt: str = 'pickle'):
         """Write dataset into serialized form for later access."""
