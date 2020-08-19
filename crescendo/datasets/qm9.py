@@ -3,13 +3,14 @@
 """Module for loading in data from the QM9 database."""
 
 import os as os
+from typing import List
+
 import pickle as pickle
 import glob2
 from ntpath import basename
 import numpy as np
 from rdkit import Chem
-
-from typing import List
+import torch
 
 try:
     # Used for to_pmg_molecule method
@@ -19,7 +20,6 @@ except ImportError:
     _pmg_present = False
 
 from crescendo.utils.logger import logger_default as dlog
-from crescendo.datasets.base import _BaseCore
 from crescendo.utils.timing import time_func
 from crescendo.utils.py_utils import intersection, \
     check_for_environment_variable
@@ -405,7 +405,7 @@ def generate_qm9_pickle(
     return molecules
 
 
-class QMXDataset(_BaseCore):
+class QMXDataset(torch.utils.data.Dataset):
     """Container for the QMX data, where X is some integer. Although not the
     proper notation, we refer to X as in general, either 8 or 9 (usually),
     where X=max number of heavy atoms (C, N, O and F)/molecule.
