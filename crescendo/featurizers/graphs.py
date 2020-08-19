@@ -34,7 +34,7 @@ def get_number_of_classes_per_feature(atom_feature_list, bond_feature_list):
     for initializing the MPNN. The order of the entries in the list must
     correspond to that in mol_to_graph_via_DGL."""
 
-    if len(atom_feature_list) == 0:
+    if atom_feature_list is None:
         node_options = [1]
     else:
         node_options = []
@@ -43,7 +43,7 @@ def get_number_of_classes_per_feature(atom_feature_list, bond_feature_list):
         if 'hybridization' in atom_feature_list:
             node_options.append(len(hybridization_map) + 1)
 
-    if len(bond_feature_list) == 0:
+    if bond_feature_list is None:
         edge_options = [1]
     else:
         edge_options = []
@@ -61,7 +61,7 @@ def mol_to_graph_via_DGL(mol, atom_feature_list, bond_feature_list):
     mol : rdkit.Chem.mol
         An rdkit molecule.
     atom_features, bond_features : List[str]
-        A list of the desired atom.bond features. Can be empty, in which case,
+        A list of the desired atom.bond features. Can be None, in which case,
         each atom will get the same feature vector of [0].
 
     Returns
@@ -94,7 +94,7 @@ def mol_to_graph_via_DGL(mol, atom_feature_list, bond_feature_list):
         # we simply append the same value for every atom, which is the same
         # as including no information at all, but this way it is still
         # compatible with the DGL architecture.
-        if len(atom_feature_list) == 0:
+        if atom_feature_list is None:
             all_node_features.append([0])
             continue
 
@@ -120,7 +120,7 @@ def mol_to_graph_via_DGL(mol, atom_feature_list, bond_feature_list):
     all_edge_features = []
     for bond_index in range(n_bonds):
 
-        if len(bond_feature_list) == 0:
+        if bond_feature_list is None:
             all_edge_features.extend([[0], [0]])
             continue
 

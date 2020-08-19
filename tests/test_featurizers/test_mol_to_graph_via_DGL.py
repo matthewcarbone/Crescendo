@@ -3,7 +3,9 @@
 import pytest
 
 from crescendo.datasets.qm9 import QMXDataset
-from crescendo.featurizers.graphs import mol_to_graph_via_DGL
+from crescendo.featurizers.graphs import mol_to_graph_via_DGL, \
+    atom_symbols_map, hybridization_map, bond_type_map, \
+    get_number_of_classes_per_feature
 
 
 """Useful information about what the keys are
@@ -35,12 +37,49 @@ bond_type_map = {
 AFL = ['type', 'hybridization']
 BFL = ['type']
 
+N_ATOM_TYPE = len(atom_symbols_map)
+N_HYBRID_TYPE = len(hybridization_map)
+N_BOND_TYPE = len(bond_type_map)
+
 
 @pytest.fixture
 def data():
     ds = QMXDataset()
     ds.load("data/qm9_test_data")
     return ds.raw
+
+
+class TestAuxiliary:
+
+    def test_get_number_of_classes_per_feature(self):
+        nf = get_number_of_classes_per_feature(None, None)
+        node_options = nf[0]
+        edge_options = nf[1]
+        assert node_options == [1]
+        assert edge_options == [1]
+        nf = get_number_of_classes_per_feature(AFL, BFL)
+        node_options = nf[0]
+        edge_options = nf[1]
+
+        # Each option allows for an "unknown" class
+        assert node_options[0] == N_ATOM_TYPE + 1
+        assert node_options[1] == N_HYBRID_TYPE + 1
+        assert edge_options[0] == N_BOND_TYPE + 1
+
+
+class TestMolToGraphViaDGLNoFeatures:
+
+    def test_000009(self, data):
+
+        graph = mol_to_graph_via_DGL(data[9].mol, None, None)
+        assert graph.ndata['features'][0][0] == 0
+        assert graph.ndata['features'][1][0] == 0
+        assert graph.ndata['features'][2][0] == 0
+
+        assert graph.edata['features'][0][0] == 0
+        assert graph.edata['features'][1][0] == 0
+        assert graph.edata['features'][2][0] == 0
+        assert graph.edata['features'][3][0] == 0
 
 
 class TestMolToGraphViaDGL:
