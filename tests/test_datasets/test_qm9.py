@@ -29,7 +29,7 @@ class TestQMXDataset:
         ds.ml_data.sort(key=lambda x: x[2])  # sort by ID
         assert ds.ml_data[0][1] == [0.43295186, 0.40993872, 0.1832, 0.1832]
 
-    def test_to_dataloaders(self):
+    def test_get_data_loaders(self):
         ds = QMXDataset()
         ds.load("data/qm9_test_data")
         ds.load_qm8_electronic_properties("data/qm8_test_data.txt")
@@ -38,10 +38,23 @@ class TestQMXDataset:
             atom_feature_list=['type', 'hybridization'],
             bond_feature_list=['type']
         )
-        ds.get_data_loaders(
+        loader_dict = ds.get_data_loaders(
             p_tvt=(0.1, 0.1, None), seed=1234, method='random',
             batch_sizes=(32, 32, 32)
         )
+
+        # The testing set size is small enough that we only have one batch
+        # each
+        for b in loader_dict['test']:
+            test_id = b[2].tolist()
+        for b in loader_dict['valid']:
+            valid_id = b[2].tolist()
+        for b in loader_dict['train']:
+            train_id = b[2].tolist()
+
+        assert set(test_id).isdisjoint(valid_id)
+        assert set(test_id).isdisjoint(train_id)
+        assert set(train_id).isdisjoint(valid_id)
 
 
 @pytest.fixture
