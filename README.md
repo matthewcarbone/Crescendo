@@ -77,7 +77,7 @@ This package uses the `logging` module to provide the user with information abou
 ## Testing
 To run the unit tests, we generally use
 ```bash
-coverage run --source=crescendo test.py
+coverage run --source=crescendo -m pytest
 ```
 and to view the report,
 ```bash

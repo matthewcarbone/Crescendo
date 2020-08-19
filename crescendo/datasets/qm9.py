@@ -3,25 +3,24 @@
 """Module for loading in data from the QM9 database."""
 
 import os as os
-import pickle as pickle
-from dgl import DGLGraph
+from typing import List
+
+import dgl
 import glob2
 from ntpath import basename
 import numpy as np
+import pickle as pickle
+import pymatgen.core.structure as pmgstruc
 from rdkit import Chem
+from rdkit.Chem.Descriptors import MolWt
 import torch
 
-from typing import List
-
-try:
-    # Used for to_pmg_molecule method
-    import pymatgen.core.structure as pmgstruc
-    _pmg_present = True
-except ImportError:
-    _pmg_present = False
-
+from crescendo.featurizers.graphs import mol_to_graph_via_DGL, \
+    get_number_of_classes_per_feature
+from crescendo.samplers.base import Sampler
 from crescendo.utils.logger import logger_default as dlog
-from crescendo.datasets.base import _BaseCore
+from crescendo.utils.py_utils import intersection, \
+    check_for_environment_variable
 from crescendo.utils.timing import time_func
 
 
@@ -43,14 +42,8 @@ hetero_bond_patterns = [
     Chem.MolFromSmarts('N~O')
 ]
 
-# Only some atoms are allowed in the QM9 database
-atom_symbols_map = {'H': 1, 'C': 2, 'N': 3, 'O': 4, 'F': 5}
-
-hybridization_map = {
-    Chem.rdchem.HybridizationType.SP: 1,
-    Chem.rdchem.HybridizationType.SP2: 2,
-    Chem.rdchem.HybridizationType.SP3: 3
-}
+QM9_ENV_VAR = "QM9_DATA_PATH"
+QM8_EP_ENV_VAR = "QM8_EP_DATA_PATH"
 
 
 class QM9SmilesDatum:
@@ -74,6 +67,10 @@ class QM9SmilesDatum:
     >>> d = QM9SmilesDatum('C1=CC=CC=C1')
     >>> d.is_aromatic()
     True
+
+    Attributes
+    ----------
+    TODO
     """
 
     def __init__(self, smiles, other_props, xyz, elements, zwitter, qm9_id):
@@ -86,6 +83,7 @@ class QM9SmilesDatum:
 
         self.smiles = smiles
         self.mol = Chem.MolFromSmiles(smiles)
+        self.mw = MolWt(self.mol)
         self.other_props = other_props
         self.xyz = xyz
         self.elements = elements
@@ -93,66 +91,15 @@ class QM9SmilesDatum:
         self.qm9_id = qm9_id
 
     def to_graph(
-        self,
-        atom_type=True,
-        hybridization=True
+        self, atom_feature_list=['type', 'hybridization'],
+        bond_feature_list=['type']
     ):
-        """Initializes the graph attribute of the molecule object.
+        """Initializes the graph attribute of the molecule object. See
+        crescendo.featurizer.graphs.mol_to_graph_via_DGL for more details."""
 
-        Parameters
-        ----------
-        atom_type : bool
-            If True, include the atom type in node features. Default is True.
-        hybridization : bool
-            If True, include the hybridization type in the node features.
-            Default is True.
-
-        Returns
-        -------
-        DGLGraph
-        """
-
-        g = DGLGraph()
-        n_atoms = self.mol.GetNumAtoms()
-        n_bonds = self.mol.GetNumBonds()
-        g.add_nodes(n_atoms)
-
-        # In this initial stage, we construct the actual graph by connecting
-        # nodes via the edges corresponding to molecular bonds.
-        for bond_index in range(n_bonds):
-            bond = self.mol.GetBondWithIdx(bond_index)
-            u = bond.GetBeginAtomIdx()
-            v = bond.GetEndAtomIdx()
-
-            # DGL graphs are by default *directed*. We make this an undirected
-            # graph by adding "edges" in both directions, meaning u -> v and
-            # v -> u.
-            g.add_edges([u, v], [v, u])
-
-        # Iterate through all nodes (atoms) and assign various features.
-        all_features = []
-        for atom_index in range(n_atoms):
-            atom_features = []
-            atom = self.mol.GetAtomWithIdx(atom_index)
-
-            # Append the atom type to the feature vector
-            if atom_type:
-                atom_features.append(atom_symbols_map.get(
-                    atom.GetSymbol(), 0)
-                )
-
-            # Append the atom hybridization to the feature vector
-            if hybridization:
-                atom_features.append(hybridization_map.get(
-                    atom.GetHybridization(), 0)
-                )
-
-            all_features.append(atom_features)
-
-        if len(all_features) != 0:
-            g.ndata['features'] = torch.LongTensor(all_features)
-
-        return g
+        return mol_to_graph_via_DGL(
+            self.mol, atom_feature_list, bond_feature_list
+        )
 
     def has_n_membered_ring(self, n=None) -> bool:
         """Returns True if the mol attribute (the molecule object in rdkit
@@ -237,8 +184,8 @@ class QM9SmilesDatum:
     def to_pmg_molecule(self):
         """Convenience method which turns the current QM9 datum into a Pymatgen
         Molecule, which can be processed further in other useful ways due to
-        that classes' built-in methods.
-        """
+        that classes' built-in methods."""
+
         return pmgstruc.Molecule(species=self.elements, coords=self.xyz)
 
     def as_dict(self) -> dict:
@@ -428,13 +375,7 @@ def generate_qm9_pickle(
     """
 
     if qm9_directory is None:
-        qm9_directory = os.environ.get("QM9_FILES", None)
-        if qm9_directory is None:
-            error_msg = \
-                "No path specified for QM9 directory, either " \
-                "as argument or environment variable $QM9_FILES."
-            dlog.error(error_msg)
-            raise ValueError(error_msg)
+        qm9_directory = check_for_environment_variable(QM9_ENV_VAR)
 
     entries = glob2.glob(qm9_directory + "/*.xyz")
 
@@ -466,25 +407,48 @@ def generate_qm9_pickle(
     return molecules
 
 
-class QMXDataset(_BaseCore):
+class QMXDataset(torch.utils.data.Dataset):
     """Container for the QMX data, where X is some integer. Although not the
     proper notation, we refer to X as in general, either 8 or 9 (usually),
-    where X=max number of heavy atoms (C, N, O and F)/molecule."""
+    where X=max number of heavy atoms (C, N, O and F)/molecule.
+
+    Attributes
+    ----------
+    raw : dict
+        A dictionary or raw data as constructed by the load method. In the case
+        of QM9, this is simply the QM9SmilesDatum object keyed by the QM9 ID.
+    qm8_electronic_properties : dict
+        Default as None, this is initialized by the
+        load_qm8_electronic_properties, which loads in the qm8 electronic
+        properties from a specified path and stores them, again by QM9 ID.
+    ml_ready : list
+        A result of the featurize method. This will always be a list of lists,
+        where each list has 3 entries, [feature, target, metadata]. The format
+        of these features, targets and metadata will of course depend on the
+        type of featurizer the user specifies. The metadata will tend to be
+        some combination of an identifier and perhaps other information.
+    debug : int
+        Default as -1, the debug flag simply indexes the max number of
+        geometries to load. Will load all by default (indicated by -1).
+    n_class_per_feature : list
+        Metadata information (at the level of the dataset, not the individual
+        data points) which will be passed to the MPNN initializer for graph
+        based methods.
+    """
 
     def __init__(self, *args, debug=-1, **kwargs):
         super().__init__(*args, **kwargs)
         self.raw = dict()
+        self.qm8_electronic_properties = None
+        self.ml_data = None
         self.debug = debug
+        self.n_class_per_feature = None
 
-    @property
-    def geometry_path(self):
-        return self._geometry_path
+    def __getitem__(self, ii):
+        return self.ml_data[ii]
 
-    @geometry_path.setter
-    def geometry_path(self, p):
-        assert isinstance(p, str)
-        dlog.info(f"Geometry path set to {p}")
-        self._geometry_path = p
+    def __len__(self):
+        return len(self.ml_dat)
 
     @property
     def max_heavy_atoms(self):
@@ -520,7 +484,7 @@ class QMXDataset(_BaseCore):
     @time_func(dlog)
     def load(
         self,
-        path,
+        path=None,
         max_heavy_atoms=9,
         keep_zwitter=False,
         canonical=True,
@@ -534,7 +498,9 @@ class QMXDataset(_BaseCore):
         path : str
             Path to the directory containing the qm9 .xyz files. For instance,
             if your xyz files are in directory /Users/me/data, then that should
-            be the path.
+            be the path. If path is None by default, it will check the
+            os.environ dictionary for QM9_DATA_PATH, and if that does not
+            exist, it will throw an error.
         max_heavy_atoms : int
             Maximum number of total heavy atoms (C, N, O, F) allowed in the
             dataset. By default, QM9 allows for... wait for it... 9 heavy
@@ -548,7 +514,10 @@ class QMXDataset(_BaseCore):
             If True, will use the canonical SMILES codes. Default is True.
         """
 
-        self.geometry_path = path
+        if path is None:
+            path = check_for_environment_variable(QM9_ENV_VAR)
+        dlog.info(f"Loading QM9 from {path}")
+
         self.max_heavy_atoms = max_heavy_atoms
         self.keep_zwitter = keep_zwitter
         self.canonical = canonical
@@ -590,26 +559,34 @@ class QMXDataset(_BaseCore):
 
         dlog.info(f"Total number of data points: {len(self.raw)}")
 
-    def load_spectra(self, qm8_path):
+    def load_qm8_electronic_properties(self, path):
         """Function for loading Electronic properties for QM8 files.
 
         Parameters
         ----------
-        qm8_path : str
+        path : str
             Absolute path to the file containing the spectral information
             in the QM8 database.
         """
 
-        self.spectra = dict()
-        with open(qm8_path, 'r') as file:
+        self.qm8_electronic_properties = dict()
+
+        dlog.info(f"Reading QM8 electronic properties from {path}")
+
+        with open(path, 'r') as file:
             line = '#'
             while '#' in line:
                 line = file.readline()
             while line != '':
                 qm8_id, props = \
                     parse_QM8_electronic_properties(line.split())
-                self.spectra[qm8_id] = props
+                self.qm8_electronic_properties[qm8_id] = props
                 line = file.readline()
+
+        dlog.info(
+            "Total number of data points "
+            f"{len(self.qm8_electronic_properties)}"
+        )
 
     def analyze(self, n=None):
         """Performs the analysis of the currently loaded QM9 Dataset.
@@ -653,11 +630,188 @@ class QMXDataset(_BaseCore):
 
         return analysis
 
-    def featurize(self, featurizer):
-        """This method is the workhorse of the QMXLoader. It will featurize
-        the raw data depending on the user settings."""
+    @staticmethod
+    def collating_function_graph_to_vector(batch):
+        """Collates the graph-fixed length vector combination. Recall that
+        in this case, each element of batch is a three vector containing the
+        graph, the target and the ID."""
 
-        raise NotImplementedError
+        _ids = torch.tensor([xx[2] for xx in batch]).long()
+        targets = torch.tensor([xx[1] for xx in batch]).float()
+        graphs = dgl.batch([xx[0] for xx in batch])
+
+        return (graphs, targets, _ids)
+
+    @time_func(dlog)
+    def _qm8_EP_featurizer(self, atom_f_list, bond_f_list):
+        """constructs the ml_ready list by pairing QM9 structures with
+        the corresponding electronic properties as read in by the
+        load_qm8_electronic_properties method. Requires atom_feature_list and
+        bond_feature_list as kwargs (in featurizer) and stores an attribute
+        n_class_per_feature."""
+
+        # First, check that the QM8 electronic properties were read.
+        if self.qm8_electronic_properties is None:
+            error = \
+                "Read in qm8 electronic properties first - doing nothing"
+            dlog.error(error)
+            return
+
+        # Get the overlap between the QM9 structural data and the
+        # electronic properties.
+        ids_to_featurize = intersection(
+            list(self.raw.keys()),
+            list(self.qm8_electronic_properties.keys())
+        )
+        dlog.info(
+            "Determined intersection between QM9 structural data and "
+            f"QM8 electronic properties of length {len(ids_to_featurize)}"
+        )
+
+        # Get the number of classes per feature, used in initializing
+        # the MPNN later.
+        dlog.info(f"Using atom feature list: {atom_f_list}")
+        dlog.info(f"Using bond feature list: {bond_f_list}")
+
+        self.n_class_per_feature = get_number_of_classes_per_feature(
+            atom_f_list, bond_f_list
+        )
+        dlog.info(
+            f"Storing self.n_class_per_feature: {self.n_class_per_feature}"
+        )
+
+        self.ml_data = [
+                (
+                    self.raw[_id].to_graph(atom_f_list, bond_f_list),
+                    self.qm8_electronic_properties[_id], int(_id)
+                ) for _id in ids_to_featurize
+            ]
+
+        dlog.info(
+            "Initialized `self.ml_data` of length "
+            f"{len(self.ml_data)}"
+        )
+
+    def ml_ready(self, featurizer, **kwargs):
+        """This method is the workhorse of the QMXLoader. It will featurize
+        the raw data depending on the user settings. Also based on the
+        featurizer, it will construct the appropriate data loader objects.
+
+        Parameters
+        ----------
+        featurizer : {to_graph, qm8_EP}
+            The featurizer options are described henceforth or in docstrings:
+            * to_graph : temporary debugging, just returns graphs and metadata
+            * qm8_EP : see _qm8_EP_featurizer
+        seed : int, optional
+            The most important seed step in the entire pipeline, as this
+            determines the train/validation/test split. It is used to seed the
+            sampler.
+        """
+
+        dlog.info(f"Attempting to run featurizer: {featurizer}")
+
+        if featurizer == 'to_graph':
+
+            # Get the number of classes per feature, used in initializing
+            # the MPNN later.
+            atom_f_list = kwargs['atom_feature_list']
+            bond_f_list = kwargs['bond_feature_list']
+            n_class_per_feature = get_number_of_classes_per_feature(
+                atom_f_list, bond_f_list
+            )
+
+            # Convert every object in self.raw -> graphs
+            return {
+                _id: datum.to_graph(atom_f_list, bond_f_list)
+                for _id, datum in self.raw.items()
+            }, n_class_per_feature
+
+        elif featurizer == 'qm8_EP':
+            atom_f_list = kwargs['atom_feature_list']
+            bond_f_list = kwargs['bond_feature_list']
+            self._qm8_EP_featurizer(atom_f_list, bond_f_list)
+
+        else:
+            critical = f"Unknown featurizer: {featurizer}"
+            dlog.critical(critical)
+            raise RuntimeError(critical)
+
+    def _execute_random_points_sampling(self, p_test, p_valid, p_train, seed):
+        """Initializes a sampler, performs random sampling and returns a
+        dictionary of the split indexes."""
+
+        s = Sampler(len(self.ml_data))
+        s.shuffle_(seed)
+        assert s.indexes_modified
+        return s.split(p_test, p_valid, p_train=p_train)
+
+    def get_data_loaders(
+        self, p_tvt=(0.1, 0.1, None), seed=None, method='random',
+        batch_sizes=(32, 32, 32)
+    ):
+        """Utilizes the DGL library or related code (samplers) to split the
+        self.ml_ready attribute into test, validation and training splits.
+
+        Parameters
+        ----------
+        p_tvt : tuple
+            A length 3 tuple containing the proportion of testing, validation
+            and training data desired. If the sum of the elements in the tuple
+            sums to less than one, then we downsample the training set
+            accordingly.
+        seed : int, optional
+            Used to seed the sampler RNG. Ensures reproducibility.
+        method : {'random'}
+            The method of choice for sampling the splits.
+        batch_sizes : tuple
+            The batch sizes for the testing, validation and training loaders.
+
+        Returns
+        -------
+        dict, optional
+            Dictionary of loaders of type torch.utils.data.DataLoader. Returns
+            None in the event of an error.
+        """
+
+        if self.ml_data is None:
+            error = "Run ml_ready before calling this method - doing nothing"
+            dlog.error(error)
+            return None
+
+        # Execute the sampling method of choice to produce the T/V/T splits
+        # dictionary.
+        if method == 'random':
+            tvt_dict = self._execute_random_points_sampling(*p_tvt, seed)
+        else:
+            critical = f'Method {method} not implemented'
+            dlog.critical(critical)
+            raise RuntimeError(critical)
+
+        # Initialize the subset objects
+        testSubset = torch.utils.data.Subset(self, tvt_dict['test'])
+        validSubset = torch.utils.data.Subset(self, tvt_dict['valid'])
+        trainSubset = torch.utils.data.Subset(self, tvt_dict['train'])
+
+        # Initialize the loader objects
+        testLoader = torch.utils.data.DataLoader(
+            testSubset, batch_size=batch_sizes[0], shuffle=False,
+            collate_fn=QMXDataset.collating_function_graph_to_vector
+        )
+        validLoader = torch.utils.data.DataLoader(
+            validSubset, batch_size=batch_sizes[1], shuffle=False,
+            collate_fn=QMXDataset.collating_function_graph_to_vector
+        )
+        trainLoader = torch.utils.data.DataLoader(
+            trainSubset, batch_size=batch_sizes[2], shuffle=True,
+            collate_fn=QMXDataset.collating_function_graph_to_vector
+        )
+
+        return {
+            'test': testLoader,
+            'valid': validLoader,
+            'train': trainLoader
+        }
 
     def write_file(self, filename: str = 'QMdb', fmt: str = 'pickle'):
         """Write dataset into serialized form for later access."""
