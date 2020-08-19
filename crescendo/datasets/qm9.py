@@ -21,6 +21,7 @@ except ImportError:
 from crescendo.utils.logger import logger_default as dlog
 from crescendo.datasets.base import _BaseCore
 from crescendo.utils.timing import time_func
+from crescendo.utils.py_utils import intersection
 from crescendo.featurizers.graphs import mol_to_graph_via_DGL, \
     get_number_of_classes_per_feature
 
@@ -43,17 +44,19 @@ hetero_bond_patterns = [
     Chem.MolFromSmarts('N~O')
 ]
 
+QM9_ENV_VAR = "QM9_DATA_PATH"
+QM8_EP_ENV_VAR = "QM8_EP_DATA_PATH"
 
-def check_for_qm9_environment_variable():
-    """Checks the os.environ dictionary for the QM9_DATA_PATH environment
+
+def check_for_environment_variable(var):
+    """Checks the os.environ dictionary for the specified environment
     variable. If it exists, returns the path, else raises a ValueError and
     logs a critical level error to the logger."""
 
-    qm9_directory = os.environ.get("QM9_DATA_PATH", None)
+    qm9_directory = os.environ.get(var, None)
     if qm9_directory is None:
         error_msg = \
-            "No path specified for QM9 directory, either " \
-            "as argument or environment variable $QM9_DATA_PATH."
+            f"Environment variable {var} not found and no path specified"
         dlog.critical(error_msg)
         raise RuntimeError(error_msg)
     return qm9_directory
@@ -383,7 +386,7 @@ def generate_qm9_pickle(
     """
 
     if qm9_directory is None:
-        qm9_directory = check_for_qm9_environment_variable()
+        qm9_directory = check_for_environment_variable(QM9_ENV_VAR)
 
     entries = glob2.glob(qm9_directory + "/*.xyz")
 
@@ -418,7 +421,31 @@ def generate_qm9_pickle(
 class QMXDataset(_BaseCore):
     """Container for the QMX data, where X is some integer. Although not the
     proper notation, we refer to X as in general, either 8 or 9 (usually),
-    where X=max number of heavy atoms (C, N, O and F)/molecule."""
+    where X=max number of heavy atoms (C, N, O and F)/molecule.
+
+    Attributes
+    ----------
+    raw : dict
+        A dictionary or raw data as constructed by the load method. In the case
+        of QM9, this is simply the QM9SmilesDatum object keyed by the QM9 ID.
+    qm8_electronic_properties : dict
+        Default as None, this is initialized by the
+        load_qm8_electronic_properties, which loads in the qm8 electronic
+        properties from a specified path and stores them, again by QM9 ID.
+    featurized : dict
+        A result of the featurize method. This will always be a dictionary,
+        once again indexed by QM9 ID, of lists, where each list has 3 entries,
+        [feature, target, metadata]. The format of these features, targets and
+        metadata will of course depend on the type of featurizer the user
+        specifies.
+    debug : int
+        Default as -1, the debug flag simply indexes the max number of
+        geometries to load. Will load all by default (indicated by -1).
+    n_class_per_feature : list
+        Metadata information (at the level of the dataset, not the individual
+        data points) which will be passed to the MPNN initializer for graph
+        based methods.
+    """
 
     def __init__(self, *args, debug=-1, **kwargs):
         super().__init__(*args, **kwargs)
@@ -426,6 +453,7 @@ class QMXDataset(_BaseCore):
         self.qm8_electronic_properties = None
         self.featurized = dict()
         self.debug = debug
+        self.n_class_per_feature = None
 
     @property
     def max_heavy_atoms(self):
@@ -492,7 +520,7 @@ class QMXDataset(_BaseCore):
         """
 
         if path is None:
-            path = check_for_qm9_environment_variable()
+            path = check_for_environment_variable(QM9_ENV_VAR)
         dlog.info(f"Loading QM9 from {path}")
 
         self.max_heavy_atoms = max_heavy_atoms
@@ -548,6 +576,8 @@ class QMXDataset(_BaseCore):
 
         self.qm8_electronic_properties = dict()
 
+        dlog.info(f"Reading QM8 electronic properties from {path}")
+
         with open(path, 'r') as file:
             line = '#'
             while '#' in line:
@@ -557,6 +587,11 @@ class QMXDataset(_BaseCore):
                     parse_QM8_electronic_properties(line.split())
                 self.qm8_electronic_properties[qm8_id] = props
                 line = file.readline()
+
+        dlog.info(
+            "Total number of data points "
+            f"{len(self.qm8_electronic_properties)}"
+        )
 
     def analyze(self, n=None):
         """Performs the analysis of the currently loaded QM9 Dataset.
@@ -600,9 +635,70 @@ class QMXDataset(_BaseCore):
 
         return analysis
 
-    def featurize(self, featurizer, **kwargs):
+    @time_func(dlog)
+    def _qm8_EP_featurizer(self, atom_f_list, bond_f_list):
+        """constructs the featurized dictionary by pairing QM9 structures with
+        the corresponding electronic properties as read in by the
+        load_qm8_electronic_properties method. Requires atom_feature_list and
+        bond_feature_list as kwargs (in featurizer) and stores an attribute
+        n_class_per_feature."""
+
+        # First, check that the QM8 electronic properties were read.
+        if self.qm8_electronic_properties is None:
+            error = \
+                "Read in qm8 electronic properties first - doing nothing"
+            dlog.error(error)
+            return
+
+        # Get the overlap between the QM9 structural data and the
+        # electronic properties.
+        ids_to_featurize = intersection(
+            list(self.raw.keys()),
+            list(self.qm8_electronic_properties.keys())
+        )
+        dlog.info(
+            "Determined intersection between QM9 structural data and "
+            f"QM8 electronic properties of length {len(ids_to_featurize)}"
+        )
+
+        # Get the number of classes per feature, used in initializing
+        # the MPNN later.
+        dlog.info(f"Using atom feature list: {atom_f_list}")
+        dlog.info(f"Using bond feature list: {bond_f_list}")
+
+        self.n_class_per_feature = get_number_of_classes_per_feature(
+            atom_f_list, bond_f_list
+        )
+        dlog.info(
+            f"Storing self.n_class_per_feature: {self.n_class_per_feature}"
+        )
+
+        self.featurized = {
+            _id: [
+                self.raw[_id].to_graph(atom_f_list, bond_f_list),
+                self.qm8_electronic_properties[_id],
+                None
+            ]
+            for _id in ids_to_featurize
+        }
+        dlog.info(
+            "Initialized `self.featurized` of length "
+            f"{len(self.featurized)}"
+        )
+
+    def pair(self, featurizer, **kwargs):
         """This method is the workhorse of the QMXLoader. It will featurize
-        the raw data depending on the user settings."""
+        the raw data depending on the user settings.
+
+        Parameters
+        ----------
+        featurizer : {to_graph, qm8_EP}
+            The featurizer options are described henceforth or in docstrings:
+            * to_graph : temporary debugging, just returns graphs and metadata
+            * qm8_EP : see _qm8_EP_featurizer
+        """
+
+        dlog.info(f"Attempting to run featurizer: {featurizer}")
 
         if featurizer == 'to_graph':
 
@@ -619,6 +715,11 @@ class QMXDataset(_BaseCore):
                 _id: datum.to_graph(atom_f_list, bond_f_list)
                 for _id, datum in self.raw.items()
             }, n_class_per_feature
+
+        elif featurizer == 'qm8_EP':
+            atom_f_list = kwargs['atom_feature_list']
+            bond_f_list = kwargs['bond_feature_list']
+            self._qm8_EP_featurizer(atom_f_list, bond_f_list)
 
         else:
             critical = f"Unknown featurizer: {featurizer}"
