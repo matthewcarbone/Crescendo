@@ -32,8 +32,8 @@ class MPNN(nn.Module):
         output_size : int
             The length of the target vector.
         n_node_embed, n_edge_embed : int
-            The user-chosen dimensions of the embedding layers. Defaults to the
-            number of options per feature + 1.
+            The user-chosen dimensions of the embedding layers. Defaults to
+            one each.
         mpnn_args : dict
             Other args to pass to the MPNN. See the docs here:
             https://lifesci.dgl.ai/_modules/dgllife/model/model_zoo/
@@ -43,9 +43,9 @@ class MPNN(nn.Module):
         super().__init__()
 
         if n_node_embed is None:
-            n_node_embed = [nn + 1 for nn in range(len(n_node_features))]
+            n_node_embed = [1 for _ in range(len(n_node_features))]
         if n_edge_embed is None:
-            n_edge_embed = [nn + 1 for nn in range(len(n_edge_features))]
+            n_edge_embed = [1 for _ in range(len(n_edge_features))]
 
         self.embedding_h = Embedding(n_node_features, n_node_embed)
         self.embedding_e = Embedding(n_edge_features, n_edge_embed)
