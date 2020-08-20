@@ -9,7 +9,7 @@ class TestQMXDataset:
 
     def test_load(self):
         ds = QMXDataset()
-        ds.load("data/qm9_test_data")
+        ds.load("data/qm9_test_data", min_heavy_atoms=1)
 
     def test_loadspectra(self):
         qm8_test = QMXDataset()
@@ -17,9 +17,9 @@ class TestQMXDataset:
         S1 = qm8_test.qm8_electronic_properties[1]
         assert S1 == [0.43295186, 0.40993872, 0.1832, 0.1832]
 
-    def test_pair_qm8_EP(self):
+    def test_ml_ready_qm8_EP(self):
         ds = QMXDataset()
-        ds.load("data/qm9_test_data")
+        ds.load("data/qm9_test_data", min_heavy_atoms=1)
         ds.load_qm8_electronic_properties("data/qm8_test_data.txt")
         ds.ml_ready(
             'qm8_EP',
@@ -60,7 +60,7 @@ class TestQMXDataset:
 @pytest.fixture
 def data():
     ds = QMXDataset()
-    ds.load("data/qm9_test_data")
+    ds.load("data/qm9_test_data", min_heavy_atoms=1)
     return ds.raw
 
 

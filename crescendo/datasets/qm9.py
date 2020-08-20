@@ -462,6 +462,17 @@ class QMXDataset(torch.utils.data.Dataset):
         self._max_heavy_atoms = a
 
     @property
+    def min_heavy_atoms(self):
+        return self._min_heavy_atoms
+
+    @min_heavy_atoms.setter
+    def min_heavy_atoms(self, a):
+        assert isinstance(a, int)
+        assert a > 0
+        dlog.info(f"Min heavy atoms set to {a}")
+        self._min_heavy_atoms = a
+
+    @property
     def keep_zwitter(self):
         return self._keep_zwitter
 
@@ -485,6 +496,7 @@ class QMXDataset(torch.utils.data.Dataset):
     def load(
         self,
         path=None,
+        min_heavy_atoms=2,
         max_heavy_atoms=9,
         keep_zwitter=False,
         canonical=True,
@@ -501,6 +513,8 @@ class QMXDataset(torch.utils.data.Dataset):
             be the path. If path is None by default, it will check the
             os.environ dictionary for QM9_DATA_PATH, and if that does not
             exist, it will throw an error.
+        min_heavy_atoms : int
+            We exclude the trivial atomic cases in the QM9 dataset by default.
         max_heavy_atoms : int
             Maximum number of total heavy atoms (C, N, O, F) allowed in the
             dataset. By default, QM9 allows for... wait for it... 9 heavy
@@ -518,6 +532,7 @@ class QMXDataset(torch.utils.data.Dataset):
             path = check_for_environment_variable(QM9_ENV_VAR)
         dlog.info(f"Loading QM9 from {path}")
 
+        self.min_heavy_atoms = min_heavy_atoms
         self.max_heavy_atoms = max_heavy_atoms
         self.keep_zwitter = keep_zwitter
         self.canonical = canonical
@@ -543,12 +558,10 @@ class QMXDataset(torch.utils.data.Dataset):
             (qm9_id, smiles, other_props, xyzs, elements, zwitter) = \
                 read_qm9_xyz(current_path, canonical=self.canonical)
 
-            # No need to do any of this work if we're taking all of the
-            # possible molecules in the QM9 dataset.
-            if self.max_heavy_atoms < 9:
-                n_heavy = sum([e != 'H' for e in elements])
-                if n_heavy > self.max_heavy_atoms:
-                    continue
+            # Exclude molecules outside of the allowed heavy atom range
+            n_heavy = sum([e != 'H' for e in elements])
+            if not self.min_heavy_atoms <= n_heavy <= self.max_heavy_atoms:
+                continue
 
             if not self.keep_zwitter and zwitter:
                 continue
