@@ -53,6 +53,7 @@ jobs:
         conda install -q -c conda-forge glob2
         conda install -q -c rdkit rdkit
         conda install -q -c conda-forge pymatgen
+        conda install -q -c dglteam dgllife
         conda install -q -c conda-forge pytest-cov
         conda install -q -c anaconda flake8
 
@@ -72,6 +73,7 @@ jobs:
     - name: Code coverage
       if: ${{ always() }}
       uses: codecov/codecov-action@v1.0.11
+      timeout-minutes: 10
       with:
         # Repository upload token - get it from codecov.io. Required only for private repositories
         token: f4c6c7b7-1cf1-4928-a3b6-672eb9e3f6e8

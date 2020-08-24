@@ -45,7 +45,7 @@ N_BOND_TYPE = len(bond_type_map)
 @pytest.fixture
 def data():
     ds = QMXDataset()
-    ds.load("data/qm9_test_data")
+    ds.load("data/qm9_test_data", min_heavy_atoms=1)
     return ds.raw
 
 

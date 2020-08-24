@@ -27,6 +27,7 @@ dependencies:
   - cftime=1.2.1=py37h5be27a9_0
   - chardet=3.0.4=py37hc8dfbb8_1006
   - click=7.1.2=pyh9f0ad1d_0
+  - coverage=5.2.1=py37h60d8a13_0
   - cryptography=3.0=py37h94e4008_0
   - curl=7.71.1=hbdca1c0_4
   - cycler=0.10.0=py_2
@@ -147,6 +148,7 @@ dependencies:
   - pyrsistent=0.16.0=py37h9bfed18_0
   - pysocks=1.7.1=py37hc8dfbb8_1
   - pytest=5.4.3=py37_0
+  - pytest-cov=2.10.0=pyh9f0ad1d_0
   - python=3.7.7=hf48f09d_4
   - python-dateutil=2.8.1=py_0
   - python_abi=3.7=1_cp37m

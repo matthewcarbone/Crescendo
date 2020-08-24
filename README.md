@@ -18,13 +18,6 @@ All contributor contributions must be added through pull request, as direct push
 * Code should be well-tested before merging to master.
 * Tests should [cover](https://stackoverflow.com/questions/195008/what-is-code-coverage-and-how-do-you-measure-it#:~:text=Code%20coverage%20is%20a%20measurement,tests%20against%20the%20instrumented%20product.) most/all of the new pushed code. 
 
-### Logging protocol
-This package uses the `loggin` module to provide the user with information about what is happening during the program execution. The default logging stream pipes to the terminal and is usually abbreviated as `dlog` in the code. The following guidelines should be obeyed when logging.
-* Inform the user of critical terminating issues via the `critical` level. These should be used right before raising an error.
-* Inform the user of a potentially critical issue via the `error` level. These are intended to be similar to critical except it is not the case that the program is immediately terminated. Likely, there will be another error thrown later on.
-* Inform the user of possible issues with their use of the program with the `warning` level.
-* Log everything that the user should know with `dlog.info("...")`.
-
 
 ## Installation
 We recommend installing via `conda`:
@@ -62,6 +55,7 @@ conda install -c anaconda pytest
 conda install -c conda-forge glob2
 conda install -c rdkit rdkit
 conda install -c conda-forge pymatgen
+conda install -c dglteam dgllife
 
 # Optional, linting
 conda install -c anaconda flake8
