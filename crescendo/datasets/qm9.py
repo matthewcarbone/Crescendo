@@ -22,6 +22,7 @@ from crescendo.utils.logger import logger_default as dlog
 from crescendo.utils.py_utils import intersection, \
     check_for_environment_variable
 from crescendo.utils.timing import time_func
+from crescendo.utils.graphs import graph_to_vector_dummy_dataset
 
 
 aromatic_pattern = Chem.MolFromSmarts('[a]')
@@ -495,19 +496,30 @@ class QMXDataset(torch.utils.data.Dataset):
     @time_func(dlog)
     def load(
         self,
+        dummy_data=None,
         path=None,
         min_heavy_atoms=2,
         max_heavy_atoms=9,
         keep_zwitter=False,
         canonical=True,
-        log_every=10000
+        log_every=10000,
+        dummy_default_max_size=10,
+        dummy_default_max_n_class=7,
+        dummy_default_max_e_class=5,
+        dummy_default_target_size=4
     ):
         """Loads in the QM9 data as set via the path in the initializer, and
         also optionally other auxiliary data, such as spectra.
 
         Parameters
         ----------
-        path : str
+        dummy_data : int, optional
+            If not none, this will override all other kwargs in this method,
+            and will load in a dummy dataset directly to ml_data so as to
+            prepare immediately for a test of the ML pipeline. The integer
+            passed represents the size of the dataset, with other parameters
+            hard coded and defined by default.
+        path : str, optional
             Path to the directory containing the qm9 .xyz files. For instance,
             if your xyz files are in directory /Users/me/data, then that should
             be the path. If path is None by default, it will check the
@@ -527,6 +539,23 @@ class QMXDataset(torch.utils.data.Dataset):
         canonical : bool
             If True, will use the canonical SMILES codes. Default is True.
         """
+
+        if dummy_data is not None:
+            dlog.warning(
+                f"You are loading fake generated data of ds_size={dummy_data}"
+            )
+            kwargs = {
+                'N': dummy_data,
+                'graph_max_size': dummy_default_max_size,
+                'graph_max_n_class': dummy_default_max_n_class,
+                'graph_max_e_class': dummy_default_max_e_class,
+                'target_size': dummy_default_target_size
+            }
+            self.ml_data = graph_to_vector_dummy_dataset(**kwargs)
+            self.n_class_per_feature = [
+                [dummy_default_max_n_class], [dummy_default_max_e_class]
+            ]
+            return
 
         if path is None:
             path = check_for_environment_variable(QM9_ENV_VAR)
@@ -791,6 +820,11 @@ class QMXDataset(torch.utils.data.Dataset):
             error = "Run ml_ready before calling this method - doing nothing"
             dlog.error(error)
             return None
+
+        if seed is None:
+            dlog.warning(
+                "Not seeding the RNG: this result will not be reproducible"
+            )
 
         # Execute the sampling method of choice to produce the T/V/T splits
         # dictionary.

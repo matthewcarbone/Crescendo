@@ -43,7 +43,7 @@ def random_graph_generator(max_size=10, max_n_class=7, max_e_class=5):
 
 
 def graph_to_vector_dummy_dataset(
-    ds_size, graph_max_size=10, graph_max_n_class=7, graph_max_e_class=5,
+    N, graph_max_size=10, graph_max_n_class=7, graph_max_e_class=5,
     target_size=4
 ):
     """Generates a dummy graph dataset. This is intended to mimic the
@@ -52,7 +52,7 @@ def graph_to_vector_dummy_dataset(
     with the average node class."""
 
     ml_data = []
-    for idx in range(ds_size):
+    for idx in range(N):
         g = random_graph_generator(
             graph_max_size, graph_max_n_class, graph_max_e_class
         )
