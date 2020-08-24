@@ -7,7 +7,7 @@ An artificial intelligence and machine learning pipeline currently under develop
 ## Contributing
 
 The current version of `crescendo` is intended as an pseudo-open source repository within the BNL community and trusted collaborators. We stress the following important points regarding contributions:
-* Code in the `crescendo` repository are licended. Users can download, use and modify the code on their local machine however they please, but *cannot* copy/paste this code into an open source repository, whether or not this code is open sourced at any point or not.
+* Code in the `crescendo` repository are licended. Users can download, use and modify the code on their local machine however they please, but *cannot* copy/paste this code verbatim into an open source repository, whether or not this code is open sourced at any point or not.
 * Users are encouraged to use this pipeline as a medium for finding collaborators and collaborating with other scientists of scientific projects.
 * Users are encouraged to contribute the code from their own projects to the repository, however...
 * Users are *by no means* required to share privately modified code, even if it cloned directly from this repository. However, we would encourage everyone to share their code for the benefit of the community.
@@ -77,3 +77,4 @@ and to view the report,
 ```bash
 coverage report -m
 ```
+These checks are also used in the unit tests for the code run in the CI pipeline.
