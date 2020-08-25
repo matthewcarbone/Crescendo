@@ -496,13 +496,13 @@ class QMXDataset(torch.utils.data.Dataset):
     @time_func(dlog)
     def load(
         self,
-        dummy_data=None,
         path=None,
         min_heavy_atoms=2,
         max_heavy_atoms=9,
         keep_zwitter=False,
         canonical=True,
         log_every=10000,
+        dummy_data=None,
         dummy_default_max_size=10,
         dummy_default_max_n_class=7,
         dummy_default_max_e_class=5,
