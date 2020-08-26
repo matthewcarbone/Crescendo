@@ -69,6 +69,8 @@ class TrainProtocol:
         self.validLoader = validLoader
         self.device = torch.device('cuda:0' if CUDA_AVAIL else 'cpu')
         self.parallel = parallel and CUDA_AVAIL
+        if self.parallel and not torch.cuda.device_count() > 1:
+            self.paralel = False
         self._log_cuda_info()
         if seed is not None:
             ml_utils.seed_all(seed)
@@ -91,7 +93,7 @@ class TrainProtocol:
         """Initializes the parallel model if specified, and sends the model to
         the used device."""
 
-        if self.parallel and torch.cuda.device_count() > 1:
+        if self.parallel:
             self.model = nn.DataParallel(self.model)
             log.info("Parallel model defined")
         self.model.to(self.device)
