@@ -91,7 +91,7 @@ class TrainProtocol:
         """Initializes the parallel model if specified, and sends the model to
         the used device."""
 
-        if self.parallel:
+        if self.parallel and torch.cuda.device_count() > 1:
             self.model = nn.DataParallel(self.model)
             log.info("Parallel model defined")
         self.model.to(self.device)
