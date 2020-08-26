@@ -2,11 +2,14 @@
 
 from crescendo.datasets.qm9 import QMXDataset
 from crescendo.protocols.graph_protocols import GraphToVectorProtocol
+from crescendo.utils.ml_utils import seed_all
 
 
 class TestGraphToVectorProtocol:
 
     def test(self):
+
+        seed_all(123)
 
         dat = QMXDataset()
         dat.load(dummy_data=100, dummy_default_target_size=4)
