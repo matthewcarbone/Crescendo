@@ -2,7 +2,7 @@
 
 import random
 
-from dgl import DGLGraph
+import dgl
 import numpy as np
 from scipy.sparse import coo_matrix
 import torch
@@ -24,8 +24,7 @@ def random_graph_generator(max_size=10, max_n_class=7, max_e_class=5):
             break
 
     # Initialize the graph with the adjacency matrix
-    g = DGLGraph()
-    g.from_scipy_sparse_matrix(coo_matrix(A + A.T))
+    g = dgl.from_scipy(coo_matrix(A + A.T))
 
     # Add dummy features
     all_node_features = [
