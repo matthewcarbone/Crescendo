@@ -306,6 +306,7 @@ class TrainProtocol:
         # Begin training
         train_loss_list = []
         valid_loss_list = []
+        learning_rates = []
         for epoch in range(epochs):
 
             # Train a single epoch
@@ -319,7 +320,7 @@ class TrainProtocol:
             valid_loss = self._eval_valid()
 
             # Step the scheduler
-            self._step_scheduler(valid_loss)
+            clr = self._step_scheduler(valid_loss)
 
             # Update the best state dictionary of the model for loading in
             # later on in the process
@@ -329,11 +330,12 @@ class TrainProtocol:
 
             train_loss_list.append(train_loss)
             valid_loss_list.append(valid_loss)
+            learning_rates.append(clr)
 
         log.info("Setting model to best state dict")
         self.model.load_state_dict(self.best_model_state_dict)
 
-        return train_loss_list, valid_loss_list
+        return train_loss_list, valid_loss_list, learning_rates
 
     def eval(self, loader_override=None):
         """Systematically evaluates the validation, or dataset corresponding to
