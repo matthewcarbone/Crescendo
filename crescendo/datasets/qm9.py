@@ -5,7 +5,6 @@
 import os as os
 from typing import List
 
-import dgl
 import glob2
 from ntpath import basename
 import numpy as np
