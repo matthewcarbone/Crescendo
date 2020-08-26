@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import warnings
+
 import dgl
 import numpy as np
 import torch
@@ -63,7 +65,12 @@ class GraphToVectorProtocol(TrainProtocol):
             loss = self.criterion(output.flatten(), target.flatten())
 
             # Run back prop
-            loss.backward()
+            with warnings.catch_warnings():
+
+                # Ignore a silly warning that I can't turn off in pytorch
+                # See https://github.com/pytorch/pytorch/issues/43425
+                warnings.filterwarnings("ignore", category=UserWarning)
+                loss.backward()
 
             # Clip the gradients
             if clip is not None:
