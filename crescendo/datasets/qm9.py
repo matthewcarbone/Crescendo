@@ -14,14 +14,15 @@ from rdkit import Chem
 from rdkit.Chem.Descriptors import MolWt
 import torch
 
+from crescendo.defaults import QM9_ENV_VAR, QM8_EP_ENV_VAR
 from crescendo.featurizers.graphs import mol_to_graph_via_DGL, \
     get_number_of_classes_per_feature
 from crescendo.samplers.base import Sampler
+from crescendo.utils.graphs import graph_to_vector_dummy_dataset
 from crescendo.utils.logger import logger_default as dlog
 from crescendo.utils.py_utils import intersection, \
     check_for_environment_variable
 from crescendo.utils.timing import time_func
-from crescendo.utils.graphs import graph_to_vector_dummy_dataset
 
 
 aromatic_pattern = Chem.MolFromSmarts('[a]')
@@ -41,9 +42,6 @@ hetero_bond_patterns = [
     Chem.MolFromSmarts('C~O'), Chem.MolFromSmarts('C~N'),
     Chem.MolFromSmarts('N~O')
 ]
-
-QM9_ENV_VAR = "QM9_DATA_PATH"
-QM8_EP_ENV_VAR = "QM8_EP_DATA_PATH"
 
 
 class QM9SmilesDatum:
@@ -600,15 +598,19 @@ class QMXDataset(torch.utils.data.Dataset):
 
         dlog.info(f"Total number of data points: {len(self.raw)}")
 
-    def load_qm8_electronic_properties(self, path):
+    def load_qm8_electronic_properties(self, path=None):
         """Function for loading Electronic properties for QM8 files.
 
         Parameters
         ----------
-        path : str
+        path : str, optional
             Absolute path to the file containing the spectral information
-            in the QM8 database.
+            in the QM8 database. If None, checks for the QM8_EP_DATA_PATH
+            environment variable.
         """
+
+        if path is None:
+            path = check_for_environment_variable(QM8_EP_ENV_VAR)
 
         self.qm8_electronic_properties = dict()
 
