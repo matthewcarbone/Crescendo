@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import dgl
 import numpy as np
 import torch
 
@@ -16,6 +17,18 @@ class GraphToVectorProtocol(TrainProtocol):
         self.model = MPNN(**kwargs)
         self._send_model_to_device()
         self._log_model_info()
+
+    def _get_batch(self, batch):
+        """Parses a batch from the Loaders to the model-compatible features."""
+
+        dgl_batched = dgl.batch(batch[0])
+        g = dgl_batched.to(self.device)
+        n = dgl_batched.ndata['features'].to(self.device)
+        e = dgl_batched.edata['features'].to(self.device)
+        target = batch[1].to(self.device)
+        ids = batch[2]
+
+        return (g, n, e, target, ids)
 
     def _train_single_epoch(self, clip=None):
         """Executes the training of the model over a single full pass of
@@ -36,11 +49,9 @@ class GraphToVectorProtocol(TrainProtocol):
         epoch_loss = []
         for idx, batch in enumerate(self.trainLoader):
 
-            # Features
-            g = batch[0].to(self.device)
-            n = batch[0].ndata['features'].to(self.device)
-            e = batch[0].edata['features'].to(self.device)
-            target = batch[1].to(self.device)
+            # Recall that batch[0] is a LIST of graphs now, so we need to batch
+            # it properly.
+            (g, n, e, target, ids) = self._get_batch(batch)
 
             # Zero the gradients
             self.optimizer.zero_grad()
@@ -89,12 +100,8 @@ class GraphToVectorProtocol(TrainProtocol):
         cache_list = []
 
         for idx, batch in enumerate(loader):
-            # Features
-            g = batch[0].to(self.device)
-            n = batch[0].ndata['features'].to(self.device)
-            e = batch[0].edata['features'].to(self.device)
-            target = batch[1].to(self.device)
-            ids = batch[2]
+
+            (g, n, e, target, ids) = self._get_batch(batch)
             output = self.model.forward(g, n, e)
 
             if cache:

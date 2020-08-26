@@ -679,8 +679,20 @@ class QMXDataset(torch.utils.data.Dataset):
         graph, the target and the ID."""
 
         _ids = torch.tensor([xx[2] for xx in batch]).long()
+
+        # Each target is the same length, so we can use standard batching for
+        # it.
         targets = torch.tensor([xx[1] for xx in batch]).float()
-        graphs = dgl.batch([xx[0] for xx in batch])
+
+        # However, graphs are not of the same "length" (diagonally on the
+        # adjacency matrix), so we need to be careful. Usually, dgl's batch
+        # method would work just fine here, but for multi-gpu training, we
+        # need to catch some subtleties, since the batch itself is split apart
+        # equally onto many GPU's, but torch doesn't know how to properly split
+        # a batch of graphs. So, we manually partition the graphs here, and
+        # will batch the output of the collating function before training.
+        # This is now just a list of graphs.
+        graphs = [xx[0] for xx in batch]
 
         return (graphs, targets, _ids)
 
