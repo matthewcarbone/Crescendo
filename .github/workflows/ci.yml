@@ -51,6 +51,10 @@ jobs:
         python setup.py -q install
         cd ../..
 
+        # Need to remove that directory so as to not accidentally run those
+        # unit tests with pytest  too...
+        rm -r dgl-lifesci
+
         # conda install -q -c conda-forge jupyterlab
         # conda install -q -c anaconda networkx
         # conda install -q -c conda-forge matplotlib
