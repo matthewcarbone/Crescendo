@@ -2,7 +2,7 @@
 
 """Module for converting objects to graphs."""
 
-from dgl import DGLGraph
+import dgl
 from rdkit import Chem
 import torch
 
@@ -69,7 +69,7 @@ def mol_to_graph_via_DGL(mol, atom_feature_list, bond_feature_list):
     DGLGraph
     """
 
-    g = DGLGraph()
+    g = dgl.graph(([], []))
     n_atoms = mol.GetNumAtoms()
     n_bonds = mol.GetNumBonds()
     g.add_nodes(n_atoms)
