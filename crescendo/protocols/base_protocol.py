@@ -194,8 +194,8 @@ class TrainProtocol:
             raise RuntimeError(critical)
 
     def initialize_support(
-        self, criterion=('l1', dict()), optimizer=('adam', dict()),
-        scheduler=('rlrp', {'patience': 10, 'factor': 0.05, 'min_lr': 1e-5})
+        self, criterion=('l1', dict()), optimizer=('adam', {'lr': 1e-4}),
+        scheduler=('rlrp', {'patience': 10, 'factor': 0.02, 'min_lr': 1e-6})
     ):
         """Initializes the criterion, optimize and scheduler.
 
