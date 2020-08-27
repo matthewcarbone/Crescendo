@@ -118,13 +118,15 @@ class GraphToVectorProtocol(TrainProtocol):
             (g, n, e, target, ids) = self._get_batch(batch)
             output = self.model.forward(g, n, e)
 
+            # Note that the batch size is target.shape[0]
+
             if cache:
                 cache_list_batch = [
                     (
                         np.array(ids[ii]),
                         output[ii].cpu().detach().numpy() * sd + mu,
                         target[ii].cpu().detach().numpy() * sd + mu
-                    ) for ii in range(len(batch))
+                    ) for ii in range(target.shape[0])
                 ]
                 cache_list.extend(cache_list_batch)
             loss = self.criterion(output.flatten(), target.flatten())
