@@ -20,6 +20,7 @@ class MPNN(nn.Module):
         output_size,
         n_node_embed=None,
         n_edge_embed=None,
+        edge_hidden_feats=4,
         after_mpnn_layers=[20, 15, 10],
         dropout=0.0,
         mpnn_args=dict()
@@ -55,6 +56,7 @@ class MPNN(nn.Module):
 
         self.mpnn = MPNNPredictor(
             node_in_feats=sum(n_node_embed), edge_in_feats=sum(n_edge_embed),
+            edge_hidden_feats=edge_hidden_feats,
             n_tasks=after_mpnn_layers[0], **mpnn_args
         )
 
