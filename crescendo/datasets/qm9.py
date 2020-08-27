@@ -740,10 +740,10 @@ class QMXDataset(torch.utils.data.Dataset):
         )
 
         self.ml_data = [
-            (
+            [
                 self.raw[_id].to_graph(atom_f_list, bond_f_list),
                 self.qm8_electronic_properties[_id], int(_id)
-            ) for _id in ids_to_featurize
+            ] for _id in ids_to_featurize
         ]
 
     @time_func(dlog)
@@ -762,14 +762,46 @@ class QMXDataset(torch.utils.data.Dataset):
             )
 
         self.ml_data = [
-            (
+            [
                 self.raw[_id].to_graph(atom_f_list, bond_f_list),
                 [self.raw[_id].other_props[ii] for ii in target_features],
                 int(_id)
-            ) for _id in self.raw.keys()
+            ] for _id in self.raw.keys()
         ]
 
-    def ml_ready(self, featurizer, **kwargs):
+        self.n_class_per_feature = get_number_of_classes_per_feature(
+            atom_f_list, bond_f_list
+        )
+        dlog.info(
+            f"Storing self.n_class_per_feature: {self.n_class_per_feature}"
+        )
+
+    def _compute_and_log_mean_sd_targets(self, ml_data_target_index=1):
+        """Calculates and returns the mean and standard deviation of the
+        targets, and also logs the values. Assumes the targets are in the 1st
+        index of the ml_ready data by default. Also assumes that the target
+        data is in vector format that can be concatenated into a numpy array.
+        """
+
+        trgs = np.array([xx[ml_data_target_index] for xx in self.ml_data])
+        mean = trgs.mean(axis=0)
+        sd = trgs.std(axis=0)
+        dlog.info(
+            "Mean/sd of target data is "
+            f"{mean.mean():.02e} +/- {sd.mean():.02e}"
+        )
+        return mean, sd
+
+    def _scale_target_data(self, mu, sd, ml_data_target_index=1):
+        """Scales the target data forward."""
+
+        for ii in range(len(self.ml_data)):
+            self.ml_data[ii][ml_data_target_index] = \
+                list((np.array(
+                    self.ml_data[ii][ml_data_target_index]
+                ) - mu) / sd)
+
+    def ml_ready(self, featurizer, scale_targets=False, **kwargs):
         """This method is the workhorse of the QMXLoader. It will featurize
         the raw data depending on the user settings. Also based on the
         featurizer, it will construct the appropriate data loader objects.
@@ -784,9 +816,15 @@ class QMXDataset(torch.utils.data.Dataset):
             The most important seed step in the entire pipeline, as this
             determines the train/validation/test split. It is used to seed the
             sampler.
+
+        Returns
+        -------
+        dict
+            Metadata about the features and targets.
         """
 
         dlog.info(f"Attempting to run featurizer: {featurizer}")
+        trg_meta = None
 
         if featurizer == 'to_graph':
 
@@ -808,6 +846,11 @@ class QMXDataset(torch.utils.data.Dataset):
             atom_f_list = kwargs['atom_feature_list']
             bond_f_list = kwargs['bond_feature_list']
             self._qm8_EP_featurizer(atom_f_list, bond_f_list)
+            if scale_targets:
+                mu, sd = self._compute_and_log_mean_sd_targets()
+                self._scale_target_data(mu, sd)
+                self._compute_and_log_mean_sd_targets()
+                trg_meta = (mu, sd)
 
         elif featurizer == 'qm9_prop':
             atom_f_list = kwargs['atom_feature_list']
@@ -816,6 +859,11 @@ class QMXDataset(torch.utils.data.Dataset):
             self._qm9_property_featurizer(
                 atom_f_list, bond_f_list, target_features
             )
+            if scale_targets:
+                mu, sd = self._compute_and_log_mean_sd_targets()
+                self._scale_target_data(mu, sd)
+                self._compute_and_log_mean_sd_targets()
+                trg_meta = (mu, sd)
 
         else:
             critical = f"Unknown featurizer: {featurizer}"
@@ -826,6 +874,11 @@ class QMXDataset(torch.utils.data.Dataset):
             "Initialized `self.ml_data` of length "
             f"{len(self.ml_data)}"
         )
+
+        return {
+            'feature_metadata': None,
+            'target_metadata': trg_meta
+        }
 
     def _execute_random_points_sampling(self, p_test, p_valid, p_train, seed):
         """Initializes a sampler, performs random sampling and returns a
@@ -838,14 +891,14 @@ class QMXDataset(torch.utils.data.Dataset):
 
     def get_data_loaders(
         self, p_tvt=(0.1, 0.1, None), seed=None, method='random',
-        batch_sizes=(32, 32, 32)
+        batch_sizes=(32, 32, 32), idx_override=None
     ):
         """Utilizes the DGL library or related code (samplers) to split the
         self.ml_ready attribute into test, validation and training splits.
 
         Parameters
         ----------
-        p_tvt : tuple
+        p_tvt : tuple, optional
             A length 3 tuple containing the proportion of testing, validation
             and training data desired. If the sum of the elements in the tuple
             sums to less than one, then we downsample the training set
@@ -856,6 +909,10 @@ class QMXDataset(torch.utils.data.Dataset):
             The method of choice for sampling the splits.
         batch_sizes : tuple
             The batch sizes for the testing, validation and training loaders.
+        idx_override : dict
+            A dict of lists, each lists corresponding to the test, validation
+            and training splits. This will override the sampler and select the
+            splits directly from the user-supplied indexes.
 
         Returns
         -------
@@ -876,12 +933,26 @@ class QMXDataset(torch.utils.data.Dataset):
 
         # Execute the sampling method of choice to produce the T/V/T splits
         # dictionary.
-        if method == 'random':
-            tvt_dict = self._execute_random_points_sampling(*p_tvt, seed)
+        if idx_override is None:
+            if method == 'random':
+                tvt_dict = self._execute_random_points_sampling(*p_tvt, seed)
+            else:
+                critical = f'Method {method} not implemented'
+                dlog.critical(critical)
+                raise RuntimeError(critical)
         else:
-            critical = f'Method {method} not implemented'
-            dlog.critical(critical)
-            raise RuntimeError(critical)
+            dlog.info("Overriding sampler with user-loaded split indexes")
+            if p_tvt is not None:
+                dlog.warning("p_tvt is specified and will be ignored")
+
+            test_idx = idx_override['test']
+            valid_idx = idx_override['valid']
+            train_idx = idx_override['train']
+            assert set(test_idx).isdisjoint(valid_idx)
+            assert set(test_idx).isdisjoint(train_idx)
+            assert set(train_idx).isdisjoint(valid_idx)
+            dlog.info("Assertions passed - all splits are unique")
+            tvt_dict = idx_override
 
         # Initialize the subset objects
         testSubset = torch.utils.data.Subset(self, tvt_dict['test'])
