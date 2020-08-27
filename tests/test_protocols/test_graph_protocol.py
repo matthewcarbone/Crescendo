@@ -29,3 +29,5 @@ class TestGraphToVectorProtocol:
         (train_loss, valid_loss, learning_rate) = protocol.train(10, clip=2)
         assert train_loss[-1] < train_loss[0]
         assert valid_loss[-1] < valid_loss[0]
+
+        protocol.eval()
