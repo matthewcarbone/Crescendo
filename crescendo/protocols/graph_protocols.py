@@ -84,7 +84,7 @@ class GraphToVectorProtocol(TrainProtocol):
 
         return sum(epoch_loss) / len(epoch_loss)  # mean loss over this epoch
 
-    def _eval_valid_pass(self, loader, cache=False):
+    def _eval_valid_pass(self, loader, cache=False, target_metadata=None):
         """Performs the for loop in evaluating the validation sets. This allows
         for interchanging the passed loaders as desired.
 
@@ -106,6 +106,13 @@ class GraphToVectorProtocol(TrainProtocol):
         total_loss = []
         cache_list = []
 
+        if cache:
+            mu = 0.0
+            sd = 1.0
+            if target_metadata is not None:
+                mu = target_metadata[0]
+                sd = target_metadata[1]
+
         for idx, batch in enumerate(loader):
 
             (g, n, e, target, ids) = self._get_batch(batch)
@@ -114,13 +121,13 @@ class GraphToVectorProtocol(TrainProtocol):
             if cache:
                 cache_list_batch = [
                     (
-                        np.array(ids[ii]), output[ii].numpy(),
-                        target[ii].numpy()
+                        np.array(ids[ii]),
+                        output[ii].cpu().detach().numpy() * sd + mu,
+                        target[ii].cpu().detach().numpy() * sd + mu
                     ) for ii in range(len(batch))
                 ]
                 cache_list.extend(cache_list_batch)
             loss = self.criterion(output.flatten(), target.flatten())
             total_loss.append(loss.item())
 
-        cache_list.sort(key=lambda x: x[4])
         return sum(total_loss) / len(total_loss), cache_list

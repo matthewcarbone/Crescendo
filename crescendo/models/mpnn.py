@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import torch
 import torch.nn as nn
 
 from dgllife.model import MPNNPredictor
@@ -19,6 +20,8 @@ class MPNN(nn.Module):
         output_size,
         n_node_embed=None,
         n_edge_embed=None,
+        after_mpnn_layers=[20, 15, 10],
+        dropout=0.0,
         mpnn_args=dict()
     ):
         """Initializer.
@@ -52,8 +55,19 @@ class MPNN(nn.Module):
 
         self.mpnn = MPNNPredictor(
             node_in_feats=sum(n_node_embed), edge_in_feats=sum(n_edge_embed),
-            n_tasks=output_size, **mpnn_args
+            n_tasks=after_mpnn_layers[0], **mpnn_args
         )
+
+        self.hidden_layers = nn.ModuleList([
+            torch.nn.Linear(after_mpnn_layers[ii], after_mpnn_layers[ii + 1])
+            for ii in range(0, len(after_mpnn_layers) - 1)
+        ])
+
+        self.output_layer = torch.nn.Linear(
+            after_mpnn_layers[-1], output_size
+        )
+
+        self.dropout = nn.Dropout(p=dropout)
 
     def forward(self, g, h, e):
         """Forward prop for the MPNN. See the docs linked in the __init__ to
@@ -62,4 +76,7 @@ class MPNN(nn.Module):
 
         h = self.embedding_h(h)
         e = self.embedding_e(e)
-        return self.mpnn.forward(g, h, e)
+        x = self.mpnn.forward(g, h, e)
+        for layer in self.hidden_layers:
+            x = self.dropout(torch.relu(layer(x)))
+        return self.output_layer(x)

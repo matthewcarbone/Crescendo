@@ -195,7 +195,7 @@ class TrainProtocol:
 
     def initialize_support(
         self, criterion=('l2', dict()), optimizer=('adam', dict()),
-        scheduler=('rlrp', dict())
+        scheduler=('rlrp', {'patience': 10, 'factor': 0.05, 'min_lr': 1e-5})
     ):
         """Initializes the criterion, optimize and scheduler.
 
@@ -337,7 +337,7 @@ class TrainProtocol:
 
         return train_loss_list, valid_loss_list, learning_rates
 
-    def eval(self, loader_override=None):
+    def eval(self, loader_override=None, meta=None):
         """Systematically evaluates the validation, or dataset corresponding to
         the loader specified in the loader_override argument, dataset."""
 
@@ -352,7 +352,9 @@ class TrainProtocol:
 
         # defaults.Result
         with torch.no_grad():
-            total_loss, cache = self._eval_valid_pass(loader, cache=True)
+            total_loss, cache = self._eval_valid_pass(
+                loader, cache=True, target_metadata=meta
+            )
         log.info(f"Eval complete: loss {total_loss:.02e}")
 
         return cache
