@@ -14,7 +14,8 @@ from rdkit import Chem
 from rdkit.Chem.Descriptors import MolWt
 import torch
 
-from crescendo.defaults import QM9_ENV_VAR, QM8_EP_ENV_VAR
+from crescendo.defaults import QM9_ENV_VAR, QM8_EP_ENV_VAR, \
+    INDEPENDENT_QM9_PROPS
 from crescendo.featurizers.graphs import mol_to_graph_via_DGL, \
     get_number_of_classes_per_feature
 from crescendo.samplers.base import Sampler
@@ -247,15 +248,15 @@ def parse_QM8_electronic_properties(
     return (qm8_id, other)
 
 
-def parse_QM9_scalar_properties(
-    props,
-    selected_properties=[0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 14]
-):
+def parse_QM9_scalar_properties(props, selected_properties=None):
     """Parses a list of strings into the correct floats that correspond to the
     molecular properties in the QM9 database.
 
     Only the following properties turn out to be statistically relevant in this
-    dataset: selected_properties=[0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 14]
+    dataset: selected_properties=[0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 14]. These
+    properties are the statistically independent contributions as calculated
+    via a linear correlation model, and together the capture >99% of the
+    variance of the dataset.
 
     Note, according to the paper (Table 3)
     https://www.nature.com/articles/sdata201422.pdf
@@ -285,9 +286,8 @@ def parse_QM9_scalar_properties(
     ----------
     props : list[str]
         Initial properties in string format.
-    selected_properties : List[int]
-        The statistically independent subset of properties needed to capture
-        the majority (>99%) of the variance in the QM9 dataset.
+    selected_properties : List[int], optional
+        Selected properties. If None, take all the properties.
 
     Returns
     -------
@@ -297,10 +297,14 @@ def parse_QM9_scalar_properties(
 
     qm9_id = int(props[1])
     other = props[2:]
-    other = [
-        float(prop) for ii, prop in enumerate(other)
-        if ii in selected_properties
-    ]
+
+    if selected_properties is None:
+        other = [float(prop) for ii, prop in enumerate(other)]
+    else:
+        other = [
+            float(prop) for ii, prop in enumerate(other)
+            if ii in selected_properties
+        ]
     return (qm9_id, other)
 
 
@@ -736,16 +740,34 @@ class QMXDataset(torch.utils.data.Dataset):
         )
 
         self.ml_data = [
-                (
-                    self.raw[_id].to_graph(atom_f_list, bond_f_list),
-                    self.qm8_electronic_properties[_id], int(_id)
-                ) for _id in ids_to_featurize
-            ]
+            (
+                self.raw[_id].to_graph(atom_f_list, bond_f_list),
+                self.qm8_electronic_properties[_id], int(_id)
+            ) for _id in ids_to_featurize
+        ]
 
-        dlog.info(
-            "Initialized `self.ml_data` of length "
-            f"{len(self.ml_data)}"
-        )
+    @time_func(dlog)
+    def _qm9_property_featurizer(
+        self, atom_f_list, bond_f_list, target_features
+    ):
+        """Chooses the features of the model as the indexes specified in
+        `features`, corresponding to the extra properties in the QM9 dataset.
+        Note that not all of these features are statistically independent,
+        and when those features are selected, warnings will be thrown."""
+
+        if not set(target_features).issubset(set(INDEPENDENT_QM9_PROPS)):
+            dlog.warning(
+                f"Chosen features {target_features} is not a subset of the "
+                f"pre-determined independent set {INDEPENDENT_QM9_PROPS}"
+            )
+
+        self.ml_data = [
+            (
+                self.raw[_id].to_graph(atom_f_list, bond_f_list),
+                [self.raw[_id].other_props[ii] for ii in target_features],
+                int(_id)
+            ) for _id in self.raw.keys()
+        ]
 
     def ml_ready(self, featurizer, **kwargs):
         """This method is the workhorse of the QMXLoader. It will featurize
@@ -787,10 +809,23 @@ class QMXDataset(torch.utils.data.Dataset):
             bond_f_list = kwargs['bond_feature_list']
             self._qm8_EP_featurizer(atom_f_list, bond_f_list)
 
+        elif featurizer == 'qm9_prop':
+            atom_f_list = kwargs['atom_feature_list']
+            bond_f_list = kwargs['bond_feature_list']
+            target_features = kwargs['target_features']
+            self._qm9_property_featurizer(
+                atom_f_list, bond_f_list, target_features
+            )
+
         else:
             critical = f"Unknown featurizer: {featurizer}"
             dlog.critical(critical)
             raise RuntimeError(critical)
+
+        dlog.info(
+            "Initialized `self.ml_data` of length "
+            f"{len(self.ml_data)}"
+        )
 
     def _execute_random_points_sampling(self, p_test, p_valid, p_train, seed):
         """Initializes a sampler, performs random sampling and returns a
