@@ -40,6 +40,17 @@ class TestQMXDataset:
             target_features=[0, 1, 2]
         )
 
+    def test_with_scaling_targets(self):
+        ds = QMXDataset()
+        ds.load(QM9_TEST_DATA_PATH, min_heavy_atoms=1)
+        ds.ml_ready(
+            'qm9_prop',
+            scale_targets=True,
+            atom_feature_list=['type', 'hybridization'],
+            bond_feature_list=['type'],
+            target_features=[0, 1, 2]
+        )
+
     def test_get_data_loaders(self):
         ds = QMXDataset()
         ds.load(QM9_TEST_DATA_PATH)
