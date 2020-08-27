@@ -20,6 +20,7 @@ class MPNN(nn.Module):
         output_size,
         n_node_embed=None,
         n_edge_embed=None,
+        node_hidden_feats=32,
         edge_hidden_feats=4,
         after_mpnn_layers=[20, 15, 10],
         dropout=0.0,
@@ -54,8 +55,11 @@ class MPNN(nn.Module):
         self.embedding_h = Embedding(n_node_features, n_node_embed)
         self.embedding_e = Embedding(n_edge_features, n_edge_embed)
 
+        # https://lifesci.dgl.ai/_modules/dgllife/model/model_zoo/
+        # mpnn_predictor.html#MPNNPredictor
         self.mpnn = MPNNPredictor(
             node_in_feats=sum(n_node_embed), edge_in_feats=sum(n_edge_embed),
+            node_out_feats=node_hidden_feats,
             edge_hidden_feats=edge_hidden_feats,
             n_tasks=after_mpnn_layers[0], **mpnn_args
         )
