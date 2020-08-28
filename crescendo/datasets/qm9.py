@@ -3,11 +3,17 @@
 """Module for loading in data from the QM9 database."""
 
 import datetime
+from joblib import Parallel, delayed
+from multiprocessing import cpu_count
 from ntpath import basename
 import os as os
 
+from dgllife.utils.mol_to_graph import mol_to_bigraph
 import glob2
 import pickle as pickle
+from rdkit import Chem
+from rdkit.Chem.Descriptors import MolWt
+import torch
 
 from crescendo import defaults
 from crescendo.utils.logger import logger_default as dlog
@@ -72,8 +78,7 @@ class QM9DataPoint:
         self.nheavy = sum([e != 'H' for e in self.elements])
         self.mol = None
         self.mw = None
-        # self.mol = Chem.MolFromSmiles(smiles)
-        # self.mw = MolWt(self.mol)
+        self.graph = None
 
 
 class QM9Dataset:
@@ -114,6 +119,8 @@ class QM9Dataset:
         self.raw = dict()
         self.debug = debug
         self.dt_created = datetime.datetime.now()
+        self.oxygenXANES_grid = None
+        self.nitrogenXANES_grid = None
 
     def __getitem__(self, ii):
         try:
@@ -132,7 +139,8 @@ class QM9Dataset:
 
     def save_state(self, directory=None, override=False):
         """Dumps the class as a dictionary into a pickle file. It will save
-        the object to the dsname directory as raw.pkl."""
+        the object to the dsname directory as raw.pkl. Specifically, it saves
+        to directory/dsname/raw.pkl."""
 
         if directory is None:
             directory = check_for_environment_variable(defaults.QM9_DS_ENV_VAR)
@@ -223,6 +231,7 @@ class QM9Dataset:
 
         dlog.info(f"Total number of raw QM9 data points: {len(self.raw)}")
 
+    @time_func(dlog)
     def load_qm8_electronic_properties(
         self, path=None, selected_properties=None
     ):
@@ -256,3 +265,166 @@ class QM9Dataset:
             cc += 1
 
         dlog.info(f"Total number of data points read from qm8: {cc}")
+
+
+class QM9GraphDataset(torch.utils.data.Dataset):
+    """A special dataset which processes the exiting DataSet object into rdkit
+    Chem mol and DGL graph objects. Also has analysis methods built on it
+    for quick insights into the data, and individual objects.
+
+    Attributes
+    ----------
+    dsname : str
+        The name of the dataset, should match that of the QM9Dataset for
+        consistency.
+    raw : dict, optional
+        A dictionary of the raw data as provided directly by QM9Dataset.raw.
+    to_mol_called, to_graph_called : bool
+        Whether or not the corresponding methods have been called.
+    ml_ready : list
+        A list of the data as prepared to be processed by a collating function.
+        Essentially data that is ready for pytorch to take over.
+    """
+
+    def __init__(self, dsname=None, raw=None):
+        if dsname is None:
+            dlog.warning(f"GraphDataset name initialized to default {dsname}")
+            self.dsname = "QM9_dataset_default"
+        else:
+            self.dsname = dsname
+        self.raw = raw
+        self.to_mol_called = False
+        self.to_graph_called = False
+        self.ml_ready = None
+
+    @time_func(dlog)
+    def to_mol(self, canon=False, n_workers=cpu_count(), force=False):
+        """Fills the mol attribute in every DataPoint in raw.
+
+        Properties
+        ----------
+        canon : bool
+            If True, uses the canonical SMILES code for the mol-generation,
+            else uses the standard SMILES code.
+        n_workers : int
+            The number of workers to use during the generation of the mol
+            objects, which can be time-consuming. Defaults to the number of
+            available CPU's on your machine.
+        force : bool
+            If True and to_mol_called is True, will rerun the computation
+            anyway.
+        """
+
+        if self.to_mol_called:
+            if force:
+                dlog.warning(
+                    "You already called this but force is True: re-running"
+                )
+            else:
+                dlog.error(
+                    "You already called this and force is False: "
+                    "exiting without re-running"
+                )
+                return
+
+        def _to_mol(ii, smiles):
+            if canon:
+                mol = Chem.MolFromSmiles(smiles[1])
+            else:
+                mol = Chem.MolFromSmiles(smiles[0])
+            return ii, mol, MolWt(mol)
+
+        res = Parallel(n_jobs=n_workers)(
+            delayed(_to_mol)(ii, dat.smiles) for ii, dat in self.raw.items()
+        )
+
+        for (qm9ID, mol, mw) in res:
+            self.raw[qm9ID].mol = mol
+            self.raw[qm9ID].mw = mw
+
+        self.to_mol_called = True
+
+    @time_func(dlog)
+    def to_graph(
+        self, node_method='weave', edge_method='canonical',
+        n_workers=cpu_count(), force=False
+    ):
+        """Constructs the graphs for the entire raw attribute using the
+        designated node and edge methods. Requires the to_mol method to have
+        been called (in other words, requires that each QM9DataPoint has it's
+        mol object initialized).
+
+        Parameters
+        ----------
+        node_method : {'weave'}
+        edge_method : {'canonical'}
+        """
+
+        if not self.to_mol_called:
+            error = "You must call to_mol before calling this method - exiting"
+            dlog.error(error)
+            return
+
+        if self.to_graph_called:
+            if force:
+                dlog.warning(
+                    "You already called this but force is True: re-running"
+                )
+            else:
+                dlog.error(
+                    "You already called this and force is False: "
+                    "exiting without re-running"
+                )
+                return
+
+        errors = []
+
+        if node_method == 'weave':
+            from dgllife.utils.featurizers import WeaveAtomFeaturizer
+            fn = WeaveAtomFeaturizer(
+                atom_data_field='features',
+                atom_types=['H', 'C', 'N', 'O', 'F']
+            )
+        else:
+            errors.append(f"Unknown node_method {node_method}")
+
+        if edge_method == 'canonical':
+            from dgllife.utils.featurizers import CanonicalBondFeaturizer
+            fe = CanonicalBondFeaturizer(bond_data_field='features')
+        else:
+            errors.append(f"Unknown edge_method {node_method}")
+
+        if len(errors) > 0:
+            for err in errors:
+                dlog.error(err)
+            dlog.error("Exiting without doing anything")
+            return
+
+        def _to_graph(ii, mol):
+            return ii, mol_to_bigraph(
+                mol, node_featurizer=fn, edge_featurizer=fe
+            )
+
+        res = Parallel(n_jobs=n_workers)(
+            delayed(_to_graph)(ii, dat.mol) for ii, dat in self.raw.items()
+        )
+
+        for (qm9ID, graph) in res:
+            self.raw[qm9ID].graph = graph
+
+        self.to_graph_called = True
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
