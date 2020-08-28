@@ -182,7 +182,7 @@ class QM9Dataset:
             setattr(self, key, value)
 
     @time_func(dlog)
-    def load(self, path=None, log_every=10000):
+    def load(self, path=None, n_workers=cpu_count()):
         """Loads in **only** the QM9 raw data from .xyz files.
 
         Parameters
@@ -193,9 +193,9 @@ class QM9Dataset:
             be the path. If path is None by default, it will check the
             os.environ dictionary for QM9_DATA_PATH, and if that does not
             exist, it will throw an error.
-        log_every : int
-            Each time we hit log_every iterations during loading, the output
-            will be logged to the logger.
+        n_workers : int
+            The number of processes during loading. Defaults to the number of
+            available CPU's on your machine.
         """
 
         if path is None:
@@ -211,18 +211,13 @@ class QM9Dataset:
             all_xyz_paths = all_xyz_paths[:self.debug]
         dlog.info(f"Loading from {total_xyz} geometry files")
 
+        res = Parallel(n_jobs=n_workers)(
+            delayed(read_qm9_xyz)(p) for p in all_xyz_paths
+        )
+
         # Load in all of the data.
-        for ii, current_path in enumerate(all_xyz_paths):
-
-            if ii % log_every == 0 and ii != 0:
-                pc = ii / total_xyz * 100.0
-                dlog.info(
-                    f"latest read from: {basename(current_path)} ({pc:.00f}%)"
-                )
-
-            (qm9ID, smiles, canon, qm9properties, xyz, elements, zwitter) = \
-                read_qm9_xyz(current_path)
-
+        for r in res:
+            (qm9ID, smiles, canon, qm9properties, xyz, elements, zwitter) = r
             self.raw[qm9ID] = QM9DataPoint(
                 qm9ID=qm9ID,
                 smiles=(smiles, canon),
@@ -358,7 +353,8 @@ class QM9GraphDataset(torch.utils.data.Dataset):
     @time_func(dlog)
     def analyze(self, n_workers=cpu_count(), force=False):
         """Runs an in-depth analysis on every molecule in the dataset, using
-        the analysis module from dgllife."""
+        the analysis module from dgllife and a few in-house-developed analysis
+        steps."""
 
         if self.analyze_called:
             go = QM9GraphDataset._err_if_called(force)
