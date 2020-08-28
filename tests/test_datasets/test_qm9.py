@@ -14,14 +14,18 @@ class TestQMXDataset:
 
     def test_loadspectra(self):
         qm8_test = QMXDataset()
-        qm8_test.load_qm8_electronic_properties(QM8_TEST_DATA_PATH)
+        qm8_test.load_qm8_electronic_properties(
+            QM8_TEST_DATA_PATH, selected_properties=[0, 13, 14, 15, 16]
+        )
         S1 = qm8_test.qm8_electronic_properties[1]
         assert S1 == [0.43295186, 0.40993872, 0.1832, 0.1832]
 
     def test_ml_ready_qm8_EP(self):
         ds = QMXDataset()
         ds.load(QM9_TEST_DATA_PATH, min_heavy_atoms=1)
-        ds.load_qm8_electronic_properties(QM8_TEST_DATA_PATH)
+        ds.load_qm8_electronic_properties(
+            QM8_TEST_DATA_PATH, selected_properties=[0, 13, 14, 15, 16]
+        )
         ds.ml_ready(
             'qm8_EP',
             atom_feature_list=['type', 'hybridization'],
