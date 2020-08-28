@@ -8,6 +8,12 @@ from scipy.sparse import coo_matrix
 import torch
 
 
+def one_hot(idx, l):
+    z = [0 for _ in range(l)]
+    z[idx] = 1
+    return z
+
+
 def random_graph_generator(max_size=10, max_n_class=7, max_e_class=5):
     """Generates a graph of random size, connectivity, node and edge features.
     We also have a minimum atoms requirement to ensure that we have at least
@@ -28,11 +34,11 @@ def random_graph_generator(max_size=10, max_n_class=7, max_e_class=5):
 
     # Add dummy features
     all_node_features = [
-        [np.random.randint(low=0, high=max_n_class)]
+        one_hot(np.random.randint(low=0, high=max_n_class), max_n_class)
         for nn in range(g.number_of_nodes())
     ]
     all_edge_features = [
-        [np.random.randint(low=0, high=max_e_class)]
+        one_hot(np.random.randint(low=0, high=max_e_class), max_e_class)
         for nn in range(g.number_of_edges())
     ]
     g.ndata['features'] = torch.LongTensor(all_node_features)

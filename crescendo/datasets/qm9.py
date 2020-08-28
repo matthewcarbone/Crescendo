@@ -5,6 +5,9 @@
 import os as os
 from typing import List
 
+from dgllife.utils.featurizers import WeaveAtomFeaturizer, \
+    CanonicalBondFeaturizer
+from dgllife.utils.mol_to_graph import mol_to_bigraph
 import glob2
 from ntpath import basename
 import numpy as np
@@ -16,33 +19,19 @@ import torch
 
 from crescendo.defaults import QM9_ENV_VAR, QM8_EP_ENV_VAR, \
     INDEPENDENT_QM9_PROPS
-from crescendo.featurizers.graphs import mol_to_graph_via_DGL, \
-    get_number_of_classes_per_feature
 from crescendo.samplers.base import Sampler
 from crescendo.utils.graphs import graph_to_vector_dummy_dataset
 from crescendo.utils.logger import logger_default as dlog
 from crescendo.utils.py_utils import intersection, \
     check_for_environment_variable
+from crescendo.utils import mol_utils
 from crescendo.utils.timing import time_func
 
 
-aromatic_pattern = Chem.MolFromSmarts('[a]')
-
-double_bond_patterns = [
-    Chem.MolFromSmarts('C=C'), Chem.MolFromSmarts('C=O'),
-    Chem.MolFromSmarts('C=N'), Chem.MolFromSmarts('O=O'),
-    Chem.MolFromSmarts('O=N'), Chem.MolFromSmarts('N=N')
-]
-
-triple_bond_patterns = [
-    Chem.MolFromSmarts('C#C'), Chem.MolFromSmarts('C#N'),
-    Chem.MolFromSmarts('N#N')
-]
-
-hetero_bond_patterns = [
-    Chem.MolFromSmarts('C~O'), Chem.MolFromSmarts('C~N'),
-    Chem.MolFromSmarts('N~O')
-]
+fn = WeaveAtomFeaturizer(
+    atom_data_field='features', atom_types=['H', 'C', 'N', 'O', 'F']
+)
+fe = CanonicalBondFeaturizer(bond_data_field='features')
 
 
 class QM9SmilesDatum:
@@ -89,96 +78,18 @@ class QM9SmilesDatum:
         self.zwitter = zwitter
         self.qm9_id = qm9_id
 
-    def to_graph(
-        self, atom_feature_list=['type', 'hybridization'],
-        bond_feature_list=['type']
-    ):
+    def to_graph(self, method='weave-canonical'):
         """Initializes the graph attribute of the molecule object. See
         crescendo.featurizer.graphs.mol_to_graph_via_DGL for more details."""
 
-        return mol_to_graph_via_DGL(
-            self.mol, atom_feature_list, bond_feature_list
-        )
-
-    def has_n_membered_ring(self, n=None) -> bool:
-        """Returns True if the mol attribute (the molecule object in rdkit
-        representing the Smiles string) has an n-membered ring.
-
-        Parameters
-        ----------
-        n : int, optional
-            The size of the ring. If None, will simply check if the molecule
-            has any ring (using the substructure matching string '[r]' instead
-            of [f'r{n}']). Default is None.
-
-        Returns
-        -------
-        bool
-            True if a match is found. False otherwise.
-        """
-
-        n = '' if n is None else n
-        return self.mol.HasSubstructMatch(Chem.MolFromSmarts(f'[r{n}]'))
-
-    def is_aromatic(self) -> bool:
-        """If the molecule has any aromatic pattern, returns True, else
-        returns False. This is checked by trying to locate the substructure
-        match for the string '[a]'.
-
-        Returns
-        -------
-        bool
-        """
-
-        return self.mol.HasSubstructMatch(aromatic_pattern)
-
-    def has_double_bond(self) -> bool:
-        """Checks the molecule for double bonds. Note that by default this
-        method assumes the data point is from QM9, and only checks the
-        atoms capable of forming double bonds in QM9, so, it will only check
-        C, N and O, and their 6 combinations.
-
-        Returns
-        -------
-        bool
-        """
-
-        return any([
-            self.mol.HasSubstructMatch(p)
-            for p in double_bond_patterns
-        ])
-
-    def has_triple_bond(self) -> bool:
-        """Checks the molecule for triple bonds. Note that by default this
-        method assumes the data point is from QM9, and only checks the
-        atoms capable of forming triple bonds in QM9, so, it will only check
-        C#C, C#N and N#N.
-
-        Returns
-        -------
-        bool
-        """
-
-        return any([
-            self.mol.HasSubstructMatch(p)
-            for p in triple_bond_patterns
-        ])
-
-    def has_hetero_bond(self) -> bool:
-        """Checks the molecule for heter bonds. Note that by default this
-        method assumes the data point is from QM9, and only checks the
-        atoms capable of forming hetero bonds in QM9, so, it will only check
-        C~O, C~N and N~O.
-
-        Returns
-        -------
-        bool
-        """
-
-        return any([
-            self.mol.HasSubstructMatch(p)
-            for p in hetero_bond_patterns
-        ])
+        if method == 'weave-canonical':
+            return mol_to_bigraph(
+                self.mol, node_featurizer=fn, edge_featurizer=fe
+            )
+        else:
+            critical = f"Uknown method {method}"
+            dlog.critical(critical)
+            raise RuntimeError(critical)
 
     def to_pmg_molecule(self):
         """Convenience method which turns the current QM9 datum into a Pymatgen
@@ -554,7 +465,7 @@ class QMXDataset(torch.utils.data.Dataset):
             }
             self.ml_data = graph_to_vector_dummy_dataset(**kwargs)
             self.n_class_per_feature = [
-                [dummy_default_max_n_class], [dummy_default_max_e_class]
+                dummy_default_max_n_class, dummy_default_max_e_class
             ]
             return
 
@@ -664,15 +575,15 @@ class QMXDataset(torch.utils.data.Dataset):
             }
 
         for qmx_id in self.raw:
-            if self.raw[qmx_id].is_aromatic():
+            if mol_utils.is_aromatic(self.raw[qmx_id].mol):
                 analysis['num_aromatic'] += 1
-            if self.raw[qmx_id].has_double_bond():
+            if mol_utils.has_double_bond(self.raw[qmx_id]):
                 analysis['num_double_bond'] += 1
-            if self.raw[qmx_id].has_triple_bond():
+            if mol_utils.has_triple_bond(self.raw[qmx_id]):
                 analysis['num_triple_bond'] += 1
-            if self.raw[qmx_id].has_hetero_bond():
+            if mol_utils.has_hetero_bond(self.raw[qmx_id]):
                 analysis['num_hetero_bond'] += 1
-            if self.raw[qmx_id].has_n_membered_ring(n):
+            if mol_utils.has_n_membered_ring(self.raw[qmx_id], n):
                 analysis['num_n_membered_ring'] += 1
 
         return analysis
@@ -687,7 +598,7 @@ class QMXDataset(torch.utils.data.Dataset):
 
         # Each target is the same length, so we can use standard batching for
         # it.
-        targets = torch.tensor([xx[1] for xx in batch]).float()
+        targets = torch.tensor([xx[1] for xx in batch])
 
         # However, graphs are not of the same "length" (diagonally on the
         # adjacency matrix), so we need to be careful. Usually, dgl's batch
@@ -702,7 +613,7 @@ class QMXDataset(torch.utils.data.Dataset):
         return (graphs, targets, _ids)
 
     @time_func(dlog)
-    def _qm8_EP_featurizer(self, atom_f_list, bond_f_list):
+    def _qm8_EP_featurizer(self, method='weave-canonical'):
         """constructs the ml_ready list by pairing QM9 structures with
         the corresponding electronic properties as read in by the
         load_qm8_electronic_properties method. Requires atom_feature_list and
@@ -727,28 +638,16 @@ class QMXDataset(torch.utils.data.Dataset):
             f"QM8 electronic properties of length {len(ids_to_featurize)}"
         )
 
-        # Get the number of classes per feature, used in initializing
-        # the MPNN later.
-        dlog.info(f"Using atom feature list: {atom_f_list}")
-        dlog.info(f"Using bond feature list: {bond_f_list}")
-
-        self.n_class_per_feature = get_number_of_classes_per_feature(
-            atom_f_list, bond_f_list
-        )
-        dlog.info(
-            f"Storing self.n_class_per_feature: {self.n_class_per_feature}"
-        )
-
         self.ml_data = [
             [
-                self.raw[_id].to_graph(atom_f_list, bond_f_list),
+                self.raw[_id].to_graph(method=method),
                 self.qm8_electronic_properties[_id], int(_id)
             ] for _id in ids_to_featurize
         ]
 
     @time_func(dlog)
     def _qm9_property_featurizer(
-        self, atom_f_list, bond_f_list, target_features
+        self, target_features, method='weave-canonical'
     ):
         """Chooses the features of the model as the indexes specified in
         `features`, corresponding to the extra properties in the QM9 dataset.
@@ -763,18 +662,11 @@ class QMXDataset(torch.utils.data.Dataset):
 
         self.ml_data = [
             [
-                self.raw[_id].to_graph(atom_f_list, bond_f_list),
+                self.raw[_id].to_graph(method=method),
                 [self.raw[_id].other_props[ii] for ii in target_features],
                 int(_id)
             ] for _id in self.raw.keys()
         ]
-
-        self.n_class_per_feature = get_number_of_classes_per_feature(
-            atom_f_list, bond_f_list
-        )
-        dlog.info(
-            f"Storing self.n_class_per_feature: {self.n_class_per_feature}"
-        )
 
     def _compute_and_log_mean_sd_targets(self, ml_data_target_index=1):
         """Calculates and returns the mean and standard deviation of the
@@ -801,7 +693,10 @@ class QMXDataset(torch.utils.data.Dataset):
                     self.ml_data[ii][ml_data_target_index]
                 ) - mu) / sd)
 
-    def ml_ready(self, featurizer, scale_targets=False, **kwargs):
+    def ml_ready(
+        self, featurizer, method='weave-canonical', scale_targets=False,
+        **kwargs
+    ):
         """This method is the workhorse of the QMXLoader. It will featurize
         the raw data depending on the user settings. Also based on the
         featurizer, it will construct the appropriate data loader objects.
@@ -812,6 +707,9 @@ class QMXDataset(torch.utils.data.Dataset):
             The featurizer options are described henceforth or in docstrings:
             * to_graph : temporary debugging, just returns graphs and metadata
             * qm8_EP : see _qm8_EP_featurizer
+            * qm9_prop
+        method : {'weave-canonical'}
+            The way that the SMILES are featurized to graphs.
         seed : int, optional
             The most important seed step in the entire pipeline, as this
             determines the train/validation/test split. It is used to seed the
@@ -826,26 +724,8 @@ class QMXDataset(torch.utils.data.Dataset):
         dlog.info(f"Attempting to run featurizer: {featurizer}")
         trg_meta = None
 
-        if featurizer == 'to_graph':
-
-            # Get the number of classes per feature, used in initializing
-            # the MPNN later.
-            atom_f_list = kwargs['atom_feature_list']
-            bond_f_list = kwargs['bond_feature_list']
-            n_class_per_feature = get_number_of_classes_per_feature(
-                atom_f_list, bond_f_list
-            )
-
-            # Convert every object in self.raw -> graphs
-            return {
-                _id: datum.to_graph(atom_f_list, bond_f_list)
-                for _id, datum in self.raw.items()
-            }, n_class_per_feature
-
-        elif featurizer == 'qm8_EP':
-            atom_f_list = kwargs['atom_feature_list']
-            bond_f_list = kwargs['bond_feature_list']
-            self._qm8_EP_featurizer(atom_f_list, bond_f_list)
+        if featurizer == 'qm8_EP':
+            self._qm8_EP_featurizer(method=method)
             if scale_targets:
                 mu, sd = self._compute_and_log_mean_sd_targets()
                 self._scale_target_data(mu, sd)
@@ -853,12 +733,8 @@ class QMXDataset(torch.utils.data.Dataset):
                 trg_meta = (mu, sd)
 
         elif featurizer == 'qm9_prop':
-            atom_f_list = kwargs['atom_feature_list']
-            bond_f_list = kwargs['bond_feature_list']
             target_features = kwargs['target_features']
-            self._qm9_property_featurizer(
-                atom_f_list, bond_f_list, target_features
-            )
+            self._qm9_property_featurizer(target_features, method=method)
             if scale_targets:
                 mu, sd = self._compute_and_log_mean_sd_targets()
                 self._scale_target_data(mu, sd)
@@ -874,6 +750,17 @@ class QMXDataset(torch.utils.data.Dataset):
             "Initialized `self.ml_data` of length "
             f"{len(self.ml_data)}"
         )
+
+        if method == 'weave-canonical':
+            self.n_class_per_feature = [
+                fn.feat_size(), fe.feat_size()
+            ]
+        else:
+            dlog.warning(
+                f"Method {method} may not be recognized, n_class_per_feature "
+                "is None"
+            )
+            self.n_class_per_feature = None
 
         return {
             'feature_metadata': None,

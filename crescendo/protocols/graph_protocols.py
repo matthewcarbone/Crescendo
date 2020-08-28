@@ -3,10 +3,10 @@
 import warnings
 
 import dgl
+from dgllife.model import MPNNPredictor
 import numpy as np
 import torch
 
-from crescendo.models.mpnn import MPNN
 from crescendo.protocols.base_protocol import TrainProtocol
 
 
@@ -15,18 +15,33 @@ class GraphToVectorProtocol(TrainProtocol):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def initialize_model(self, **kwargs):
-        self.model = MPNN(**kwargs)
+    def initialize_MPNN(
+        self, n_node_features, n_edge_features, output_size,
+        hidden_node_size=64, hidden_edge_size=128
+    ):
+        """TODO: docstring."""
+
+        self.model = MPNNPredictor(
+            node_in_feats=n_node_features, edge_in_feats=n_edge_features,
+            node_out_feats=hidden_node_size,
+            edge_hidden_feats=hidden_edge_size, n_tasks=output_size
+        )
         self._send_model_to_device()
         self._log_model_info()
+
+    def initialize_model(self, model_name='MPNN', **kwargs):
+        if model_name == 'MPNN':
+            self.initialize_MPNN(**kwargs)
+        else:
+            raise NotImplementedError
 
     def _get_batch(self, batch):
         """Parses a batch from the Loaders to the model-compatible features."""
 
         dgl_batched = dgl.batch(batch[0])
         g = dgl_batched.to(self.device)
-        n = dgl_batched.ndata['features'].to(self.device)
-        e = dgl_batched.edata['features'].to(self.device)
+        n = dgl_batched.ndata['features'].float().to(self.device)
+        e = dgl_batched.edata['features'].float().to(self.device)
         target = batch[1].to(self.device)
         ids = batch[2]
 
