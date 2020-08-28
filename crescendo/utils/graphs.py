@@ -8,8 +8,8 @@ from scipy.sparse import coo_matrix
 import torch
 
 
-def one_hot(idx, l):
-    z = [0 for _ in range(l)]
+def one_hot(idx, n_choices):
+    z = [0 for _ in range(n_choices)]
     z[idx] = 1
     return z
 
