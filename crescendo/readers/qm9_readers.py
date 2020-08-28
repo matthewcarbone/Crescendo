@@ -116,7 +116,7 @@ def parse_QM9_scalar_properties(props, selected_properties=None):
     return (qm9_id, other)
 
 
-def read_qm9_xyz(xyz_path, canonical=True):
+def read_qm9_xyz(xyz_path):
     """Function for reading .xyz files like those present in QM9. Note this
     does not read in geometry information, just properties and SMILES codes.
     For a detailed description of the properties contained in the qm9 database,
@@ -126,9 +126,6 @@ def read_qm9_xyz(xyz_path, canonical=True):
     ----------
     xyz_path : str
         Absolute path to the xyz file.
-    canonical : bool
-        Whether or not to use the canonical SMILES codes instead of the
-        standard ones.
 
     Returns
     -------
@@ -156,8 +153,11 @@ def read_qm9_xyz(xyz_path, canonical=True):
 
         # Now read the SMILES code
         smiles = file.readline().split()
-        _smiles = smiles[int(canonical)]
+        _smiles = smiles[0]
+        _canon_smiles = smiles[1]
 
         zwitter = '+' in smiles[0] or '-' in smiles[0]
 
-    return (qm9_id, _smiles, other_props, xyzs, elements, zwitter)
+    return (
+        qm9_id, _smiles, _canon_smiles, other_props, xyzs, elements, zwitter
+    )
