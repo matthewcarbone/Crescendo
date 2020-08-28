@@ -113,9 +113,10 @@ class Sampler:
 
         if p_train is None:
             p_train = 1.0 - p_valid - p_test
+            i3 = self.n_points
         elif p_test + p_valid + p_train < 1.0:
             dlog.info("Training set is explicitly downsampled.")
-        i3 = i2 + int(self.n_points * p_train)
+            i3 = i2 + round(self.n_points * p_train)
 
         if p_test + p_valid + p_train > 1.0:
             raise RuntimeError(
@@ -123,7 +124,7 @@ class Sampler:
                 "sum to 1.0 or less."
             )
 
-        dlog.info(f"T/V/T props: {p_test}/{p_valid}/{p_train}")
+        dlog.info(f"T/V/T props: {p_test:.02f}/{p_valid:.02f}/{p_train:.02f}")
 
         testing_set = self.indexes[:i1]
         validation_set = self.indexes[i1:i2]

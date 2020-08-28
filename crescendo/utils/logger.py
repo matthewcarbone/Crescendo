@@ -3,33 +3,50 @@
 """Basic logging module."""
 
 import logging
+import sys
 
-DEFAULT_LOGGER_STRING_FORMAT = '%(asctime)s %(levelname)-8s' \
-    '[%(filename)s:%(lineno)d] %(message)s'
+logger_string_format = \
+    '%(asctime)s %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s'
+
+formatter = logging.Formatter(logger_string_format)
 
 
-def setup_logger(
-    name,
-    log_file,
-    level=logging.INFO,
-    logger_string_format=DEFAULT_LOGGER_STRING_FORMAT
+# https://stackoverflow.com/
+# questions/36337244/logging-how-to-set-a-maximum-log-level-for-a-handler
+class LevelFilter(logging.Filter):
 
-):
-    """To setup as many loggers as you want:
-    https://stackoverflow.com/questions/11232230/
-    logging-to-two-files-with-different-settings"""
+    def __init__(self, low, high):
+        self._low = low
+        self._high = high
+        logging.Filter.__init__(self)
 
-    if log_file is None:
-        handler = logging.StreamHandler()
-    else:
-        handler = logging.FileHandler(log_file)
+    def filter(self, record):
+        if self._low <= record.levelno <= self._high:
+            return True
+        return False
 
-    formatter = logging.Formatter(logger_string_format)
-    handler.setFormatter(formatter)
 
+def setup_logger(name, log_file):
     logger = logging.getLogger(name)
-    logger.setLevel(level)
+    logger.setLevel(logging.DEBUG)
+
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.INFO)
+    handler.setFormatter(formatter)
+    handler.addFilter(LevelFilter(10, 20))
     logger.addHandler(handler)
+
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setLevel(logging.WARN)
+    handler.setFormatter(formatter)
+    handler.addFilter(LevelFilter(30, 50))
+    logger.addHandler(handler)
+
+    if log_file is not None:
+        handler = logging.FileHandler(log_file)
+        handler.setLevel(logging.WARN)
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
 
     return logger
 

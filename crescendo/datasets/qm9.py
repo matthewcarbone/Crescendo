@@ -5,7 +5,9 @@
 import os as os
 from typing import List
 
-import dgl
+from dgllife.utils.featurizers import WeaveAtomFeaturizer, \
+    CanonicalBondFeaturizer
+from dgllife.utils.mol_to_graph import mol_to_bigraph
 import glob2
 from ntpath import basename
 import numpy as np
@@ -15,35 +17,21 @@ from rdkit import Chem
 from rdkit.Chem.Descriptors import MolWt
 import torch
 
-from crescendo.featurizers.graphs import mol_to_graph_via_DGL, \
-    get_number_of_classes_per_feature
+from crescendo.defaults import QM9_ENV_VAR, QM8_EP_ENV_VAR, \
+    INDEPENDENT_QM9_PROPS
 from crescendo.samplers.base import Sampler
+from crescendo.utils.graphs import graph_to_vector_dummy_dataset
 from crescendo.utils.logger import logger_default as dlog
 from crescendo.utils.py_utils import intersection, \
     check_for_environment_variable
+from crescendo.utils import mol_utils
 from crescendo.utils.timing import time_func
 
 
-aromatic_pattern = Chem.MolFromSmarts('[a]')
-
-double_bond_patterns = [
-    Chem.MolFromSmarts('C=C'), Chem.MolFromSmarts('C=O'),
-    Chem.MolFromSmarts('C=N'), Chem.MolFromSmarts('O=O'),
-    Chem.MolFromSmarts('O=N'), Chem.MolFromSmarts('N=N')
-]
-
-triple_bond_patterns = [
-    Chem.MolFromSmarts('C#C'), Chem.MolFromSmarts('C#N'),
-    Chem.MolFromSmarts('N#N')
-]
-
-hetero_bond_patterns = [
-    Chem.MolFromSmarts('C~O'), Chem.MolFromSmarts('C~N'),
-    Chem.MolFromSmarts('N~O')
-]
-
-QM9_ENV_VAR = "QM9_DATA_PATH"
-QM8_EP_ENV_VAR = "QM8_EP_DATA_PATH"
+fn = WeaveAtomFeaturizer(
+    atom_data_field='features', atom_types=['H', 'C', 'N', 'O', 'F']
+)
+fe = CanonicalBondFeaturizer(bond_data_field='features')
 
 
 class QM9SmilesDatum:
@@ -90,96 +78,18 @@ class QM9SmilesDatum:
         self.zwitter = zwitter
         self.qm9_id = qm9_id
 
-    def to_graph(
-        self, atom_feature_list=['type', 'hybridization'],
-        bond_feature_list=['type']
-    ):
+    def to_graph(self, method='weave-canonical'):
         """Initializes the graph attribute of the molecule object. See
         crescendo.featurizer.graphs.mol_to_graph_via_DGL for more details."""
 
-        return mol_to_graph_via_DGL(
-            self.mol, atom_feature_list, bond_feature_list
-        )
-
-    def has_n_membered_ring(self, n=None) -> bool:
-        """Returns True if the mol attribute (the molecule object in rdkit
-        representing the Smiles string) has an n-membered ring.
-
-        Parameters
-        ----------
-        n : int, optional
-            The size of the ring. If None, will simply check if the molecule
-            has any ring (using the substructure matching string '[r]' instead
-            of [f'r{n}']). Default is None.
-
-        Returns
-        -------
-        bool
-            True if a match is found. False otherwise.
-        """
-
-        n = '' if n is None else n
-        return self.mol.HasSubstructMatch(Chem.MolFromSmarts(f'[r{n}]'))
-
-    def is_aromatic(self) -> bool:
-        """If the molecule has any aromatic pattern, returns True, else
-        returns False. This is checked by trying to locate the substructure
-        match for the string '[a]'.
-
-        Returns
-        -------
-        bool
-        """
-
-        return self.mol.HasSubstructMatch(aromatic_pattern)
-
-    def has_double_bond(self) -> bool:
-        """Checks the molecule for double bonds. Note that by default this
-        method assumes the data point is from QM9, and only checks the
-        atoms capable of forming double bonds in QM9, so, it will only check
-        C, N and O, and their 6 combinations.
-
-        Returns
-        -------
-        bool
-        """
-
-        return any([
-            self.mol.HasSubstructMatch(p)
-            for p in double_bond_patterns
-        ])
-
-    def has_triple_bond(self) -> bool:
-        """Checks the molecule for triple bonds. Note that by default this
-        method assumes the data point is from QM9, and only checks the
-        atoms capable of forming triple bonds in QM9, so, it will only check
-        C#C, C#N and N#N.
-
-        Returns
-        -------
-        bool
-        """
-
-        return any([
-            self.mol.HasSubstructMatch(p)
-            for p in triple_bond_patterns
-        ])
-
-    def has_hetero_bond(self) -> bool:
-        """Checks the molecule for heter bonds. Note that by default this
-        method assumes the data point is from QM9, and only checks the
-        atoms capable of forming hetero bonds in QM9, so, it will only check
-        C~O, C~N and N~O.
-
-        Returns
-        -------
-        bool
-        """
-
-        return any([
-            self.mol.HasSubstructMatch(p)
-            for p in hetero_bond_patterns
-        ])
+        if method == 'weave-canonical':
+            return mol_to_bigraph(
+                self.mol, node_featurizer=fn, edge_featurizer=fe
+            )
+        else:
+            critical = f"Uknown method {method}"
+            dlog.critical(critical)
+            raise RuntimeError(critical)
 
     def to_pmg_molecule(self):
         """Convenience method which turns the current QM9 datum into a Pymatgen
@@ -249,15 +159,15 @@ def parse_QM8_electronic_properties(
     return (qm8_id, other)
 
 
-def parse_QM9_scalar_properties(
-    props,
-    selected_properties=[0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 14]
-):
+def parse_QM9_scalar_properties(props, selected_properties=None):
     """Parses a list of strings into the correct floats that correspond to the
     molecular properties in the QM9 database.
 
     Only the following properties turn out to be statistically relevant in this
-    dataset: selected_properties=[0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 14]
+    dataset: selected_properties=[0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 14]. These
+    properties are the statistically independent contributions as calculated
+    via a linear correlation model, and together the capture >99% of the
+    variance of the dataset.
 
     Note, according to the paper (Table 3)
     https://www.nature.com/articles/sdata201422.pdf
@@ -287,9 +197,8 @@ def parse_QM9_scalar_properties(
     ----------
     props : list[str]
         Initial properties in string format.
-    selected_properties : List[int]
-        The statistically independent subset of properties needed to capture
-        the majority (>99%) of the variance in the QM9 dataset.
+    selected_properties : List[int], optional
+        Selected properties. If None, take all the properties.
 
     Returns
     -------
@@ -299,10 +208,14 @@ def parse_QM9_scalar_properties(
 
     qm9_id = int(props[1])
     other = props[2:]
-    other = [
-        float(prop) for ii, prop in enumerate(other)
-        if ii in selected_properties
-    ]
+
+    if selected_properties is None:
+        other = [float(prop) for ii, prop in enumerate(other)]
+    else:
+        other = [
+            float(prop) for ii, prop in enumerate(other)
+            if ii in selected_properties
+        ]
     return (qm9_id, other)
 
 
@@ -500,14 +413,25 @@ class QMXDataset(torch.utils.data.Dataset):
         max_heavy_atoms=9,
         keep_zwitter=False,
         canonical=True,
-        log_every=10000
+        log_every=10000,
+        dummy_data=None,
+        dummy_default_max_size=10,
+        dummy_default_max_n_class=7,
+        dummy_default_max_e_class=5,
+        dummy_default_target_size=4
     ):
         """Loads in the QM9 data as set via the path in the initializer, and
         also optionally other auxiliary data, such as spectra.
 
         Parameters
         ----------
-        path : str
+        dummy_data : int, optional
+            If not none, this will override all other kwargs in this method,
+            and will load in a dummy dataset directly to ml_data so as to
+            prepare immediately for a test of the ML pipeline. The integer
+            passed represents the size of the dataset, with other parameters
+            hard coded and defined by default.
+        path : str, optional
             Path to the directory containing the qm9 .xyz files. For instance,
             if your xyz files are in directory /Users/me/data, then that should
             be the path. If path is None by default, it will check the
@@ -527,6 +451,23 @@ class QMXDataset(torch.utils.data.Dataset):
         canonical : bool
             If True, will use the canonical SMILES codes. Default is True.
         """
+
+        if dummy_data is not None:
+            dlog.warning(
+                f"You are loading fake generated data of ds_size={dummy_data}"
+            )
+            kwargs = {
+                'N': dummy_data,
+                'graph_max_size': dummy_default_max_size,
+                'graph_max_n_class': dummy_default_max_n_class,
+                'graph_max_e_class': dummy_default_max_e_class,
+                'target_size': dummy_default_target_size
+            }
+            self.ml_data = graph_to_vector_dummy_dataset(**kwargs)
+            self.n_class_per_feature = [
+                dummy_default_max_n_class, dummy_default_max_e_class
+            ]
+            return
 
         if path is None:
             path = check_for_environment_variable(QM9_ENV_VAR)
@@ -572,15 +513,19 @@ class QMXDataset(torch.utils.data.Dataset):
 
         dlog.info(f"Total number of data points: {len(self.raw)}")
 
-    def load_qm8_electronic_properties(self, path):
+    def load_qm8_electronic_properties(self, path=None):
         """Function for loading Electronic properties for QM8 files.
 
         Parameters
         ----------
-        path : str
+        path : str, optional
             Absolute path to the file containing the spectral information
-            in the QM8 database.
+            in the QM8 database. If None, checks for the QM8_EP_DATA_PATH
+            environment variable.
         """
+
+        if path is None:
+            path = check_for_environment_variable(QM8_EP_ENV_VAR)
 
         self.qm8_electronic_properties = dict()
 
@@ -630,15 +575,15 @@ class QMXDataset(torch.utils.data.Dataset):
             }
 
         for qmx_id in self.raw:
-            if self.raw[qmx_id].is_aromatic():
+            if mol_utils.is_aromatic(self.raw[qmx_id].mol):
                 analysis['num_aromatic'] += 1
-            if self.raw[qmx_id].has_double_bond():
+            if mol_utils.has_double_bond(self.raw[qmx_id]):
                 analysis['num_double_bond'] += 1
-            if self.raw[qmx_id].has_triple_bond():
+            if mol_utils.has_triple_bond(self.raw[qmx_id]):
                 analysis['num_triple_bond'] += 1
-            if self.raw[qmx_id].has_hetero_bond():
+            if mol_utils.has_hetero_bond(self.raw[qmx_id]):
                 analysis['num_hetero_bond'] += 1
-            if self.raw[qmx_id].has_n_membered_ring(n):
+            if mol_utils.has_n_membered_ring(self.raw[qmx_id], n):
                 analysis['num_n_membered_ring'] += 1
 
         return analysis
@@ -650,13 +595,25 @@ class QMXDataset(torch.utils.data.Dataset):
         graph, the target and the ID."""
 
         _ids = torch.tensor([xx[2] for xx in batch]).long()
-        targets = torch.tensor([xx[1] for xx in batch]).float()
-        graphs = dgl.batch([xx[0] for xx in batch])
+
+        # Each target is the same length, so we can use standard batching for
+        # it.
+        targets = torch.tensor([xx[1] for xx in batch])
+
+        # However, graphs are not of the same "length" (diagonally on the
+        # adjacency matrix), so we need to be careful. Usually, dgl's batch
+        # method would work just fine here, but for multi-gpu training, we
+        # need to catch some subtleties, since the batch itself is split apart
+        # equally onto many GPU's, but torch doesn't know how to properly split
+        # a batch of graphs. So, we manually partition the graphs here, and
+        # will batch the output of the collating function before training.
+        # This is now just a list of graphs.
+        graphs = [xx[0] for xx in batch]
 
         return (graphs, targets, _ids)
 
     @time_func(dlog)
-    def _qm8_EP_featurizer(self, atom_f_list, bond_f_list):
+    def _qm8_EP_featurizer(self, method='weave-canonical'):
         """constructs the ml_ready list by pairing QM9 structures with
         the corresponding electronic properties as read in by the
         load_qm8_electronic_properties method. Requires atom_feature_list and
@@ -681,31 +638,65 @@ class QMXDataset(torch.utils.data.Dataset):
             f"QM8 electronic properties of length {len(ids_to_featurize)}"
         )
 
-        # Get the number of classes per feature, used in initializing
-        # the MPNN later.
-        dlog.info(f"Using atom feature list: {atom_f_list}")
-        dlog.info(f"Using bond feature list: {bond_f_list}")
+        self.ml_data = [
+            [
+                self.raw[_id].to_graph(method=method),
+                self.qm8_electronic_properties[_id], int(_id)
+            ] for _id in ids_to_featurize
+        ]
 
-        self.n_class_per_feature = get_number_of_classes_per_feature(
-            atom_f_list, bond_f_list
-        )
-        dlog.info(
-            f"Storing self.n_class_per_feature: {self.n_class_per_feature}"
-        )
+    @time_func(dlog)
+    def _qm9_property_featurizer(
+        self, target_features, method='weave-canonical'
+    ):
+        """Chooses the features of the model as the indexes specified in
+        `features`, corresponding to the extra properties in the QM9 dataset.
+        Note that not all of these features are statistically independent,
+        and when those features are selected, warnings will be thrown."""
+
+        if not set(target_features).issubset(set(INDEPENDENT_QM9_PROPS)):
+            dlog.warning(
+                f"Chosen features {target_features} is not a subset of the "
+                f"pre-determined independent set {INDEPENDENT_QM9_PROPS}"
+            )
 
         self.ml_data = [
-                (
-                    self.raw[_id].to_graph(atom_f_list, bond_f_list),
-                    self.qm8_electronic_properties[_id], int(_id)
-                ) for _id in ids_to_featurize
-            ]
+            [
+                self.raw[_id].to_graph(method=method),
+                [self.raw[_id].other_props[ii] for ii in target_features],
+                int(_id)
+            ] for _id in self.raw.keys()
+        ]
 
+    def _compute_and_log_mean_sd_targets(self, ml_data_target_index=1):
+        """Calculates and returns the mean and standard deviation of the
+        targets, and also logs the values. Assumes the targets are in the 1st
+        index of the ml_ready data by default. Also assumes that the target
+        data is in vector format that can be concatenated into a numpy array.
+        """
+
+        trgs = np.array([xx[ml_data_target_index] for xx in self.ml_data])
+        mean = trgs.mean(axis=0)
+        sd = trgs.std(axis=0)
         dlog.info(
-            "Initialized `self.ml_data` of length "
-            f"{len(self.ml_data)}"
+            "Mean/sd of target data is "
+            f"{mean.mean():.02e} +/- {sd.mean():.02e}"
         )
+        return mean, sd
 
-    def ml_ready(self, featurizer, **kwargs):
+    def _scale_target_data(self, mu, sd, ml_data_target_index=1):
+        """Scales the target data forward."""
+
+        for ii in range(len(self.ml_data)):
+            self.ml_data[ii][ml_data_target_index] = \
+                list((np.array(
+                    self.ml_data[ii][ml_data_target_index]
+                ) - mu) / sd)
+
+    def ml_ready(
+        self, featurizer, method='weave-canonical', scale_targets=False,
+        **kwargs
+    ):
         """This method is the workhorse of the QMXLoader. It will featurize
         the raw data depending on the user settings. Also based on the
         featurizer, it will construct the appropriate data loader objects.
@@ -716,39 +707,65 @@ class QMXDataset(torch.utils.data.Dataset):
             The featurizer options are described henceforth or in docstrings:
             * to_graph : temporary debugging, just returns graphs and metadata
             * qm8_EP : see _qm8_EP_featurizer
+            * qm9_prop
+        method : {'weave-canonical'}
+            The way that the SMILES are featurized to graphs.
         seed : int, optional
             The most important seed step in the entire pipeline, as this
             determines the train/validation/test split. It is used to seed the
             sampler.
+
+        Returns
+        -------
+        dict
+            Metadata about the features and targets.
         """
 
         dlog.info(f"Attempting to run featurizer: {featurizer}")
+        trg_meta = None
 
-        if featurizer == 'to_graph':
+        if featurizer == 'qm8_EP':
+            self._qm8_EP_featurizer(method=method)
+            if scale_targets:
+                mu, sd = self._compute_and_log_mean_sd_targets()
+                self._scale_target_data(mu, sd)
+                self._compute_and_log_mean_sd_targets()
+                trg_meta = (mu, sd)
 
-            # Get the number of classes per feature, used in initializing
-            # the MPNN later.
-            atom_f_list = kwargs['atom_feature_list']
-            bond_f_list = kwargs['bond_feature_list']
-            n_class_per_feature = get_number_of_classes_per_feature(
-                atom_f_list, bond_f_list
-            )
-
-            # Convert every object in self.raw -> graphs
-            return {
-                _id: datum.to_graph(atom_f_list, bond_f_list)
-                for _id, datum in self.raw.items()
-            }, n_class_per_feature
-
-        elif featurizer == 'qm8_EP':
-            atom_f_list = kwargs['atom_feature_list']
-            bond_f_list = kwargs['bond_feature_list']
-            self._qm8_EP_featurizer(atom_f_list, bond_f_list)
+        elif featurizer == 'qm9_prop':
+            target_features = kwargs['target_features']
+            self._qm9_property_featurizer(target_features, method=method)
+            if scale_targets:
+                mu, sd = self._compute_and_log_mean_sd_targets()
+                self._scale_target_data(mu, sd)
+                self._compute_and_log_mean_sd_targets()
+                trg_meta = (mu, sd)
 
         else:
             critical = f"Unknown featurizer: {featurizer}"
             dlog.critical(critical)
             raise RuntimeError(critical)
+
+        dlog.info(
+            "Initialized `self.ml_data` of length "
+            f"{len(self.ml_data)}"
+        )
+
+        if method == 'weave-canonical':
+            self.n_class_per_feature = [
+                fn.feat_size(), fe.feat_size()
+            ]
+        else:
+            dlog.warning(
+                f"Method {method} may not be recognized, n_class_per_feature "
+                "is None"
+            )
+            self.n_class_per_feature = None
+
+        return {
+            'feature_metadata': None,
+            'target_metadata': trg_meta
+        }
 
     def _execute_random_points_sampling(self, p_test, p_valid, p_train, seed):
         """Initializes a sampler, performs random sampling and returns a
@@ -761,14 +778,14 @@ class QMXDataset(torch.utils.data.Dataset):
 
     def get_data_loaders(
         self, p_tvt=(0.1, 0.1, None), seed=None, method='random',
-        batch_sizes=(32, 32, 32)
+        batch_sizes=(32, 32, 32), idx_override=None
     ):
         """Utilizes the DGL library or related code (samplers) to split the
         self.ml_ready attribute into test, validation and training splits.
 
         Parameters
         ----------
-        p_tvt : tuple
+        p_tvt : tuple, optional
             A length 3 tuple containing the proportion of testing, validation
             and training data desired. If the sum of the elements in the tuple
             sums to less than one, then we downsample the training set
@@ -779,6 +796,10 @@ class QMXDataset(torch.utils.data.Dataset):
             The method of choice for sampling the splits.
         batch_sizes : tuple
             The batch sizes for the testing, validation and training loaders.
+        idx_override : dict
+            A dict of lists, each lists corresponding to the test, validation
+            and training splits. This will override the sampler and select the
+            splits directly from the user-supplied indexes.
 
         Returns
         -------
@@ -792,14 +813,33 @@ class QMXDataset(torch.utils.data.Dataset):
             dlog.error(error)
             return None
 
+        if seed is None:
+            dlog.warning(
+                "Not seeding the RNG: this result will not be reproducible"
+            )
+
         # Execute the sampling method of choice to produce the T/V/T splits
         # dictionary.
-        if method == 'random':
-            tvt_dict = self._execute_random_points_sampling(*p_tvt, seed)
+        if idx_override is None:
+            if method == 'random':
+                tvt_dict = self._execute_random_points_sampling(*p_tvt, seed)
+            else:
+                critical = f'Method {method} not implemented'
+                dlog.critical(critical)
+                raise RuntimeError(critical)
         else:
-            critical = f'Method {method} not implemented'
-            dlog.critical(critical)
-            raise RuntimeError(critical)
+            dlog.info("Overriding sampler with user-loaded split indexes")
+            if p_tvt is not None:
+                dlog.warning("p_tvt is specified and will be ignored")
+
+            test_idx = idx_override['test']
+            valid_idx = idx_override['valid']
+            train_idx = idx_override['train']
+            assert set(test_idx).isdisjoint(valid_idx)
+            assert set(test_idx).isdisjoint(train_idx)
+            assert set(train_idx).isdisjoint(valid_idx)
+            dlog.info("Assertions passed - all splits are unique")
+            tvt_dict = idx_override
 
         # Initialize the subset objects
         testSubset = torch.utils.data.Subset(self, tvt_dict['test'])

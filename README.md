@@ -30,21 +30,28 @@ conda env export | grep -v "prefix" > environment.yml
 ```
 
 ### Manual developer installation
-These represent the packages (and the order) in which they were installed in the tests and should almost definitely work on a fresh `conda` environment using `python 3.7.7`.
+These represent the packages (and the order) in which they were installed in the tests and should almost definitely work on a fresh `conda` environment using `python 3.7.7`. Note as well that if using the IC GPU's, they are only compatible with CUDA version `10.1`, and thus the `torch` and `dgl` CUDA-enabled packages must be installed accordingly with the correct version, or `torch` will not detect available GPUs at runtime.
+
+
 ```bash
-conda create -n crescendo python=3.7.7
-conda activate crescendo
+conda create -n py377-torch16 python=3.7.7
+conda activate py377-torch16
 
 conda install pytorch torchvision -c pytorch
 # or CUDA binaries
-# conda install pytorch torchvision cudatoolkit=10.2 -c pytorch
+# conda install pytorch torchvision cudatoolkit=10.1 -c pytorch
 
 conda install -c dglteam dgl
 # or CUDA binaries
 # see here: https://docs.dgl.ai/en/0.4.x/install/index.html#install-from-conda
 
-conda install -c dglteam dgllife
+# conda install -c dglteam dgllife
 # For the MPNN
+# Currently, we need to install from source due to a deprecated package in dgl
+# unsure if this is going to work in the CI pipeline but we'll try it!
+git clone https://github.com/awslabs/dgl-lifesci.git
+cd dgl-lifesci/python
+python setup.py install
 
 conda install -c conda-forge jupyterlab
 conda install -c anaconda networkx
@@ -54,7 +61,6 @@ conda install -c anaconda pytest
 conda install -c conda-forge glob2
 conda install -c rdkit rdkit
 conda install -c conda-forge pymatgen
-conda install -c dglteam dgllife
 
 # Optional, linting
 conda install -c anaconda flake8

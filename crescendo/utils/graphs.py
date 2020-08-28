@@ -2,10 +2,16 @@
 
 import random
 
-from dgl import DGLGraph
+import dgl
 import numpy as np
 from scipy.sparse import coo_matrix
 import torch
+
+
+def one_hot(idx, n_choices):
+    z = [0 for _ in range(n_choices)]
+    z[idx] = 1
+    return z
 
 
 def random_graph_generator(max_size=10, max_n_class=7, max_e_class=5):
@@ -24,16 +30,15 @@ def random_graph_generator(max_size=10, max_n_class=7, max_e_class=5):
             break
 
     # Initialize the graph with the adjacency matrix
-    g = DGLGraph()
-    g.from_scipy_sparse_matrix(coo_matrix(A + A.T))
+    g = dgl.from_scipy(coo_matrix(A + A.T))
 
     # Add dummy features
     all_node_features = [
-        [np.random.randint(low=0, high=max_n_class)]
+        one_hot(np.random.randint(low=0, high=max_n_class), max_n_class)
         for nn in range(g.number_of_nodes())
     ]
     all_edge_features = [
-        [np.random.randint(low=0, high=max_e_class)]
+        one_hot(np.random.randint(low=0, high=max_e_class), max_e_class)
         for nn in range(g.number_of_edges())
     ]
     g.ndata['features'] = torch.LongTensor(all_node_features)
@@ -43,7 +48,7 @@ def random_graph_generator(max_size=10, max_n_class=7, max_e_class=5):
 
 
 def graph_to_vector_dummy_dataset(
-    ds_size, graph_max_size=10, graph_max_n_class=7, graph_max_e_class=5,
+    N, graph_max_size=10, graph_max_n_class=7, graph_max_e_class=5,
     target_size=4
 ):
     """Generates a dummy graph dataset. This is intended to mimic the
@@ -52,7 +57,7 @@ def graph_to_vector_dummy_dataset(
     with the average node class."""
 
     ml_data = []
-    for idx in range(ds_size):
+    for idx in range(N):
         g = random_graph_generator(
             graph_max_size, graph_max_n_class, graph_max_e_class
         )

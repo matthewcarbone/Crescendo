@@ -16,7 +16,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python-version: [3.7]
+        python-version: [3.7.7]
 
     steps:
     - uses: actions/checkout@v2
@@ -37,7 +37,7 @@ jobs:
     - name: Install dependencies on ${{ matrix.os }}
       run: |
         conda config --set always_yes yes
-        conda install pytorch torchvision -q -c pytorch
+        conda install -q pytorch torchvision -c pytorch
         # or CUDA binaries
         # conda install pytorch torchvision cudatoolkit=10.2 -c pytorch
 
@@ -45,15 +45,24 @@ jobs:
         # or CUDA binaries
         # see here: https://docs.dgl.ai/en/0.4.x/install/index.html#install-from-conda
 
-        conda install -q -c conda-forge jupyterlab
-        conda install -q -c anaconda networkx
-        conda install -q -c conda-forge matplotlib
+        # Install from source - unsure if this will work on the CI pipeline
+        git clone https://github.com/awslabs/dgl-lifesci.git
+        cd dgl-lifesci/python
+        python setup.py -q install
+        cd ../..
+
+        # Need to remove that directory so as to not accidentally run those
+        # unit tests with pytest  too...
+        rm -r dgl-lifesci
+
+        # conda install -q -c conda-forge jupyterlab
+        # conda install -q -c anaconda networkx
+        # conda install -q -c conda-forge matplotlib
         conda install -q -c anaconda pandas
         conda install -q -c anaconda pytest
         conda install -q -c conda-forge glob2
         conda install -q -c rdkit rdkit
         conda install -q -c conda-forge pymatgen
-        conda install -q -c dglteam dgllife
         conda install -q -c conda-forge pytest-cov
         conda install -q -c anaconda flake8
 
