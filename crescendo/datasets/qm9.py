@@ -110,10 +110,7 @@ class QM9SmilesDatum:
         return QM9SmilesDatum(**dictionary)
 
 
-def parse_QM8_electronic_properties(
-    props,
-    selected_properties=[0, 13, 14, 15, 16]
-):
+def parse_QM8_electronic_properties(props, selected_properties=None):
     """Parses a list of strings into the correct floats that correspond to the
     electronic properties in the QM8 database.
 
@@ -138,6 +135,8 @@ def parse_QM8_electronic_properties(
 
     Note `au` = atomic units
 
+    Note that the properties we'll generally be using are [0, 13, 14, 15, 16]
+
     Parameters
     ----------
     props : list[str]
@@ -152,10 +151,13 @@ def parse_QM8_electronic_properties(
 
     qm8_id = int(props[0])
     other = props[1:]
-    other = [
-        float(prop) for ii, prop in enumerate(other)
-        if ii in selected_properties
-    ]
+    if selected_properties is None:
+        other = [float(prop) for ii, prop in enumerate(other)]
+    else:
+        other = [
+            float(prop) for ii, prop in enumerate(other)
+            if ii in selected_properties
+        ]
     return (qm8_id, other)
 
 
