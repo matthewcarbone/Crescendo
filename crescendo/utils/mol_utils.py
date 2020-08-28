@@ -96,3 +96,14 @@ def has_hetero_bond(mol) -> bool:
     """
 
     return any([mol.HasSubstructMatch(p) for p in hetero_bond_patterns])
+
+
+def all_analysis(mol):
+    return {
+        'has_n_membered_ring': {
+            n: has_n_membered_ring(mol, n) for n in range(3, 10)
+        },
+        'has_double_bond': has_double_bond(mol),
+        'has_triple_bond': has_triple_bond(mol),
+        'has_hetero_bond': has_hetero_bond(mol)
+    }

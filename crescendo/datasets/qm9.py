@@ -8,6 +8,7 @@ from multiprocessing import cpu_count
 from ntpath import basename
 import os as os
 
+from dgllife.utils.analysis import summarize_a_mol
 from dgllife.utils.mol_to_graph import mol_to_bigraph
 import glob2
 import pickle as pickle
@@ -20,6 +21,7 @@ from crescendo.utils.logger import logger_default as dlog
 from crescendo.utils.py_utils import check_for_environment_variable
 from crescendo.readers.qm9_readers import parse_QM8_electronic_properties, \
     read_qm9_xyz
+from crescendo.utils.mol_utils import all_analysis
 from crescendo.utils.timing import time_func
 
 
@@ -79,6 +81,7 @@ class QM9DataPoint:
         self.mol = None
         self.mw = None
         self.graph = None
+        self.summary = None
 
 
 class QM9Dataset:
@@ -279,7 +282,7 @@ class QM9GraphDataset(torch.utils.data.Dataset):
         consistency.
     raw : dict, optional
         A dictionary of the raw data as provided directly by QM9Dataset.raw.
-    to_mol_called, to_graph_called : bool
+    to_mol_called, to_graph_called, analyze_called : bool
         Whether or not the corresponding methods have been called.
     ml_ready : list
         A list of the data as prepared to be processed by a collating function.
@@ -295,7 +298,22 @@ class QM9GraphDataset(torch.utils.data.Dataset):
         self.raw = raw
         self.to_mol_called = False
         self.to_graph_called = False
+        self.analyze_called = False
         self.ml_ready = None
+
+    @staticmethod
+    def _err_if_called(force):
+        if force:
+            dlog.warning(
+                "You already called this but force is True: re-running"
+            )
+            return True
+        else:
+            dlog.error(
+                "You already called this and force is False: "
+                "exiting without re-running"
+            )
+            return False
 
     @time_func(dlog)
     def to_mol(self, canon=False, n_workers=cpu_count(), force=False):
@@ -316,15 +334,8 @@ class QM9GraphDataset(torch.utils.data.Dataset):
         """
 
         if self.to_mol_called:
-            if force:
-                dlog.warning(
-                    "You already called this but force is True: re-running"
-                )
-            else:
-                dlog.error(
-                    "You already called this and force is False: "
-                    "exiting without re-running"
-                )
+            go = QM9GraphDataset._err_if_called(force)
+            if not go:
                 return
 
         def _to_mol(ii, smiles):
@@ -343,6 +354,29 @@ class QM9GraphDataset(torch.utils.data.Dataset):
             self.raw[qm9ID].mw = mw
 
         self.to_mol_called = True
+
+    @time_func(dlog)
+    def analyze(self, n_workers=cpu_count(), force=False):
+        """Runs an in-depth analysis on every molecule in the dataset, using
+        the analysis module from dgllife."""
+
+        if self.analyze_called:
+            go = QM9GraphDataset._err_if_called(force)
+            if not go:
+                return
+
+        def _summarize(ii, mol):
+            in_house = all_analysis(mol)
+            return ii, summarize_a_mol(mol), in_house
+
+        res = Parallel(n_jobs=n_workers)(
+            delayed(_summarize)(ii, dat.mol) for ii, dat in self.raw.items()
+        )
+
+        for (qm9ID, summary, in_house_summary) in res:
+            self.raw[qm9ID].summary = {**summary, **in_house_summary}
+
+        self.analyze_called = True
 
     @time_func(dlog)
     def to_graph(
@@ -366,15 +400,8 @@ class QM9GraphDataset(torch.utils.data.Dataset):
             return
 
         if self.to_graph_called:
-            if force:
-                dlog.warning(
-                    "You already called this but force is True: re-running"
-                )
-            else:
-                dlog.error(
-                    "You already called this and force is False: "
-                    "exiting without re-running"
-                )
+            go = QM9GraphDataset._err_if_called(force)
+            if not go:
                 return
 
         errors = []
