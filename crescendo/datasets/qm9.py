@@ -7,6 +7,7 @@ from joblib import Parallel, delayed
 from multiprocessing import cpu_count
 import numpy as np
 import os as os
+import random
 
 from dgllife.utils.analysis import summarize_a_mol
 from dgllife.utils.mol_to_graph import mol_to_bigraph
@@ -17,13 +18,62 @@ from rdkit.Chem.Descriptors import MolWt
 import torch
 
 from crescendo import defaults
+from crescendo.samplers.base import Sampler as RandomSampler
 from crescendo.utils.logger import logger_default as dlog
 from crescendo.utils.py_utils import check_for_environment_variable, \
     intersection
 from crescendo.readers.qm9_readers import parse_QM8_electronic_properties, \
     read_qm9_xyz
+from crescendo.utils.ml_utils import mean_and_std
 from crescendo.utils.mol_utils import all_analysis
 from crescendo.utils.timing import time_func
+
+
+class _SimpleLoadSaveOperations:
+
+    def _save_state(
+        self, class_type, directory=None, override=False
+    ):
+        """Dumps the class as a dictionary into a pickle file. It will save
+        the object to the dsname directory as class_type.pkl. Specifically, it
+        saves to directory/dsname/class_type.pkl. (class_type = machine
+        learning dataset)."""
+
+        if directory is None:
+            directory = check_for_environment_variable(defaults.QM9_DS_ENV_VAR)
+
+        full_dir = f"{directory}/{self.dsname}"
+        full_path = f"{full_dir}/{class_type}.pkl"
+
+        if os.path.exists(full_path) and not override:
+            error = \
+                f"Full path {full_path} exists and override is False - " \
+                "exiting and not overwriting"
+            dlog.error(error)
+            return
+
+        elif os.path.exists(full_path) and override:
+            warning = \
+                f"Full path {full_path} exists and override is True - " \
+                "overwriting saved dataset"
+            dlog.warning(warning)
+
+        os.makedirs(full_dir, exist_ok=True)
+
+        d = self.__dict__
+        pickle.dump(d, open(full_path, 'wb'), protocol=defaults.P_PROTOCOL)
+
+    def _load_state(self, class_type, dsname, directory=None):
+        """Reloads the dataset of the specified name and directory."""
+
+        if directory is None:
+            directory = check_for_environment_variable(defaults.QM9_DS_ENV_VAR)
+
+        full_path = f"{directory}/{dsname}/{class_type}.pkl"
+        d = pickle.load(open(full_path, 'rb'))
+
+        for key, value in d.items():
+            setattr(self, key, value)
 
 
 class QM9DataPoint:
@@ -85,7 +135,7 @@ class QM9DataPoint:
         self.summary = None
 
 
-class QM9Dataset:
+class QM9Dataset(_SimpleLoadSaveOperations):
     """Container for the QM9 data. This is meant to be a standalone dataset
     that is only truly dependent on internal (crescendo) packages, pure python
     and numpy. The next iteration of this dataset is the QM9MLDataset, which
@@ -146,41 +196,14 @@ class QM9Dataset:
         the object to the dsname directory as raw.pkl. Specifically, it saves
         to directory/dsname/raw.pkl."""
 
-        if directory is None:
-            directory = check_for_environment_variable(defaults.QM9_DS_ENV_VAR)
-
-        full_dir = f"{directory}/{self.dsname}"
-        full_path = f"{full_dir}/raw.pkl"
-
-        if os.path.exists(full_path) and not override:
-            error = \
-                f"Full path {full_path} exists and override is False - " \
-                "exiting and not overwriting"
-            dlog.error(error)
-            return
-
-        elif os.path.exists(full_path) and override:
-            warning = \
-                f"Full path {full_path} exists and override is True - " \
-                "overwriting saved dataset"
-            dlog.warning(warning)
-
-        os.makedirs(full_dir, exist_ok=True)
-
-        d = self.__dict__
-        pickle.dump(d, open(full_path, 'wb'), protocol=defaults.P_PROTOCOL)
+        self._save_state(
+            class_type='raw', directory=directory, override=override
+        )
 
     def load_state(self, dsname, directory=None):
         """Reloads the dataset of the specified name and directory."""
 
-        if directory is None:
-            directory = check_for_environment_variable(defaults.QM9_DS_ENV_VAR)
-
-        full_path = f"{directory}/{dsname}/raw.pkl"
-        d = pickle.load(open(full_path, 'rb'))
-
-        for key, value in d.items():
-            setattr(self, key, value)
+        self._load_state(class_type='raw', dsname=dsname, directory=directory)
 
     @time_func(dlog)
     def load(self, path=None, n_workers=cpu_count()):
@@ -250,6 +273,7 @@ class QM9Dataset:
         dlog.info(f"Reading QM8 electronic properties from {path}")
 
         cc = 0
+        all_props = []
         with open(path, 'r') as file:
             line = '#'
             while '#' in line:
@@ -260,6 +284,7 @@ class QM9Dataset:
                         line.split(), selected_properties=selected_properties
                     )
                 self.raw[qm8_id].qm8properties = props
+                all_props.append(props)
                 line = file.readline()
             cc += 1
 
@@ -311,7 +336,7 @@ class QM9Dataset:
                 continue
 
 
-class QM9GraphDataset(torch.utils.data.Dataset):
+class QM9GraphDataset(torch.utils.data.Dataset, _SimpleLoadSaveOperations):
     """A special dataset which processes the exiting DataSet object into rdkit
     Chem mol and DGL graph objects. Also has analysis methods built on it
     for quick insights into the data, and individual objects.
@@ -325,25 +350,49 @@ class QM9GraphDataset(torch.utils.data.Dataset):
         A dictionary of the raw data as provided directly by QM9Dataset.raw.
     to_mol_called, to_graph_called, analyze_called : bool
         Whether or not the corresponding methods have been called.
-    ml_ready : list
+    ml_data : list
         A list of the data as prepared to be processed by a collating function.
         Essentially data that is ready for pytorch to take over.
+
+    Example
+    -------
+    # First initialize the standard datset
+    qm9_dat = QM9Dataset(dsname='my_dataset', debug=1000)
+    qm9_dat.load(...)
+    ...
+    qm9_dat_graph = QM9GraphDataset(qm9_dat)
+    qm9_dat_graph.to_mol()
+    qm9_dat_graph.analyze()
+    qm9_dat_graph.to_graph()
+    qm9_dat_graph.init_ml_data(scale_targets=...)
     """
 
-    def __init__(self, dsname=None, raw=None):
-        if dsname is None:
-            dlog.warning(f"GraphDataset name initialized to default {dsname}")
-            self.dsname = "QM9_dataset_default"
+    def __init__(self, ds=None, seed=None):
+        self.dt_created = datetime.datetime.now()
+        if ds is None:
+            self.dsname = None
+            self.raw = None
+            self.oxygenXANES_grid = None
+            self.nitrogenXANES_grid = None
         else:
-            self.dsname = dsname
-        self.raw = raw
+            self.dsname = ds.dsname
+            self.raw = ds.raw
+            self.oxygenXANES_grid = ds.oxygenXANES_grid
+            self.nitrogenXANES_grid = ds.nitrogenXANES_grid
         self.to_mol_called = False
         self.to_graph_called = False
         self.analyze_called = False
-        self.ml_ready = None
+        self.ml_data = None
+        self.target_metadata = None
+        self.tvt_splits = None
+        if seed is not None:
+            dlog.info(f"Dataset seed set to {seed}")
+        else:
+            dlog.warning(f"Dataset seed set to {seed}")
+        self.seed = seed
 
     def __getitem__(self, ii):
-        return self.ml_ready[ii]
+        return self.ml_data[ii]
 
     def __len__(self):
         return len(self.raw)
@@ -351,43 +400,16 @@ class QM9GraphDataset(torch.utils.data.Dataset):
     def save_state(self, directory=None, override=False):
         """Dumps the class as a dictionary into a pickle file. It will save
         the object to the dsname directory as mld.pkl. Specifically, it saves
-        to directory/dsname/mld.pkl. (mld = machine learning dataset)."""
+        to directory/dsname/mld.pkl."""
 
-        if directory is None:
-            directory = check_for_environment_variable(defaults.QM9_DS_ENV_VAR)
-
-        full_dir = f"{directory}/{self.dsname}"
-        full_path = f"{full_dir}/mld.pkl"
-
-        if os.path.exists(full_path) and not override:
-            error = \
-                f"Full path {full_path} exists and override is False - " \
-                "exiting and not overwriting"
-            dlog.error(error)
-            return
-
-        elif os.path.exists(full_path) and override:
-            warning = \
-                f"Full path {full_path} exists and override is True - " \
-                "overwriting saved dataset"
-            dlog.warning(warning)
-
-        os.makedirs(full_dir, exist_ok=True)
-
-        d = self.__dict__
-        pickle.dump(d, open(full_path, 'wb'), protocol=defaults.P_PROTOCOL)
+        self._save_state(
+            class_type='mld', directory=directory, override=override
+        )
 
     def load_state(self, dsname, directory=None):
         """Reloads the dataset of the specified name and directory."""
 
-        if directory is None:
-            directory = check_for_environment_variable(defaults.QM9_DS_ENV_VAR)
-
-        full_path = f"{directory}/{dsname}/mld.pkl"
-        d = pickle.load(open(full_path, 'rb'))
-
-        for key, value in d.items():
-            setattr(self, key, value)
+        self._load_state(class_type='mld', dsname=dsname, directory=directory)
 
     @staticmethod
     def _err_if_called(force):
@@ -530,19 +552,144 @@ class QM9GraphDataset(torch.utils.data.Dataset):
 
         self.to_graph_called = True
 
+    @staticmethod
+    def collating_function_graph_to_vector(batch):
+        """Collates the graph-fixed length vector combination. Recall that
+        in this case, each element of batch is a three vector containing the
+        graph, the target and the ID."""
+
+        _ids = torch.tensor([xx[2] for xx in batch]).long()
+
+        # Each target is the same length, so we can use standard batching for
+        # it.
+        targets = torch.tensor([xx[1] for xx in batch])
+
+        # However, graphs are not of the same "length" (diagonally on the
+        # adjacency matrix), so we need to be careful. Usually, dgl's batch
+        # method would work just fine here, but for multi-gpu training, we
+        # need to catch some subtleties, since the batch itself is split apart
+        # equally onto many GPU's, but torch doesn't know how to properly split
+        # a batch of graphs. So, we manually partition the graphs here, and
+        # will batch the output of the collating function before training.
+        # This is now just a list of graphs.
+        graphs = [xx[0] for xx in batch]
+
+        return (graphs, targets, _ids)
+
     @time_func(dlog)
-    def ml_ready(self):
-        pass
+    def init_ml_data(
+        self, target_type='qm9properties', targets_to_use=[10],
+        n_workers=cpu_count(), scale_targets=False, force=False
+    ):
+        """Initializes the ml_data attribute by pairing graphs with potential
+        targets. The ml_data attribute contains three entries: [feature,
+        target, id/metadata].
 
+        Parameters
+        ----------
+        target_type : {'qm9properties', 'qm8properties', 'oxygenXANES'}
+            The type of target. Some of these will require the user to have
+            loaded in the properties beforehand, else they will not exist.
+            Note that this must match the attribute in the QM9DataPoint class.
+        targets_to_use : list, optional
+            A list of integers specifying the specific targets to use. For
+            example, having read in all the qm9 properties, if targets_to_use
+            is [10], this will correspond to using only the 10th target in
+            that list, which corresponds to U0.
+        """
 
+        if self.ml_data is not None:
+            dlog.error("ml_data already initialized and force is False")
+            go = QM9GraphDataset._err_if_called(force)
+            if not go:
+                return
 
+        np.random.seed(self.seed)
+        random.seed(self.seed)
 
+        self.ml_data = [
+            [
+                datum.graph,
+                [getattr(datum, target_type)[ii] for ii in targets_to_use]
+                if targets_to_use is not None
+                else getattr(datum, target_type),
+                datum.qm9ID
+            ] for datum in list(self.raw.values())
+        ]
 
+        random.shuffle(self.ml_data)
 
+        trgs = [xx[1] for xx in self.ml_data]
+        mu, sd = mean_and_std(trgs)
 
+        if not scale_targets:
+            return
 
+        self.target_metadata = [mu, sd]
+        self.ml_data = [
+            [
+                xx[0],
+                [(xx[1][vv] - mu[vv]) / sd[vv] for vv in range(len(xx[1]))],
+                xx[2]
+            ] for xx in self.ml_data
+        ]
 
+        dlog.info(f"Target metadata is {self.target_metadata}")
+        trgs = [xx[1] for xx in self.ml_data]
+        mean_and_std(trgs)
 
+    def init_splits(
+        self, p_tvt=(0.1, 0.1, None), method='random', force=False
+    ):
+        """Chooses the splits based on molecule criteria. The default is a
+        random split. Note that the first time this method is called, the
+        attribute tvt_splits will be set, but it will not allow the user to
+        rewrite that split unless force=True. This is a failsafe mechanism to
+        prevent bias in the data by constantly reshuffling the splits while
+        evaluating the results."""
 
+        if self.tvt_splits is not None:
+            dlog.error("tvt_splits already initialized and force is False")
+            go = QM9GraphDataset._err_if_called(force)
+            if not go:
+                return
 
+        np.random.seed(self.seed)
 
+        if method == 'random':
+            s = RandomSampler(len(self.ml_data))
+            s.shuffle_(self.seed)
+            assert s.indexes_modified
+            self.tvt_splits = s.split(p_tvt[0], p_tvt[1], p_train=p_tvt[2])
+        else:
+            critical = f"Invalid split method {method}"
+            dlog.critical(critical)
+            raise NotImplementedError(critical)
+
+    def get_loaders(self, batch_sizes=(32, 32, 32)):
+        """Returns the loaders as computed by the prior sampling."""
+
+        # Initialize the subset objects
+        testSubset = torch.utils.data.Subset(self, self.tvt_splits['test'])
+        validSubset = torch.utils.data.Subset(self, self.tvt_splits['valid'])
+        trainSubset = torch.utils.data.Subset(self, self.tvt_splits['train'])
+
+        # Initialize the loader objects
+        testLoader = torch.utils.data.DataLoader(
+            testSubset, batch_size=batch_sizes[0], shuffle=False,
+            collate_fn=QM9GraphDataset.collating_function_graph_to_vector
+        )
+        validLoader = torch.utils.data.DataLoader(
+            validSubset, batch_size=batch_sizes[1], shuffle=False,
+            collate_fn=QM9GraphDataset.collating_function_graph_to_vector
+        )
+        trainLoader = torch.utils.data.DataLoader(
+            trainSubset, batch_size=batch_sizes[2], shuffle=True,
+            collate_fn=QM9GraphDataset.collating_function_graph_to_vector
+        )
+
+        return {
+            'test': testLoader,
+            'valid': validLoader,
+            'train': trainLoader
+        }

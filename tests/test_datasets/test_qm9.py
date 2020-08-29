@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import copy
+import numpy as np
 import pytest
 import shutil
 
@@ -15,7 +16,7 @@ def ds():
     return ds
 
 
-class TestQMXDataset:
+class TestQM9Dataset:
 
     def test_load(self, ds):
         _ = ds
@@ -44,12 +45,12 @@ class TestQMXDataset:
         shutil.rmtree('TEST_DIR')
 
 
-class TestQMXMLDataset:
+class TestQM9MLDataset:
 
     def test_save_load_state(self):
         ds = QM9Dataset(dsname="TESTDS")
         ds.load(QM9_TEST_DATA_PATH)
-        mlds = QM9GraphDataset(dsname="TESTDS", raw=ds.raw)
+        mlds = QM9GraphDataset(ds)
         mlds_COPY = copy.deepcopy(mlds)
         mlds.save_state(directory="TEST_DIR", override=False)
         new_mlds = QM9GraphDataset()
@@ -66,13 +67,68 @@ class TestQMXMLDataset:
 
         shutil.rmtree('TEST_DIR')
 
-    def test_pipeline(self):
+    def test_initial_pipeline(self):
         ds = QM9Dataset(dsname="TESTDS")
         ds.load(QM9_TEST_DATA_PATH)
-        mlds = QM9GraphDataset(dsname="TESTDS", raw=ds.raw)
+        mlds = QM9GraphDataset(ds)
         mlds.to_mol()
         mlds.analyze()
         mlds.to_graph()
+        mlds.init_ml_data(scale_targets=False)
+        mlds.init_ml_data(scale_targets=True, force=True)
+
+    def test_determinism(self):
+
+        ds = QM9Dataset(dsname="TESTDS")
+        ds.load(QM9_TEST_DATA_PATH)
+        mlds = QM9GraphDataset(ds, seed=54321)
+        mlds.to_mol()
+        mlds.analyze()
+        mlds.to_graph()
+        mlds.init_ml_data(scale_targets=True, targets_to_use=None)
+        mlds.init_splits()
+        loaders1 = mlds.get_loaders()
+
+        np.random.seed(123456)
+
+        ds2 = QM9Dataset(dsname="TESTDS2")
+        ds2.load(QM9_TEST_DATA_PATH)
+        mlds2 = QM9GraphDataset(ds2, seed=54321)
+        mlds2.to_mol()
+        mlds2.analyze()
+        mlds2.to_graph()
+        mlds2.init_ml_data(scale_targets=True, targets_to_use=None)
+        mlds2.init_splits()
+        loaders2 = mlds2.get_loaders()
+
+        assert mlds.tvt_splits['test'] == mlds2.tvt_splits['test']
+        assert mlds.tvt_splits['valid'] == mlds2.tvt_splits['valid']
+        assert mlds.tvt_splits['train'] == mlds2.tvt_splits['train']
+        assert set(mlds.tvt_splits['test']) \
+            .isdisjoint(mlds.tvt_splits['valid'])
+        assert set(mlds.tvt_splits['test']) \
+            .isdisjoint(mlds.tvt_splits['train'])
+        assert set(mlds.tvt_splits['train']) \
+            .isdisjoint(mlds.tvt_splits['valid'])
+
+        for batch in loaders1['test']:
+            target1 = batch[1]
+            break
+        for batch in loaders2['test']:
+            target2 = batch[1]
+            break
+        assert np.allclose(target1, target2)
+
+        for batch in loaders1['valid']:
+            target1 = batch[1]
+            break
+        for batch in loaders2['valid']:
+            target2 = batch[1]
+            break
+        assert np.allclose(target1, target2)
+
+        for ii, datum in enumerate(mlds2):
+            assert datum[2] == mlds.ml_data[ii][2]
 
 
 class TestQM9Datum:

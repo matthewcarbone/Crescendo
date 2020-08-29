@@ -4,6 +4,8 @@ import numpy as np
 import random
 import torch
 
+from crescendo.utils.logger import logger_default as dlog
+
 CUDA_AVAIL = torch.cuda.is_available()
 
 
@@ -38,3 +40,18 @@ def epoch_time(start_time, end_time):
     elapsed_mins = int(elapsed_time / 60.0)
     elapsed_secs = int(elapsed_time - (elapsed_mins * 60.0))
     return elapsed_mins, elapsed_secs
+
+
+def mean_and_std(dat):
+    """Takes a list of N data points, each with M features, and computes the
+    mean and spread over the data points. Also logs the average mean and
+    average spread over all the features."""
+
+    dat = np.array(dat)
+    mean = dat.mean(axis=0)
+    sd = dat.std(axis=0)
+    dlog.info(
+        "Mean/sd of target data is "
+        f"{mean.mean():.02e} +/- {sd.mean():.02e}"
+    )
+    return mean, sd
