@@ -385,6 +385,7 @@ class QM9GraphDataset(torch.utils.data.Dataset, _SimpleLoadSaveOperations):
         self.ml_data = None
         self.target_metadata = None
         self.tvt_splits = None
+        self.node_edge_features = None
         if seed is not None:
             dlog.info(f"Dataset seed set to {seed}")
         else:
@@ -523,12 +524,14 @@ class QM9GraphDataset(torch.utils.data.Dataset, _SimpleLoadSaveOperations):
                 atom_data_field='features',
                 atom_types=['H', 'C', 'N', 'O', 'F']
             )
+            node_features = fn.feat_size()
         else:
             errors.append(f"Unknown node_method {node_method}")
 
         if edge_method == 'canonical':
             from dgllife.utils.featurizers import CanonicalBondFeaturizer
             fe = CanonicalBondFeaturizer(bond_data_field='features')
+            edge_features = fe.feat_size()
         else:
             errors.append(f"Unknown edge_method {node_method}")
 
@@ -551,6 +554,7 @@ class QM9GraphDataset(torch.utils.data.Dataset, _SimpleLoadSaveOperations):
             self.raw[qm9ID].graph = graph
 
         self.to_graph_called = True
+        self.node_edge_features = (node_features, edge_features)
 
     @staticmethod
     def collating_function_graph_to_vector(batch):

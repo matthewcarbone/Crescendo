@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
-from crescendo.datasets.qm9 import QMXDataset
+from crescendo.datasets.qm9 import QM9Dataset, QM9GraphDataset
 from crescendo.protocols.graph_protocols import GraphToVectorProtocol
 from crescendo.utils.ml_utils import seed_all
+
+from crescendo.defaults import QM9_TEST_DATA_PATH
 
 
 class TestGraphToVectorProtocol:
@@ -11,18 +13,23 @@ class TestGraphToVectorProtocol:
 
         seed_all(123)
 
-        dat = QMXDataset()
-        dat.load(dummy_data=100, dummy_default_target_size=4)
-        data_loaders = dat.get_data_loaders(batch_sizes=(10, 10, 80))
+        ds = QM9Dataset(dsname="TESTDS")
+        ds.load(QM9_TEST_DATA_PATH)
+        dsG = QM9GraphDataset(ds)
+        dsG.to_mol()
+        dsG.to_graph()
+        dsG.init_ml_data(scale_targets=True)
+        dsG.init_splits()
+        data_loaders = dsG.get_loaders()
 
         protocol = GraphToVectorProtocol(
             trainLoader=data_loaders['train'],
             validLoader=data_loaders['valid']
         )
         protocol.initialize_model(
-            n_node_features=dat.n_class_per_feature[0],
-            n_edge_features=dat.n_class_per_feature[1],
-            output_size=4
+            n_node_features=dsG.node_edge_features[0],
+            n_edge_features=dsG.node_edge_features[1],
+            output_size=1
         )
         protocol.initialize_support()
 
