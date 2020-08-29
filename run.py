@@ -7,20 +7,7 @@ from crescendo.datasets.qm9 import QM9Dataset, QM9GraphDataset
 
 def parser():
     """Parses the arguments via argparse and returns the parser.parse_args()
-    object.
-
-    Notes
-    -----
-    The parser arguments are described henceforth:
-
-    make
-        Creates the sampler object. Note that this should only ever be done
-        once per dataset. By default, this will read the datasets from
-        the default location, config.yaml, and generate subset objects, saving
-        them in the SAMPLER_DIR hidden location.
-    config
-        The path to the config. Default is `config.yaml`.
-    """
+    object."""
 
     ap = argparse.ArgumentParser()
 
