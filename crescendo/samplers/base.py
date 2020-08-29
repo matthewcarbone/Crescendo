@@ -111,7 +111,7 @@ class Sampler:
         i1 = int(self.n_points * p_test)
         i2 = i1 + int(self.n_points * p_valid)
 
-        if p_train is None:
+        if p_train is None or p_test + p_valid + p_train == 1.0:
             p_train = 1.0 - p_valid - p_test
             i3 = self.n_points
         elif p_test + p_valid + p_train < 1.0:

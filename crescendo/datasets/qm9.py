@@ -63,6 +63,8 @@ class _SimpleLoadSaveOperations:
         d = self.__dict__
         pickle.dump(d, open(full_path, 'wb'), protocol=defaults.P_PROTOCOL)
 
+        dlog.info(f"Saved {full_path}")
+
     def _load_state(self, class_type, dsname, directory=None):
         """Reloads the dataset of the specified name and directory."""
 
@@ -74,6 +76,18 @@ class _SimpleLoadSaveOperations:
 
         for key, value in d.items():
             setattr(self, key, value)
+
+        dlog.info(f"Loaded from {full_path}")
+
+    def check_exists(self, class_type, directory=None):
+        if directory is None:
+            directory = check_for_environment_variable(defaults.QM9_DS_ENV_VAR)
+
+        full_dir = f"{directory}/{self.dsname}"
+        full_path = f"{full_dir}/{class_type}.pkl"
+        if os.path.exists(full_path):
+            return full_path
+        return None
 
 
 class QM9DataPoint:
@@ -138,7 +152,7 @@ class QM9DataPoint:
 class QM9Dataset(_SimpleLoadSaveOperations):
     """Container for the QM9 data. This is meant to be a standalone dataset
     that is only truly dependent on internal (crescendo) packages, pure python
-    and numpy. The next iteration of this dataset is the QM9MLDataset, which
+    and numpy. The next iteration of this dataset is the QM9GraphDataset, which
     will depend on other packages including torch.
 
     Attributes
@@ -254,9 +268,7 @@ class QM9Dataset(_SimpleLoadSaveOperations):
         dlog.info(f"Total number of raw QM9 data points: {len(self.raw)}")
 
     @time_func(dlog)
-    def load_qm8_electronic_properties(
-        self, path=None, selected_properties=None
-    ):
+    def load_qm8_electronic_properties(self, path=None):
         """Function for loading Electronic properties for QM8 files.
 
         Parameters
@@ -280,13 +292,20 @@ class QM9Dataset(_SimpleLoadSaveOperations):
                 line = file.readline()
             while line != '':
                 qm8_id, props = \
-                    parse_QM8_electronic_properties(
-                        line.split(), selected_properties=selected_properties
-                    )
-                self.raw[qm8_id].qm8properties = props
+                    parse_QM8_electronic_properties(line.split())
+
+                # There are cases where the QM8 ID will not be found in the
+                # QM9 database. For example, when we skip all atoms (min
+                # heavy atoms = 2).
+                try:
+                    self.raw[qm8_id].qm8properties = props
+                except KeyError:
+                    line = file.readline()
+                    continue
+
                 all_props.append(props)
                 line = file.readline()
-            cc += 1
+                cc += 1
 
         dlog.info(f"Total number of data points read from qm8: {cc}")
 
@@ -427,12 +446,12 @@ class QM9GraphDataset(torch.utils.data.Dataset, _SimpleLoadSaveOperations):
             return False
 
     @time_func(dlog)
-    def to_mol(self, canon=False, n_workers=cpu_count(), force=False):
+    def to_mol(self, canonical=False, n_workers=cpu_count(), force=False):
         """Fills the mol attribute in every DataPoint in raw.
 
         Properties
         ----------
-        canon : bool
+        canonical : bool
             If True, uses the canonical SMILES code for the mol-generation,
             else uses the standard SMILES code.
         n_workers : int
@@ -450,7 +469,7 @@ class QM9GraphDataset(torch.utils.data.Dataset, _SimpleLoadSaveOperations):
                 return
 
         def _to_mol(ii, smiles):
-            if canon:
+            if canonical:
                 mol = Chem.MolFromSmiles(smiles[1])
             else:
                 mol = Chem.MolFromSmiles(smiles[0])
@@ -610,6 +629,10 @@ class QM9GraphDataset(torch.utils.data.Dataset, _SimpleLoadSaveOperations):
 
         np.random.seed(self.seed)
         random.seed(self.seed)
+
+        dlog.info(f"Using target type {target_type}")
+        dlog.info(f"Using target indexes {targets_to_use}")
+        dlog.info(f"Scaling targets: {scale_targets}")
 
         self.ml_data = [
             [

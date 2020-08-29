@@ -22,10 +22,13 @@ class TestQM9Dataset:
         _ = ds
 
     def test_load_qm8_properties(self, ds):
-        ds.load_qm8_electronic_properties(
-            QM8_TEST_DATA_PATH, selected_properties=[0, 13, 14, 15, 16]
-        )
-        assert ds[1].qm8properties == [0.43295186, 0.40993872, 0.1832, 0.1832]
+        ds.load_qm8_electronic_properties(QM8_TEST_DATA_PATH)
+        assert ds[1].qm8properties == [
+            0.43295186, 0.43295958, 0.24972825, 0.24973648, 0.43021753,
+            0.43023558, 0.18143600, 0.18150153, 0.40985825, 0.40988403,
+            0.17772250, 0.17741930, 0.40993137, 0.40993872, 0.18320000,
+            0.18320000
+        ]
 
     def test_save_load_state(self):
         ds = QM9Dataset(dsname="TESTDS")
