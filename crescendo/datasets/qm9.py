@@ -5,7 +5,7 @@
 import datetime
 from joblib import Parallel, delayed
 from multiprocessing import cpu_count
-from ntpath import basename
+import numpy as np
 import os as os
 
 from dgllife.utils.analysis import summarize_a_mol
@@ -18,7 +18,8 @@ import torch
 
 from crescendo import defaults
 from crescendo.utils.logger import logger_default as dlog
-from crescendo.utils.py_utils import check_for_environment_variable
+from crescendo.utils.py_utils import check_for_environment_variable, \
+    intersection
 from crescendo.readers.qm9_readers import parse_QM8_electronic_properties, \
     read_qm9_xyz
 from crescendo.utils.mol_utils import all_analysis
@@ -66,10 +67,7 @@ class QM9DataPoint:
         qm9properties=None,
         xyz=None,
         elements=None,
-        zwitter=None,
-        qm8properties=None,
-        oxygenXANES=None,
-        nitrogenXANES=None
+        zwitter=None
     ):
         self.qm9ID = qm9ID
         self.smiles = smiles
@@ -77,6 +75,9 @@ class QM9DataPoint:
         self.xyz = xyz
         self.elements = elements
         self.zwitter = zwitter
+        self.qm8properties = None
+        self.oxygenXANES = None
+        self.nitrogenXANES = None
         self.nheavy = sum([e != 'H' for e in self.elements])
         self.mol = None
         self.mw = None
@@ -148,23 +149,23 @@ class QM9Dataset:
         if directory is None:
             directory = check_for_environment_variable(defaults.QM9_DS_ENV_VAR)
 
-        if os.path.isdir(directory) and not override:
+        full_dir = f"{directory}/{self.dsname}"
+        full_path = f"{full_dir}/raw.pkl"
+
+        if os.path.exists(full_path) and not override:
             error = \
-                f"Directory {directory} exists and override is False - " \
+                f"Full path {full_path} exists and override is False - " \
                 "exiting and not overwriting"
             dlog.error(error)
             return
 
-        elif os.path.isdir(directory) and override:
+        elif os.path.exists(full_path) and override:
             warning = \
-                f"Directory {directory} exists and override is True - " \
+                f"Full path {full_path} exists and override is True - " \
                 "overwriting saved dataset"
             dlog.warning(warning)
 
-        full_dir = f"{directory}/{self.dsname}"
         os.makedirs(full_dir, exist_ok=True)
-
-        full_path = f"{full_dir}/raw.pkl"
 
         d = self.__dict__
         pickle.dump(d, open(full_path, 'wb'), protocol=defaults.P_PROTOCOL)
@@ -264,6 +265,51 @@ class QM9Dataset:
 
         dlog.info(f"Total number of data points read from qm8: {cc}")
 
+    @time_func(dlog)
+    def load_oxygen_xanes(self, path=None):
+        """Loads in the Oxygen XANES data from a pickle file of the following
+        format.
+
+        xanes = {
+            qm9ID_1: {
+                site_A : [spectra_A],
+                site_B : [spectra_B],
+                ...
+            },
+            ...
+        }
+        """
+
+        if path is None:
+            path = check_for_environment_variable(
+                defaults.QM9_OXYGEN_FEFF_ENV_VAR
+            )
+
+        self.oxygenXANES_grid = np.linspace(526.98, 562.23, 80)
+        # Note for Nitrogen it's [396.41, 431.06, 90]
+
+        xanes = pickle.load(open(path, 'rb'))
+
+        dlog.info(
+            f"Loaded {len(xanes)} molecules of XANES successfully from {path}"
+        )
+
+        qm9IDs_to_use = intersection(list(xanes.keys()), list(self.raw.keys()))
+        dlog.info(f"Length of the intersection is {len(qm9IDs_to_use)}")
+
+        # We need to average the contributions for each site, which are listed
+        # as dictionaries in XANES
+        for qm9ID in qm9IDs_to_use:
+            try:
+                spectra = np.array([
+                    spectrum for spectrum in xanes[qm9ID].values()
+                ])
+                self.raw[qm9ID].oxygenXANES = spectra.mean(axis=0)
+
+            # If xanes[qm9ID] is None
+            except AttributeError:
+                continue
+
 
 class QM9GraphDataset(torch.utils.data.Dataset):
     """A special dataset which processes the exiting DataSet object into rdkit
@@ -295,6 +341,53 @@ class QM9GraphDataset(torch.utils.data.Dataset):
         self.to_graph_called = False
         self.analyze_called = False
         self.ml_ready = None
+
+    def __getitem__(self, ii):
+        return self.ml_ready[ii]
+
+    def __len__(self):
+        return len(self.raw)
+
+    def save_state(self, directory=None, override=False):
+        """Dumps the class as a dictionary into a pickle file. It will save
+        the object to the dsname directory as mld.pkl. Specifically, it saves
+        to directory/dsname/mld.pkl. (mld = machine learning dataset)."""
+
+        if directory is None:
+            directory = check_for_environment_variable(defaults.QM9_DS_ENV_VAR)
+
+        full_dir = f"{directory}/{self.dsname}"
+        full_path = f"{full_dir}/mld.pkl"
+
+        if os.path.exists(full_path) and not override:
+            error = \
+                f"Full path {full_path} exists and override is False - " \
+                "exiting and not overwriting"
+            dlog.error(error)
+            return
+
+        elif os.path.exists(full_path) and override:
+            warning = \
+                f"Full path {full_path} exists and override is True - " \
+                "overwriting saved dataset"
+            dlog.warning(warning)
+
+        os.makedirs(full_dir, exist_ok=True)
+
+        d = self.__dict__
+        pickle.dump(d, open(full_path, 'wb'), protocol=defaults.P_PROTOCOL)
+
+    def load_state(self, dsname, directory=None):
+        """Reloads the dataset of the specified name and directory."""
+
+        if directory is None:
+            directory = check_for_environment_variable(defaults.QM9_DS_ENV_VAR)
+
+        full_path = f"{directory}/{dsname}/mld.pkl"
+        d = pickle.load(open(full_path, 'rb'))
+
+        for key, value in d.items():
+            setattr(self, key, value)
 
     @staticmethod
     def _err_if_called(force):
@@ -437,7 +530,9 @@ class QM9GraphDataset(torch.utils.data.Dataset):
 
         self.to_graph_called = True
 
-
+    @time_func(dlog)
+    def ml_ready(self):
+        pass
 
 
 
