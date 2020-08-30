@@ -2,14 +2,24 @@
 
 import argparse
 
-from crescendo.datasets.qm9 import QM9Dataset, QM9GraphDataset
+
+from argparse import HelpFormatter
+from operator import attrgetter
 
 
-def parser():
+# https://stackoverflow.com/questions/
+# 12268602/sort-argparse-help-alphabetically
+class SortingHelpFormatter(HelpFormatter):
+    def add_arguments(self, actions):
+        actions = sorted(actions, key=attrgetter('option_strings'))
+        super(SortingHelpFormatter, self).add_arguments(actions)
+
+
+def qm9_parser():
     """Parses the arguments via argparse and returns the parser.parse_args()
     object."""
 
-    ap = argparse.ArgumentParser()
+    ap = argparse.ArgumentParser(formatter_class=SortingHelpFormatter)
 
     # Dataset/machine learning core options
     ap.add_argument(
@@ -119,7 +129,9 @@ def try_load_all(ds, args, path):
 
 if __name__ == '__main__':
 
-    args = parser()
+    args = qm9_parser()
+
+    from crescendo.datasets.qm9 import QM9Dataset, QM9GraphDataset
 
     # First we create a qm9 raw dataset
     if args.dataset_raw is not None:
@@ -164,6 +176,11 @@ if __name__ == '__main__':
         )
         dsG.init_splits(p_tvt=args.split)
         dsG.save_state(directory=args.cache, override=args.override)
+
+    # Load in the Graph Dataset and the ml_config.json file (which should be)
+    # in the working directory, and execute training.
+    elif args.train is not None:
+        pass
 
     else:
         raise NotImplementedError("Unknown run protocol")

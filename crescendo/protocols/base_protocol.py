@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 
+import os
 import time
+import shutil
+import uuid
 
 import torch
 import torch.nn as nn
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
+from crescendo import defaults
 from crescendo.utils.logger import logger_default as log
 from crescendo.utils import ml_utils
-
+from crescendo.utils.py_utils import check_for_environment_variable
 
 # At the time that the module is called, this should be a global variable
 CUDA_AVAIL = torch.cuda.is_available()
@@ -49,20 +53,39 @@ class TrainProtocol:
         result. Used as a lightweight way to store the model parameters.
     """
 
-    def __init__(self, trainLoader, validLoader, seed=None, parallel=True):
+    def __init__(
+        self, dsname, trainLoader, validLoader, directory=None, seed=None,
+        parallel=True, trial=str(uuid.uuid4()), override=False
+    ):
         """Initializer.
 
         Parameters
         ----------
+        dsname : str
+            The dataset name to which this training corresponds to.
         trainLoader : torch.utils.data.dataloader.DataLoader
             The training loader object.
         validLoader : torch.utils.data.dataloader.DataLoader
             The cross validation (or testing) loader object.
-        seed : int
+        directory : str, optional
+            The cache directory for the dataset. The trials will be saved here.
+            Default is None, and it will look for an environment variable if
+            this is the case.
+        seed : int, optional
             Seeds random, numpy and torch.
         parallel : bool
             Switch from parallel GPU training to single, if desired. Ignored if
             no GPUs are available. Default is True
+        trial : str, optional
+            The specific trial identifier. Useful for e.g. hyperparameter
+            tuning. Defaults to a uuid random hash.
+        override : bool
+            If True, this will restart training by deleting any existing
+            directory corresponding to the trial, and restarting training from
+            the first epoch. If this is False, an attept is made to see if a
+            previously-trained model exists, and training will continue from
+            state. Else, if no model exists, training will begin at the first
+            epoch.
         """
 
         self.trainLoader = trainLoader
@@ -74,11 +97,93 @@ class TrainProtocol:
         self._log_cuda_info()
         if seed is not None:
             ml_utils.seed_all(seed)
+
+        self.dsname = dsname
+        self.trial = trial
+
         self.model = None
         self.criterion = None
         self.optimizer = None
         self.scheduler = None
         self.best_model_state_dict = None
+        self.crit_str = None
+
+        if directory is None:
+            directory = check_for_environment_variable(defaults.QM9_DS_ENV_VAR)
+
+        # Get the location of the directory for this particular trial.
+        self.root = f"{directory}/{trial}"
+        log.info(
+            f"Root directory for saving model and states set to {self.root}"
+        )
+        if os.path.isdir(self.root):
+
+            log.info(f"Trial path {self.root} exists")
+
+            if override:
+                log.warning("Override is True, deleting existing data")
+                shutil.rmtree(self.root)
+
+            else:
+                log.info(
+                    "Override is False, will resume training from checkpoint"
+                )
+
+            os.makedirs(self.root, exist_ok=True)
+
+    # The following two functions are based off of:
+    # https://medium.com/analytics-vidhya/
+    # saving-and-loading-your-model-to-resume-training-in-pytorch-cb687352fa61
+    def save_checkpoint(self, state):
+        """We'll save a model checkpoint only when the validation loss is less
+        than all previous ones.
+
+        Parameters
+        ----------
+        state : dict
+            State dictionary of the format
+            checkpoint = {
+                'epoch': epoch + 1,
+                'state_dict': self.model.state_dict(),
+                'optimizer': self.optimizer.state_dict(),
+                'scheduler': self.scheduler.state_dict(),
+                'crit_str': self.crit_str
+            }
+        """
+
+        f_path = f"{self.root}/checkpoint.pt"
+        torch.save(state, f_path)
+
+    def load_checkpoint(self):
+        """Loads a model checkpoint from state. Initializes the model,
+        optimizer, schedule and criterion.
+
+        Returns
+        -------
+        int
+            The epoch to restart on.
+        """
+
+        checkpoint = torch.load(f"{self.root}/checkpoint.pt")
+        log.info(f"Loading model from state at {checkpoint}")
+
+        self.model.load_state_dict(checkpoint['state_dict'])
+        log.info(f"Model initialization successful")
+
+        self.optimizer.load_state_dict(checkpoint['optimizer'])
+        log.info(f"Optimizer initialization successful")
+
+        self.scheduler.load_state_dict(checkpoint['scheduler'])
+        log.info(f"Scheduler initialization successful")
+
+        self.crit_str = checkpoint['crit_str']
+        self._init_criterion(self.crit_str)
+        log.info(f"Criterion initialization successful")
+
+        epoch = checkpoint['epoch']
+        log.info(f"Overall initialization successful at epoch {epoch}")
+
+        return epoch
 
     def initialize_model(self):
         raise NotImplementedError
@@ -145,7 +250,7 @@ class TrainProtocol:
             log.critical(critical)
             raise RuntimeError(critical)
 
-    def _init_criterion(self, crit_str, kwargs):
+    def _init_criterion(self, crit_str):
         """Initializes the criterion.
 
         Parameters
@@ -158,11 +263,13 @@ class TrainProtocol:
         torch.nn._Loss
         """
 
-        if crit_str == 'l1':
-            self.criterion = nn.L1Loss(**kwargs)
+        self.crit_str = crit_str
+
+        if self.crit_str == 'l1':
+            self.criterion = nn.L1Loss()
             log.info("Initialized the L1 (MAE) loss")
-        elif crit_str == 'l2':
-            self.criterion = nn.MSELoss(**kwargs)
+        elif self.crit_str == 'l2':
+            self.criterion = nn.MSELoss()
             log.info("Initialized the L2 (MSE) loss")
         else:
             critical = \
