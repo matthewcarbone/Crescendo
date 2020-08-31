@@ -37,7 +37,7 @@ which will list a plethora of options; we will go through many of those use case
 ### Construct the raw dataset
 The first step of the pipeline is always to construct the "raw" dataset. We define this loosely as a lightweight representation of the data that has gone through the core pre-processing steps. In the case of `qm9`, this includes reading the core QM9 data, and possibly pairing it with other data computed _on_ the QM9 dataset. By default, the QM8 and QM9 Oxygen FEFF spectra will try to be paired; here's an example of loading QM9 with only the QM8 EP data:
 ```bash
-python3 run.py --debug 10000 qm9 --dataset-raw ds10k_test --no-oxygen-xanes
+python3 run.py --debug 10000 qm9 --dataset-raw ds10k --no-oxygen-xanes
 ```
 Here, we set `debug 10000` so as to only load the first 10k (arbitrarily) to save time. If you wanted to do this on the full dataset, you would not specify anything for debug, e.g. `python3 run.py qm9 --dataset-raw ds10k --no-oxygen-xanes`. Next, we specify that we want to use the `qm9` data in the pipeline, and then specify what we want to do, in this case, `--dataset-raw` which takes the dataset name as the argument, in this case, we are calling it `ds10k`. Finally, we specify not to load in the oxygen XANES data, since presumably most people using this will not have access to it.
 
