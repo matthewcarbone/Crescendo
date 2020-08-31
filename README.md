@@ -14,10 +14,10 @@ QM8_EP_ENV_VAR = "QM8_EP_DATA_PATH"
 QM9_DS_ENV_VAR = "QM9_DS_CACHE"
 QM9_OXYGEN_FEFF_ENV_VAR = "QM9_O_FEFF_PATH"
 ```
-* `QM9_ENV_VAR` points to the directory containing the raw QM9 data downloaded from [here](http://quantum-machine.org/datasets/)
+* `QM9_DATA_PATH` points to the directory containing the raw QM9 data downloaded from [here](http://quantum-machine.org/datasets/)
 * `QM8_EP_DATA_PATH` points to the text file containing the raw QM8 electronic property data as computed in the paper [TODO]
-* `QM9_OXYGEN_FEFF_ENV_VAR` points to the pickle file containing oxygen XANES FEFF spectra computed on the QM9 molecules containing at least one oxygen atom
-* `QM9_DS_ENV_VAR` is an extremely important one, as this points to the "cache" location where all pickled datasets, and machine learning data will be stored
+* `QM9_O_FEFF_PATH` points to the pickle file containing oxygen XANES FEFF spectra computed on the QM9 molecules containing at least one oxygen atom
+* `QM9_DS_CACHE` is an extremely important one, as this points to the "cache" location where all pickled datasets, and machine learning data will be stored
 
 It is recommended to set these environment variables by setting them in your `.bashrc` or `.bash_profile` configs via `export ENV_VAR="path/to/whatever.txt"`. Note that there are ways around using the environment variables, but it will make the CLI interface much more cumbersome. Thus, henceforth, we assume the environment variables are set.
 
