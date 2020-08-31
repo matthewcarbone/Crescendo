@@ -23,6 +23,7 @@ class TestGraphToVectorProtocol:
         data_loaders = dsG.get_loaders()
 
         protocol = GraphToVectorProtocol(
+            root="__test/path",
             trainLoader=data_loaders['train'],
             validLoader=data_loaders['valid']
         )

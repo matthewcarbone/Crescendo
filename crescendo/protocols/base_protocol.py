@@ -8,10 +8,8 @@ import torch
 import torch.nn as nn
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from crescendo import defaults
 from crescendo.utils.logger import logger_default as log
 from crescendo.utils import ml_utils
-from crescendo.utils.py_utils import check_for_environment_variable
 
 # At the time that the module is called, this should be a global variable
 CUDA_AVAIL = torch.cuda.is_available()
@@ -334,7 +332,7 @@ class TrainProtocol:
                 f'{best_valid_loss:.02e}'
             )
             log.info("\tUpdating best_model_state_dict and checkpoint")
-            self.save_checkpoint(self.epoch)
+            self.save_checkpoint()
 
         else:
             log.info(f'\tVal. Loss: {valid_loss:.05e}')
