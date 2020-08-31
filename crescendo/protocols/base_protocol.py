@@ -3,7 +3,6 @@
 import os
 import time
 import shutil
-import uuid
 
 import torch
 import torch.nn as nn
@@ -54,31 +53,26 @@ class TrainProtocol:
     """
 
     def __init__(
-        self, dsname, trainLoader, validLoader, directory=None, seed=None,
-        parallel=True, trial=str(uuid.uuid4()), override=False
+        self, root, trainLoader, validLoader,
+        seed=None, parallel=False, override=False
     ):
         """Initializer.
 
         Parameters
         ----------
-        dsname : str
-            The dataset name to which this training corresponds to.
+        root : str
+            The cache directory for the dataset. This trial will be saved here.
+            Default is None, and it will look for an environment variable if
+            this is the case.
         trainLoader : torch.utils.data.dataloader.DataLoader
             The training loader object.
         validLoader : torch.utils.data.dataloader.DataLoader
             The cross validation (or testing) loader object.
-        directory : str, optional
-            The cache directory for the dataset. The trials will be saved here.
-            Default is None, and it will look for an environment variable if
-            this is the case.
         seed : int, optional
             Seeds random, numpy and torch.
         parallel : bool
             Switch from parallel GPU training to single, if desired. Ignored if
-            no GPUs are available. Default is True
-        trial : str, optional
-            The specific trial identifier. Useful for e.g. hyperparameter
-            tuning. Defaults to a uuid random hash.
+            no GPUs are available. Default is False
         override : bool
             If True, this will restart training by deleting any existing
             directory corresponding to the trial, and restarting training from
@@ -98,24 +92,21 @@ class TrainProtocol:
         if seed is not None:
             ml_utils.seed_all(seed)
 
-        self.dsname = dsname
-        self.trial = trial
-
         self.model = None
         self.criterion = None
         self.optimizer = None
         self.scheduler = None
         self.best_model_state_dict = None
-        self.crit_str = None
+        self.checkpoint = None
+        self.epoch = 0
 
-        if directory is None:
-            directory = check_for_environment_variable(defaults.QM9_DS_ENV_VAR)
-
-        # Get the location of the directory for this particular trial.
-        self.root = f"{directory}/{trial}"
+        # Get the location of the directory for this particular trial. Also,
+        # create that directory and save the root as an attribute
+        self.root = root
         log.info(
             f"Root directory for saving model and states set to {self.root}"
         )
+
         if os.path.isdir(self.root):
 
             log.info(f"Trial path {self.root} exists")
@@ -128,62 +119,32 @@ class TrainProtocol:
                 log.info(
                     "Override is False, will resume training from checkpoint"
                 )
+                self.checkpoint = torch.load(f"{self.root}/checkpoint.pt")
+                log.info(f"Loading model from state at {self.checkpoint}")
+                self.epoch = self.checkpoint['epoch']
+                log.info(f"Will resume training at epoch {self.epoch}")
 
-            os.makedirs(self.root, exist_ok=True)
+        os.makedirs(self.root, exist_ok=True)
 
     # The following two functions are based off of:
     # https://medium.com/analytics-vidhya/
     # saving-and-loading-your-model-to-resume-training-in-pytorch-cb687352fa61
-    def save_checkpoint(self, state):
+    def save_checkpoint(self):
         """We'll save a model checkpoint only when the validation loss is less
-        than all previous ones.
-
-        Parameters
-        ----------
-        state : dict
-            State dictionary of the format
-            checkpoint = {
-                'epoch': epoch + 1,
-                'state_dict': self.model.state_dict(),
-                'optimizer': self.optimizer.state_dict(),
-                'scheduler': self.scheduler.state_dict(),
-                'crit_str': self.crit_str
-            }
+        than all previous ones. Note that this system only works if the user
+        provides the same model initizations (e.g., we can only load from an
+        Adam optimizer state if we use Adam for training).
         """
+
+        state = {
+            'epoch': self.epoch + 1,
+            'model': self.best_model_state_dict,
+            'optimizer': self.optimizer.state_dict(),
+            'scheduler': self.scheduler.state_dict()
+        }
 
         f_path = f"{self.root}/checkpoint.pt"
         torch.save(state, f_path)
-
-    def load_checkpoint(self):
-        """Loads a model checkpoint from state. Initializes the model,
-        optimizer, schedule and criterion.
-
-        Returns
-        -------
-        int
-            The epoch to restart on.
-        """
-
-        checkpoint = torch.load(f"{self.root}/checkpoint.pt")
-        log.info(f"Loading model from state at {checkpoint}")
-
-        self.model.load_state_dict(checkpoint['state_dict'])
-        log.info(f"Model initialization successful")
-
-        self.optimizer.load_state_dict(checkpoint['optimizer'])
-        log.info(f"Optimizer initialization successful")
-
-        self.scheduler.load_state_dict(checkpoint['scheduler'])
-        log.info(f"Scheduler initialization successful")
-
-        self.crit_str = checkpoint['crit_str']
-        self._init_criterion(self.crit_str)
-        log.info(f"Criterion initialization successful")
-
-        epoch = checkpoint['epoch']
-        log.info(f"Overall initialization successful at epoch {epoch}")
-
-        return epoch
 
     def initialize_model(self):
         raise NotImplementedError
@@ -250,6 +211,10 @@ class TrainProtocol:
             log.critical(critical)
             raise RuntimeError(critical)
 
+        if self.checkpoint is not None:
+            self.optimizer.load_state_dict(self.checkpoint['optimizer'])
+            log.info(f"Optimizer initialization from checkpoint successful")
+
     def _init_criterion(self, crit_str):
         """Initializes the criterion.
 
@@ -263,12 +228,10 @@ class TrainProtocol:
         torch.nn._Loss
         """
 
-        self.crit_str = crit_str
-
-        if self.crit_str == 'l1':
+        if crit_str == 'l1':
             self.criterion = nn.L1Loss()
             log.info("Initialized the L1 (MAE) loss")
-        elif self.crit_str == 'l2':
+        elif crit_str == 'l2':
             self.criterion = nn.MSELoss()
             log.info("Initialized the L2 (MSE) loss")
         else:
@@ -300,8 +263,12 @@ class TrainProtocol:
             log.critical(critical)
             raise RuntimeError(critical)
 
+        if self.checkpoint is not None:
+            self.scheduler.load_state_dict(self.checkpoint['scheduler'])
+            log.info(f"Scheduler initialization from checkpoint successful")
+
     def initialize_support(
-        self, criterion=('l1', dict()), optimizer=('adam', {'lr': 1e-4}),
+        self, criterion='l1', optimizer=('adam', {'lr': 1e-4}),
         scheduler=('rlrp', {'patience': 10, 'factor': 0.02, 'min_lr': 1e-6})
     ):
         """Initializes the criterion, optimize and scheduler.
@@ -320,7 +287,7 @@ class TrainProtocol:
             learning rate upon plateau.
         """
 
-        self._init_criterion(*criterion)
+        self._init_criterion(criterion)
         self._init_optimizer(*optimizer)
         self._init_scheduler(*scheduler)
 
@@ -343,7 +310,7 @@ class TrainProtocol:
 
         return total_loss
 
-    def _update_state_dict(self, best_valid_loss, valid_loss, epoch):
+    def _update_state_dict(self, best_valid_loss, valid_loss):
         """Updates the best_model_state_dict attribute if the valid loss is
         less than the best up-until-now valid loss.
 
@@ -353,8 +320,6 @@ class TrainProtocol:
             The best validation loss so far.
         valid_loss : float
             The current validation loss on the provided epoch.
-        epoch : int
-            The current epoch.
 
         Returns
         -------
@@ -362,13 +327,15 @@ class TrainProtocol:
             min(best_valid_loss, valid_loss)
         """
 
-        if valid_loss < best_valid_loss or epoch == 0:
+        if valid_loss < best_valid_loss or self.epoch == 0:
             self.best_model_state_dict = self.model.state_dict()
             log.info(
-                f'\tVal. Loss: {valid_loss:.05e} < Best Val. Loss '
-                f'{best_valid_loss:.05e}'
+                f'\tVal. Loss: {valid_loss:.02e} < Best Val. Loss '
+                f'{best_valid_loss:.02e}'
             )
-            log.info("\tUpdating best_model_state_dict")
+            log.info("\tUpdating best_model_state_dict and checkpoint")
+            self.save_checkpoint(self.epoch)
+
         else:
             log.info(f'\tVal. Loss: {valid_loss:.05e}')
 
@@ -406,22 +373,18 @@ class TrainProtocol:
             Gradient clipping.
         """
 
+        meter = ml_utils.Meter(self.root)
+
         # Keep track of the best validation loss so that we know when to save
         # the model state dictionary.
         best_valid_loss = float('inf')
 
-        # Begin training
-        train_loss_list = []
-        valid_loss_list = []
-        learning_rates = []
-        for epoch in range(epochs):
+        for _ in range(epochs):
 
             # Train a single epoch
             t0 = time.time()
             train_loss = self._train_single_epoch(clip)
             t_total = time.time() - t0
-            log.info(f"Epoch {epoch:04} [{t_total:3.02f}s]")
-            log.info(f'\tTrain Loss: {train_loss:.05e}')
 
             # Evaluate on the validation data
             valid_loss = self._eval_valid()
@@ -432,27 +395,24 @@ class TrainProtocol:
             # Update the best state dictionary of the model for loading in
             # later on in the process
             best_valid_loss = self._update_state_dict(
-                best_valid_loss, valid_loss, epoch
+                best_valid_loss, valid_loss
             )
 
-            train_loss_list.append(train_loss)
-            valid_loss_list.append(valid_loss)
-            learning_rates.append(clr)
+            meter.step(self.epoch, train_loss, valid_loss, clr, t_total)
+            self.epoch += 1
 
         log.info("Setting model to best state dict")
         self.model.load_state_dict(self.best_model_state_dict)
 
-        return train_loss_list, valid_loss_list, learning_rates
+        return meter.train_loss_list, meter.valid_loss_list, \
+            meter.learning_rates
 
-    def eval(self, loader_override=None, meta=None):
+    def eval(self, loader_override=None, target_metadata=None):
         """Systematically evaluates the validation, or dataset corresponding to
         the loader specified in the loader_override argument, dataset."""
 
         if loader_override is not None:
-            log.warning(
-                "Default validation loader is overridden - ensure this is "
-                "intentional, as this is likely evaluating on a testing set"
-            )
+            log.warning("Default validation loader overridden")
 
         loader = self.validLoader if loader_override is None \
             else loader_override
@@ -460,8 +420,7 @@ class TrainProtocol:
         # defaults.Result
         with torch.no_grad():
             total_loss, cache = self._eval_valid_pass(
-                loader, cache=True, target_metadata=meta
+                loader, cache=True, target_metadata=target_metadata
             )
-        log.info(f"Eval complete: loss {total_loss:.02e}")
 
         return cache

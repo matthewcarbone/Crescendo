@@ -8,6 +8,7 @@ import numpy as np
 import torch
 
 from crescendo.protocols.base_protocol import TrainProtocol
+from crescendo.utils.logger import logger_default as log
 
 
 class GraphToVectorProtocol(TrainProtocol):
@@ -34,6 +35,11 @@ class GraphToVectorProtocol(TrainProtocol):
             self.initialize_MPNN(**kwargs)
         else:
             raise NotImplementedError
+
+        if self.checkpoint is not None:
+            self.model.load_state_dict(self.checkpoint['model'])
+            self.best_model_state_dict = self.checkpoint['model']
+            log.info(f"Model initialization from checkpoint successful")
 
     def _get_batch(self, batch):
         """Parses a batch from the Loaders to the model-compatible features."""

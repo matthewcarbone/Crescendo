@@ -405,6 +405,8 @@ class QM9GraphDataset(torch.utils.data.Dataset, _SimpleLoadSaveOperations):
         self.target_metadata = None
         self.tvt_splits = None
         self.node_edge_features = None
+        self.targets_to_use = None
+        self.n_targets = None
         if seed is not None:
             dlog.info(f"Dataset seed set to {seed}")
         else:
@@ -634,15 +636,31 @@ class QM9GraphDataset(torch.utils.data.Dataset, _SimpleLoadSaveOperations):
         dlog.info(f"Using target indexes {targets_to_use}")
         dlog.info(f"Scaling targets: {scale_targets}")
 
-        self.ml_data = [
-            [
-                datum.graph,
-                [getattr(datum, target_type)[ii] for ii in targets_to_use]
-                if targets_to_use is not None
-                else getattr(datum, target_type),
-                datum.qm9ID
-            ] for datum in list(self.raw.values())
-        ]
+        def _to_ml_data(datum):
+            a = getattr(datum, target_type)
+            if a is None:
+                return None
+            graph = datum.graph
+            if targets_to_use is not None:
+                a = [a[ii] for ii in targets_to_use]
+            qm9ID = datum.qm9ID
+            return [graph, a, qm9ID]
+
+        res = Parallel(n_jobs=n_workers)(
+            delayed(_to_ml_data)(datum) for datum in list(self.raw.values())
+        )
+
+        self.targets_to_use = targets_to_use
+        self.ml_data = []
+        for r in res:
+            if r is None:
+                continue
+            (graph, target, qm9ID) = r
+            self.ml_data.append([graph, target, qm9ID])
+
+        dlog.info(f"Total number of ML-ready datapoints {len(self.ml_data)}")
+
+        self.n_targets = len(self.ml_data[0][1])
 
         random.shuffle(self.ml_data)
 

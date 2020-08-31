@@ -55,3 +55,32 @@ def mean_and_std(dat):
         f"{mean.mean():.02e} +/- {sd.mean():.02e}"
     )
     return mean, sd
+
+
+class Meter:
+    """Used for keeping track of losses and other information that needs to
+    be cached as the model trains."""
+
+    def __init__(self, root):
+        self.root = root
+        self.fname = f"{self.root}/info.txt"
+        self.train_loss_list = []
+        self.valid_loss_list = []
+        self.learning_rates = []
+
+    def step(self, epoch, t_loss, v_loss, lr, elapsed):
+        """Writes the losses to disk and logs the information."""
+
+        with open(self.fname, "w") as f:
+            f.write(
+                f"{epoch}\t{t_loss:.02e}\t{v_loss:.02e}\t{lr:.02e}\t"
+                f"{elapsed:.02f}\n"
+            )
+
+        dlog.info(f"Epoch {epoch:04} [{elapsed:3.02f}s]")
+        dlog.info(f'\tTrain Loss: {t_loss:.02e}')
+        dlog.info(f"Eval complete: loss {v_loss:.02e}")
+
+        self.train_loss_list.append(t_loss)
+        self.valid_loss_list.append(v_loss)
+        self.learning_rates.append(lr)
