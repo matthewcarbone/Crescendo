@@ -50,7 +50,7 @@ def add_qm9_args(ap):
     )
     ap.add_argument(
         '--slurm-config', dest='slurm_config', type=str,
-        default='slurm_config_template.yaml',
+        default='slurm_config.yaml',
         help='sets the SLURM config file path'
     )
     ap.add_argument(

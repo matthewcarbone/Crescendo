@@ -162,7 +162,7 @@ class Manager:
         all_dirs = [os.path.join(self.root_above, d) for d in all_dirs]
         return [xx for xx in all_dirs if os.path.isdir(xx)]
 
-    def write_SLURM_script(self, slurm_config='slurm_config_template.yaml'):
+    def write_SLURM_script(self, slurm_config='slurm_config.yaml'):
         """Writes the SLURM submission script to the root directory by
         detecting the number of jobs to submit."""
 
