@@ -117,10 +117,13 @@ class TrainProtocol:
                 log.info(
                     "Override is False, will resume training from checkpoint"
                 )
-                self.checkpoint = torch.load(f"{self.root}/checkpoint.pt")
-                log.info(f"Loading model from state at {self.checkpoint}")
-                self.epoch = self.checkpoint['epoch']
-                log.info(f"Will resume training at epoch {self.epoch}")
+                try:
+                    self.checkpoint = torch.load(f"{self.root}/checkpoint.pt")
+                    log.info(f"Loading model from state at {self.checkpoint}")
+                    self.epoch = self.checkpoint['epoch']
+                    log.info(f"Will resume training at epoch {self.epoch}")
+                except FileNotFoundError:
+                    pass
 
         os.makedirs(self.root, exist_ok=True)
 
