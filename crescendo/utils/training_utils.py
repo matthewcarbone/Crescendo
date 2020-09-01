@@ -203,9 +203,7 @@ class Manager:
                 f.write("export CUDA_VISIBLE_DEVICES=\n")
             f.write('\n')
 
-            f.write(
-                'python3 crescendo/scripts/qm9_graph_vector_compute.py "$@"\n'
-            )
+            f.write('python3 .submit.py "$@"\n')
 
         dlog.info(f"Wrote SLURM script to {self.root_above}/submit.sh")
 
@@ -234,7 +232,7 @@ class QM9Manager(Manager):
         trials = [f"{ii:03}" for ii in range(len(all_dirs))]
 
         for trial in trials:
-            s = f'sbatch submit.sh {self.dsname} {trial} {self.cache}'
+            s = f'sbatch submit.sh 0 {self.dsname} {trial} {self.cache}'
             dlog.info(f"Submitting {s}")
 
             _call_subprocess(s)

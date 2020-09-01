@@ -5,9 +5,9 @@ import sys
 import uuid
 import yaml
 
-from ..crescendo.datasets.qm9 import QM9GraphDataset
-from ..crescendo.protocols.graph_protocols import GraphToVectorProtocol
-from ..crescendo.utils.training_utils import save_caches
+from crescendo.datasets.qm9 import QM9GraphDataset
+from crescendo.protocols.graph_protocols import GraphToVectorProtocol
+from crescendo.utils.training_utils import save_caches
 
 
 def run_single_protocol(dsname, config, cache, trial=str(uuid.uuid4())):
@@ -58,15 +58,3 @@ def run_single_protocol(dsname, config, cache, trial=str(uuid.uuid4())):
 
     protocol.train(config['epochs'], clip=config['clip'])
     save_caches(protocol, mlds, data_loaders)
-
-
-if __name__ == '__main__':
-
-    # Passed : {dsname} {trial} {cache}
-
-    dsname = str(sys.argv[1])
-    trial = str(sys.argv[2])
-    cache = str(sys.argv[3])
-    config_path = os.path.join(cache, dsname, trial, 'config.yaml')
-    config = yaml.safe_load(open(config_path))
-    run_single_protocol(dsname, config, cache, trial)
