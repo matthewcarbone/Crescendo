@@ -119,7 +119,6 @@ class TrainProtocol:
                 )
                 try:
                     self.checkpoint = torch.load(f"{self.root}/checkpoint.pt")
-                    log.info(f"Loading model from state at {self.checkpoint}")
                     self.epoch = self.checkpoint['epoch']
                     log.info(f"Will resume training at epoch {self.epoch}")
                 except FileNotFoundError:
