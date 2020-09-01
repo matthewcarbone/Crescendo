@@ -178,7 +178,7 @@ class Manager:
         with open(f"{self.root_above}/submit.sh", 'w') as f:
             f.write("#!/bin/bash\n")
             f.write("\n")
-            f.write(f"#SBATCH --jobs-name=c-{self.dsname} \n")
+            f.write(f"#SBATCH --job-name=c-{self.dsname} \n")
             f.write(f"#SBATCH -p {slurm_config['partition']}\n")
             f.write(f"#SBATCH -t {slurm_config['runtime']}\n")
             f.write(f"#SBATCH --account={slurm_config['account']}\n")
