@@ -28,7 +28,7 @@ def add_qm9_args(ap):
     # Dataset/machine learning core options
     ap.add_argument(
         '--dataset-raw', dest='dataset_raw', type=str, default=None,
-        help='loads/inits the graph dataset and specify the dataset name'
+        help='loads/inits the raw dataset and specify the dataset name'
     )
     ap.add_argument(
         '--dataset-graph', dest='dataset_graph', type=str, default=None,
@@ -36,13 +36,22 @@ def add_qm9_args(ap):
     )
     ap.add_argument(
         '--train-prime', dest='train_prime', type=str, default=None,
-        help='loads/inits the graph dataset and specify the dataset name'
+        help='primes for ML training and specify the dataset name'
+    )
+    ap.add_argument(
+        '--train-run', dest='train_run', type=str, default=None,
+        help='runs ML training and specify the dataset name'
     )
 
     # Run ML options
     ap.add_argument(
         '--config', dest='config', type=str, default='config.yaml',
         help='sets the config file path'
+    )
+    ap.add_argument(
+        '--slurm-config', dest='slurm_config', type=str,
+        default='slurm_config_template.yaml',
+        help='sets the SLURM config file path'
     )
     ap.add_argument(
         '--max-hp', dest='max_hp', type=int, default=24,

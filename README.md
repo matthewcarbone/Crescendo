@@ -172,6 +172,9 @@ conda install -c conda-forge pymatgen
 
 # Optional, linting
 conda install -c anaconda flake8
+
+# Optional, coverage
+conda install -c conda-forge pytest-cov
 ```
 
 ## Logging protocol

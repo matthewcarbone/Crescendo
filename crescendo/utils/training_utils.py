@@ -4,14 +4,12 @@ from itertools import product
 import os
 import pickle
 import random
-import uuid
+import subprocess
 import yaml
 
-from crescendo.protocols.graph_protocols import GraphToVectorProtocol
-from crescendo.datasets.qm9 import QM9GraphDataset
-from crescendo.utils.py_utils import check_for_environment_variable
 from crescendo.defaults import P_PROTOCOL, QM9_DS_ENV_VAR
 from crescendo.utils.logger import logger_default as dlog
+from crescendo.utils.py_utils import check_for_environment_variable
 
 
 def read_config(path):
@@ -101,6 +99,13 @@ def execution_parameters_permutations(dictionary):
     ]
 
 
+def _call_subprocess(script):
+    process = subprocess.Popen(
+        script, shell=True, stdout=subprocess.PIPE, universal_newlines=True
+    )
+    process.wait()
+
+
 class Manager:
     """Helps keep track of the different trials being performed, and writes
     important information to disk.
@@ -113,12 +118,6 @@ class Manager:
     directory : str
         The location of the cache directory
     """
-
-    def __init__(
-        self, dsname, directory=check_for_environment_variable(QM9_DS_ENV_VAR)
-    ):
-        # Location of the directory containing the datasets
-        self.root_above = f"{directory}/{dsname}"
 
     def prime(self, config_path='config.yaml', max_hp=24):
         """Primes the computation by creating the necessary trial directories
@@ -155,54 +154,90 @@ class Manager:
             path = f"{d}/config.yaml"
             with open(path, 'w') as f:
                 yaml.dump(combo, f, default_flow_style=False)
+            dlog.info(f"Trial {cc:03} saved at {path}")
             cc += 1
 
+    def _get_all_trial_dirs(self):
+        all_dirs = os.listdir(self.root_above)
+        all_dirs = [os.path.join(self.root_above, d) for d in all_dirs]
+        return [xx for xx in all_dirs if os.path.isdir(xx)]
 
-def run_single_protocol(args, config, trial=str(uuid.uuid4())):
-    """Initializes a machine learning protocol from a dictionary of
-    parameters.
+    def write_SLURM_script(self, slurm_config='slurm_config_template.yaml'):
+        """Writes the SLURM submission script to the root directory by
+        detecting the number of jobs to submit."""
 
-    Parameters
-    ----------
-    config : dict
-        Must have a 1-to-1 correspondence between keys and ML parameters.
-    args
-        An argparse-parsed arguments object.
-    trial : str
-        Defaults to a random hash if unspecified.
-    """
+        # Get the directories in the root:
+        all_dirs = self._get_all_trial_dirs()
 
-    mlds = QM9GraphDataset(args.train)
-    data_loaders = mlds.get_loaders()
+        dlog.info(f"Detected {len(all_dirs)} trial directories")
 
-    protocol = GraphToVectorProtocol(
-        args.train, trial,
-        trainLoader=data_loaders['train'],
-        validLoader=data_loaders['valid']
-    )
+        # Load the config
+        dlog.info(f"Loading SLURM config from {slurm_config}")
+        slurm_config = yaml.safe_load(open(slurm_config))
 
-    protocol.initialize_model(
-        n_node_features=mlds.node_edge_features[0],
-        n_edge_features=mlds.node_edge_features[1],
-        output_size=mlds.n_targets,
-        hidden_node_size=config['hidden_node_size'],
-        hidden_edge_size=config['hidden_edge_size']
-    )
+        with open(f"{self.root_above}/submit.sh", 'w') as f:
+            f.write("#!/bin/bash\n")
+            f.write("\n")
+            f.write(f"#SBATCH -p {slurm_config['partition']}\n")
+            f.write(f"#SBATCH -t {slurm_config['runtime']}\n")
+            f.write(f"#SBATCH --account={slurm_config['account']}\n")
+            f.write(f"#SBATCH -N {slurm_config['nodes']}\n")
+            f.write(f"#SBATCH -n {slurm_config['tasks']}\n")
+            if slurm_config['constraint'] is not None:
+                f.write(f"#SBATCH -C {slurm_config['constraint']}\n")
+            f.write(f"#SBATCH --qos {slurm_config['qos']}\n")
+            if slurm_config['ngpu'] > 0:
+                f.write(f"#SBATCH --gres=gpu:{slurm_config['ngpu']}\n")
+            if slurm_config['exclusive']:
+                f.write(f"#SBATCH --exclusive\n")
+            f.write(f"#SBATCH --output=job_data/{self.dsname}_%A.out\n")
+            f.write(f"#SBATCH --error=job_data/{self.dsname}_%A.err\n")
+            f.write("\n")
 
-    protocol.initialize_support(
-        optimizer=(
-            config['optimizer'], {
-                'lr': config['lr']
-            }
-        ),
-        scheduler=(
-            'rlrp', {
-                'patience': config['patience'],
-                'factor': config['factor'],
-                'min_lr': config['min_lr']
-            }
-        )
-    )
+            if slurm_config['ngpu'] > 0:
+                gpuidx = [str(ii) for ii in range(slurm_config['ngpu'])]
+                gpuidx_str = ','.join(gpuidx)
+                f.write(f"export CUDA_VISIBLE_DEVICES={gpuidx_str}\n")
+            else:
+                f.write("export CUDA_VISIBLE_DEVICES=\n")
+            f.write('\n')
 
-    protocol.train(config['epochs'], clip=config['clip'])
-    save_caches(protocol, mlds, data_loaders)
+            # "$1" is the dataset name
+            # "$2" is the path self.root_above
+            # "$3" is the directory index, e.g. 002
+            f.write('python3 scripts/graph_compute.py "$1" "$2" "$3"\n')
+
+        dlog.info(f"Wrote SLURM script to {self.root_above}/submit.sh")
+
+
+class QM9Manager(Manager):
+
+    def __init__(self, dsname, directory):
+
+        if directory is None:
+            directory = check_for_environment_variable(QM9_DS_ENV_VAR)
+
+        # Location of the directory containing the datasets
+        self.root_above = f"{directory}/{dsname}"
+        self.dsname = dsname
+        self.cache = directory
+
+    def submit(self):
+        """Submits jobs to the job controller."""
+
+        # Move the script to the working directory
+        script = f"{self.root_above}/submit.sh"
+        _call_subprocess(f'mv {script} .')
+
+        # Submit the jobs
+        all_dirs = self._get_all_trial_dirs()
+        for d in all_dirs:
+            trial = d.split("/")[-1]
+            s = \
+                f'sbatch submit.sh {self.dsname} {self.root_above} {trial} ' \
+                f'{self.cache}'
+            dlog.info(f"Submitting {s}")
+
+            _call_subprocess(s)
+
+        _call_subprocess(f'mv submit.sh {self.root_above}')

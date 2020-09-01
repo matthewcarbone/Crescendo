@@ -20,13 +20,12 @@ if __name__ == '__main__':
 
     if 'qm9' in sys.argv:
 
-        # Importing here allows us to run other methods that don't require
-        # these packages, without importing them.
-        from crescendo.utils import qm9_run_utils as u
-        from crescendo.datasets.qm9 import QM9Dataset, QM9GraphDataset
-
         # First we create a qm9 raw dataset
         if args.dataset_raw is not None:
+
+            # Importing here allows us to run other methods that don't require
+            # these packages, without importing them.
+            from crescendo.datasets.qm9 import QM9Dataset, QM9GraphDataset
 
             ds = QM9Dataset(dsname=args.dataset_raw, debug=args.debug)
 
@@ -43,6 +42,8 @@ if __name__ == '__main__':
         # Then, we construct the graph dataset from this cached one. Note that
         # this requires the previous raw data was saved.
         elif args.dataset_graph is not None:
+
+            from crescendo.datasets.qm9 import QM9Dataset, QM9GraphDataset
 
             ds = QM9Dataset(dsname=args.dataset_graph)
             ds.load_state(dsname=args.dataset_graph, directory=args.cache)
@@ -72,11 +73,16 @@ if __name__ == '__main__':
 
         # Load in the Graph Dataset and the ml_config.json file (which should
         # be) in the working directory, and execute training.
-        elif args.train is not None:
-            manager = u.Manager(args.train, directory=args.directory)
+        elif args.train_prime is not None:
+            from crescendo.utils.training_utils import QM9Manager
+            manager = QM9Manager(args.train_prime, directory=args.cache)
+            manager.prime(config_path=args.config, max_hp=args.max_hp)
+            manager.write_SLURM_script(slurm_config=args.slurm_config)
 
-            if args.prime:
-                manager.prime(config_path=args.config, max_hp=args.max_hp)
+        elif args.train_run is not None:
+            from crescendo.utils.training_utils import QM9Manager
+            manager = QM9Manager(args.train_run, directory=args.cache)
+            manager.submit()
 
         else:
             raise NotImplementedError("Unknown run protocol - qm9")
