@@ -205,7 +205,7 @@ class Manager:
             # "$1" is the dataset name
             # "$2" is the path self.root_above
             # "$3" is the directory index, e.g. 002
-            f.write('python3 scripts/graph_compute.py "$1" "$2" "$3"\n')
+            f.write('python3 scripts/graph_compute.py "$1" "$2" "$3" "$4"\n')
 
         dlog.info(f"Wrote SLURM script to {self.root_above}/submit.sh")
 
