@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 
-import os
-import sys
 import uuid
-import yaml
+
 
 from crescendo.datasets.qm9 import QM9GraphDataset
 from crescendo.protocols.graph_protocols import GraphToVectorProtocol
@@ -23,7 +21,7 @@ def run_single_protocol(dsname, config, cache, trial=str(uuid.uuid4())):
         Defaults to a random hash if unspecified.
     """
 
-    mlds = QM9GraphDataset(dsname)
+    mlds = QM9GraphDataset()
     mlds.load_state(dsname=dsname, directory=cache)
     data_loaders = mlds.get_loaders(config['batch_size'])
 
