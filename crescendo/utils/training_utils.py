@@ -203,7 +203,7 @@ class Manager:
                 f.write("export CUDA_VISIBLE_DEVICES=\n")
             f.write('\n')
 
-            f.write('python3 scripts/graph_compute.py "$@"\n')
+            f.write('python3 scripts/qm9_graph_vector_compute.py "$@"\n')
 
         dlog.info(f"Wrote SLURM script to {self.root_above}/submit.sh")
 
