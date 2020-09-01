@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import uuid
 
 
@@ -25,8 +26,9 @@ def run_single_protocol(dsname, config, cache, trial=str(uuid.uuid4())):
     mlds.load_state(dsname=dsname, directory=cache)
     data_loaders = mlds.get_loaders(config['batch_size'])
 
+    root = os.path.join(cache, dsname, trial)
     protocol = GraphToVectorProtocol(
-        dsname, trial,
+        root,
         trainLoader=data_loaders['train'],
         validLoader=data_loaders['valid']
     )
