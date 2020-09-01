@@ -9,7 +9,7 @@ from crescendo.protocols.graph_protocols import GraphToVectorProtocol
 from crescendo.utils.training_utils import save_caches
 
 
-def run_single_protocol(dsname, config, cache, trial=str(uuid.uuid4())):
+def run_qm9_graph_vector(dsname, config, cache, trial=str(uuid.uuid4())):
     """Initializes a machine learning protocol from a dictionary of
     parameters.
 
