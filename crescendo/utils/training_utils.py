@@ -119,7 +119,7 @@ class Manager:
         The location of the cache directory
     """
 
-    def prime(self, config_path='config.yaml', max_hp=24):
+    def prime(self, config_path='configs/ml_config.yaml', max_hp=24):
         """Primes the computation by creating the necessary trial directories
         and parsing the configurations into the right places. This is
         essentially the setup to hyperparameter tuning, if desired, or running
@@ -162,7 +162,7 @@ class Manager:
         all_dirs = [os.path.join(self.root_above, d) for d in all_dirs]
         return [xx for xx in all_dirs if os.path.isdir(xx)]
 
-    def write_SLURM_script(self, slurm_config='slurm_config.yaml'):
+    def write_SLURM_script(self, slurm_config='configs/slurm_config.yaml'):
         """Writes the SLURM submission script to the root directory by
         detecting the number of jobs to submit."""
 

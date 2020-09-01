@@ -71,12 +71,12 @@ if __name__ == '__main__':
             dsG.init_splits(p_tvt=args.split)
             dsG.save_state(directory=args.cache, override=args.force)
 
-        # Load in the Graph Dataset and the ml_config.json file (which should
+        # Load in the Graph Dataset and the ml_config.yaml file (which should
         # be) in the working directory, and execute training.
         elif args.train_prime is not None:
             from crescendo.utils.training_utils import QM9Manager
             manager = QM9Manager(args.train_prime, directory=args.cache)
-            manager.prime(config_path=args.config, max_hp=args.max_hp)
+            manager.prime(config_path=args.ml_config, max_hp=args.max_hp)
             manager.write_SLURM_script(slurm_config=args.slurm_config)
 
         elif args.train_run is not None:

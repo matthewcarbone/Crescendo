@@ -45,12 +45,13 @@ def add_qm9_args(ap):
 
     # Run ML options
     ap.add_argument(
-        '--config', dest='config', type=str, default='config.yaml',
+        '--ml-config', dest='ml_config', type=str,
+        default='configs/ml_config_template.yaml',
         help='sets the config file path'
     )
     ap.add_argument(
         '--slurm-config', dest='slurm_config', type=str,
-        default='slurm_config.yaml',
+        default='configs/slurm_config.yaml',
         help='sets the SLURM config file path'
     )
     ap.add_argument(
