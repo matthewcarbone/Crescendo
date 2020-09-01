@@ -63,10 +63,12 @@ def run_single_protocol(dsname, config, cache, trial=str(uuid.uuid4())):
 
 
 if __name__ == '__main__':
+
+    # Passed : {dsname} {trial} {cache}
+
     dsname = str(sys.argv[1])
-    root = str(sys.argv[2])
-    trial_str = str(sys.argv[3])
-    cache = str(sys.argv[4])
-    config_path = os.path.join(root, trial_str, cache, 'config.yaml')
+    trial = str(sys.argv[2])
+    cache = str(sys.argv[3])
+    config_path = os.path.join(cache, dsname, trial, 'config.yaml')
     config = yaml.safe_load(open(config_path))
-    run_single_protocol(dsname, config, trial_str)
+    run_single_protocol(dsname, config, cache, trial)

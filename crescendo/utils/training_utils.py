@@ -178,6 +178,7 @@ class Manager:
         with open(f"{self.root_above}/submit.sh", 'w') as f:
             f.write("#!/bin/bash\n")
             f.write("\n")
+            f.write(f"#SBATCH --jobs-name=c-{self.dsname} \n")
             f.write(f"#SBATCH -p {slurm_config['partition']}\n")
             f.write(f"#SBATCH -t {slurm_config['runtime']}\n")
             f.write(f"#SBATCH --account={slurm_config['account']}\n")
@@ -202,10 +203,7 @@ class Manager:
                 f.write("export CUDA_VISIBLE_DEVICES=\n")
             f.write('\n')
 
-            # "$1" is the dataset name
-            # "$2" is the path self.root_above
-            # "$3" is the directory index, e.g. 002
-            f.write('python3 scripts/graph_compute.py "$1" "$2" "$3" "$4"\n')
+            f.write('python3 scripts/graph_compute.py "$@"\n')
 
         dlog.info(f"Wrote SLURM script to {self.root_above}/submit.sh")
 
@@ -231,11 +229,10 @@ class QM9Manager(Manager):
 
         # Submit the jobs
         all_dirs = self._get_all_trial_dirs()
-        for d in all_dirs:
-            trial = d.split("/")[-1]
-            s = \
-                f'sbatch submit.sh {self.dsname} {self.root_above} {trial} ' \
-                f'{self.cache}'
+        trials = [f"{ii:03}" for ii in range(len(all_dirs))]
+
+        for trial in trials:
+            s = f'sbatch submit.sh {self.dsname} {trial} {self.cache}'
             dlog.info(f"Submitting {s}")
 
             _call_subprocess(s)
