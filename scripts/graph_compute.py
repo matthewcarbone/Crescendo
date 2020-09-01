@@ -27,7 +27,7 @@ def run_single_protocol(dsname, config, cache, trial=str(uuid.uuid4())):
 
     mlds = QM9GraphDataset(dsname)
     mlds.load_state(dsname=dsname, directory=cache)
-    data_loaders = mlds.get_loaders()
+    data_loaders = mlds.get_loaders(config['batch_size'])
 
     protocol = GraphToVectorProtocol(
         dsname, trial,
