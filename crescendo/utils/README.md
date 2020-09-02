@@ -10,6 +10,9 @@ The core logging module is `logger.py`. Various logging streams can be defined h
 ## Machine learning utilities
 All utilities corresponding to general machine learning, including the very useful `Meter` class, are contained in `ml_utils.py`.
 
+## Managers
+Utilities specific to the _training_ pipeline are stored in `managers.py`. This contains a `Manager` class for each project that is contained in `crescendo`, which "manages" everything in the pipeline from start to finish.
+
 ## `rdkit` Mol utilities
 Extra analysis utilities for providing summaries of `rdkit.Chem.Mol` objects are contained in `mol_utils.py`.
 
@@ -21,6 +24,3 @@ See `graphs.py`.
 
 ## Timing
 Utilities having to do with monitoring the execution time of functions are contained in `timing.py`.
-
-## Machine learning training utilities
-Utilities specific to the _training_ process are stored in `training_utils.py`.

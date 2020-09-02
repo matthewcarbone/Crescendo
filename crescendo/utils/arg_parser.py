@@ -3,6 +3,7 @@
 import argparse
 from argparse import HelpFormatter, ArgumentDefaultsHelpFormatter
 from operator import attrgetter
+import sys
 
 
 # https://stackoverflow.com/questions/
@@ -36,7 +37,7 @@ def add_qm9_args(ap):
     )
 
     subparsers = ap.add_subparsers(
-        help='execution protocols for qm9'
+        help='execution protocols for qm9', dest='protocol'
     )
 
     # Raw ---------------------------------------------------------------------
@@ -45,19 +46,22 @@ def add_qm9_args(ap):
     )
     raw_subparser.add_argument(
         '--qm8-path', dest='qm8_path', type=str, default=None,
-        help='sets the QM8 path'
+        help='sets the QM8 path; otherwise set by the QM8_EP_DATA_PATH '
+        'environment variable'
     )
     raw_subparser.add_argument(
         '--oxygen-xanes-path', dest='O_xanes_path', type=str, default=None,
-        help='sets the Oxygen XANES path'
+        help='sets the Oxygen XANES path; otherwise set by the '
+        'QM9_O_FEFF_PATH environment variable'
     )
     raw_subparser.add_argument(
         '--no-qm8', dest='load_qm8', default=True, action='store_false',
-        help='no loading QM8 electronic properties'
+        help='switch off the default loading of QM8 electronic properties'
     )
     raw_subparser.add_argument(
         '--no-oxygen-xanes', dest='load_O_xanes', default=True,
-        action='store_false', help='no loading Oxygen XANES spectra'
+        action='store_false', help='switch off the default loading of '
+        'Oxygen XANES spectra'
     )
 
     # Graph -------------------------------------------------------------------
@@ -73,8 +77,9 @@ def add_qm9_args(ap):
         'notebook'
     )
     graph_subparser.add_argument(
-        'split', nargs='+', type=float,
-        help='specify the split proportions for test validation and train'
+        '--split', nargs='+', type=float,
+        help='specify the split proportions for test validation and train',
+        default=[0.03, 0.03, 0.94]
     )
 
     methods = graph_subparser.add_argument_group(
@@ -120,9 +125,10 @@ def add_qm9_args(ap):
         'Prepare machine learning training'
     )
     prime_groups.add_argument(
-        '--prime', dest='to_prime', default=False, action='store_true',
+        '--prime', dest='prime', default=False, action='store_true',
         help='creates the necessary directories and trial directories for '
-        'running --train in a later step'
+        'running --train in a later step; required if not calling --train',
+        required='--train' not in sys.argv
     )
     prime_groups.add_argument(
         '--ml-config', dest='ml_config', type=str,
@@ -143,8 +149,10 @@ def add_qm9_args(ap):
         'Run machine learning training'
     )
     execute_groups.add_argument(
-        '--train', dest='to_train', default=False, action='store_true',
-        help='runs ML training via submitting to the SLURM job controller'
+        '--train', dest='train', default=False, action='store_true',
+        help='runs ML training via submitting to the SLURM job controller; '
+        'required if not calling --prime',
+        required='--prime' not in sys.argv
     )
 
 
@@ -165,7 +173,7 @@ def global_parser():
 
     # Initialize qm9 subparser
     subparsers = ap.add_subparsers(
-        help='overall options for the project'
+        help='overall options for the project', dest='project'
     )
     qm9_subparser = subparsers.add_parser(
         "qm9", formatter_class=SortingHelpFormatter

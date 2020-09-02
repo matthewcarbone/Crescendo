@@ -20,7 +20,18 @@ class GraphToVectorProtocol(TrainProtocol):
         self, n_node_features, n_edge_features, output_size,
         hidden_node_size=64, hidden_edge_size=128
     ):
-        """TODO: docstring."""
+        """Initializes an MPNNPredictor from dgllife.model, sends the model to
+        the appropriate device, and logs the model information.
+
+        Parameters
+        ----------
+        n_node_features, n_edge_features : int
+            The number of features/edge(node).
+        output_size : int
+            The length of each target vector.
+        hidden_node_size, hidden_edge_size : int
+            The sizes of the _hidden_ states of the network.
+        """
 
         self.model = MPNNPredictor(
             node_in_feats=n_node_features, edge_in_feats=n_edge_features,
@@ -31,6 +42,14 @@ class GraphToVectorProtocol(TrainProtocol):
         self._log_model_info()
 
     def initialize_model(self, model_name='MPNN', **kwargs):
+        """Initializes the graph neural network.
+
+        Parameters
+        ----------
+        model_name : {'MPNN'}
+            See initialize_MPNN.
+        """
+
         if model_name == 'MPNN':
             self.initialize_MPNN(**kwargs)
         else:
@@ -59,7 +78,7 @@ class GraphToVectorProtocol(TrainProtocol):
 
         Parameters
         ----------
-        clip : float
+        clip : float, optional
             Gradient clipping.
 
         Returns

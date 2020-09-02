@@ -1,109 +1,18 @@
 #!/usr/bin/env python3
 
-from itertools import product
+
 import os
-import pickle
+
 import random
-import subprocess
+
 import yaml
 
-from crescendo.defaults import P_PROTOCOL, QM9_DS_ENV_VAR
+from crescendo.datasets.qm9 import QM9Dataset, QM9GraphDataset
+from crescendo.defaults import QM9_DS_ENV_VAR
 from crescendo.utils.logger import logger_default as dlog
+from crescendo.utils.ml_utils import read_config, \
+    execution_parameters_permutations, _call_subprocess
 from crescendo.utils.py_utils import check_for_environment_variable
-
-
-def read_config(path):
-    """Reads the yaml ML config file.
-
-    Parameters
-    ----------
-    path : str
-
-    Returns
-    -------
-    dict
-    """
-
-    return yaml.safe_load(open(path))
-
-
-def save_caches(protocol, mlds, data_loaders):
-    """Pickles the cache results from every split to disk."""
-
-    root = protocol.root
-    epoch = protocol.epoch
-
-    train_cache = protocol.eval(
-        target_metadata=mlds.target_metadata,
-        loader_override=data_loaders['train']
-    )
-    d = f"{root}/train"
-    f = f"{d}/train_{epoch:04}.pkl"
-    os.makedirs(d, exist_ok=True)
-    pickle.dump(train_cache, open(f, 'wb'), protocol=P_PROTOCOL)
-
-    valid_cache = protocol.eval(
-        target_metadata=mlds.target_metadata,
-        loader_override=data_loaders['valid']
-    )
-    d = f"{root}/valid"
-    f = f"{d}/valid_{epoch:04}.pkl"
-    os.makedirs(d, exist_ok=True)
-    pickle.dump(valid_cache, open(f, 'wb'), protocol=P_PROTOCOL)
-
-    test_cache = protocol.eval(
-        target_metadata=mlds.target_metadata,
-        loader_override=data_loaders['test']
-    )
-    d = f"{root}/test"
-    f = f"{d}/====test_{epoch:04}====.pkl"
-    os.makedirs(d, exist_ok=True)
-    pickle.dump(test_cache, open(f, 'wb'), protocol=P_PROTOCOL)
-
-
-def execution_parameters_permutations(dictionary):
-    """Inputs a dictionary of a format such as
-
-    eg = {
-        hp1: [1, 2]
-        hp2: [3, 4]
-    }
-
-    and returns a list of all permutations:
-
-    eg1 = {
-        hp1: 1
-        hp2: 3
-    }
-
-    eg2 = {
-        hp1: 1
-        hp2: 4
-    }
-
-    eg3 = {
-        hp1: 2
-        hp2: 3
-    }
-
-    eg4 = {
-        hp1: 2
-        hp2: 4
-    }
-    """
-
-    return [
-        dict(zip(dictionary, prod)) for prod in product(
-            *(dictionary[ii] for ii in dictionary)
-        )
-    ]
-
-
-def _call_subprocess(script):
-    process = subprocess.Popen(
-        script, shell=True, stdout=subprocess.PIPE, universal_newlines=True
-    )
-    process.wait()
 
 
 class Manager:
@@ -210,15 +119,84 @@ class Manager:
 
 class QM9Manager(Manager):
 
-    def __init__(self, dsname, directory):
+    def __init__(self, dsname, cache):
 
-        if directory is None:
-            directory = check_for_environment_variable(QM9_DS_ENV_VAR)
+        if cache is None:
+            cache = check_for_environment_variable(QM9_DS_ENV_VAR)
 
-        # Location of the directory containing the datasets
-        self.root_above = f"{directory}/{dsname}"
+        # Location of the cache containing the datasets
+        self.root_above = f"{cache}/{dsname}"
         self.dsname = dsname
-        self.cache = directory
+        self.cache = cache
+
+    @staticmethod
+    def _try_load_all(ds, args, path):
+        ds.load(path=path)
+        if args.load_qm8:
+            ds.load_qm8_electronic_properties(path=args.qm8_path)
+        if args.load_O_xanes:
+            ds.load_oxygen_xanes(path=args.O_xanes_path)
+        return ds
+
+    def init_raw(self, args):
+        """Runs the initialization protocol for creating the raw dataset, and
+        saving it to disk.
+
+        Parameters
+        ----------
+        args
+            argparse namespace containing the command line arguments passed by
+            the user.
+        """
+
+        ds = QM9Dataset(dsname=args.dataset_raw, debug=args.debug)
+
+        if not args.force:
+            p = ds.check_exists('raw', directory=args.cache)
+            if p is not None:
+                raise RuntimeError(
+                    f"This RAW dataset {p} exists and override is False"
+                )
+
+        ds = QM9Manager.try_load_all(ds, args, path=args.qm9_path)
+        ds.save_state(directory=args.cache, override=args.force)
+
+    def init_graph(self, args):
+        """Runs the initialization protocol for creating the graph dataset, and
+        saving to disk.
+
+        Parameters
+        ----------
+        args
+            argparse namespace containing the command line arguments passed by
+            the user.
+        """
+
+        ds = QM9Dataset(dsname=args.dataset_graph)
+        ds.load_state(dsname=args.dataset_graph, directory=args.cache)
+
+        dsG = QM9GraphDataset(ds, seed=args.seed)
+
+        if not args.force:
+            p = dsG.check_exists('mld', directory=args.cache)
+            if p is not None:
+                raise RuntimeError(
+                    f"This MLD dataset {p} exists and override is False"
+                )
+
+        dsG.to_mol(canonical=args.canonical)
+        if args.analyze:
+            dsG.analyze()
+        dsG.to_graph(
+            node_method=args.node_method, edge_method=args.edge_method
+        )
+        dsG.init_ml_data(
+            target_type=args.target_type,
+            targets_to_use=args.targets_to_use,
+            scale_targets=args.scale_targets
+        )
+        dsG.init_splits(p_tvt=args.split)
+        dsG.save_state(directory=args.cache, override=args.force)
 
     def submit(self):
         """Submits jobs to the job controller."""
