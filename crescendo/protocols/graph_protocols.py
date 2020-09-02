@@ -58,7 +58,7 @@ class GraphToVectorProtocol(TrainProtocol):
         if self.checkpoint is not None:
             self.model.load_state_dict(self.checkpoint['model'])
             self.best_model_state_dict = self.checkpoint['model']
-            log.info(f"Model initialization from checkpoint successful")
+            log.info("Model initialization from checkpoint successful")
 
     def _get_batch(self, batch):
         """Parses a batch from the Loaders to the model-compatible features."""

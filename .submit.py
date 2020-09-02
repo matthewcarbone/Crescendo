@@ -19,8 +19,9 @@ if __name__ == '__main__':
         dsname = str(sys.argv[2])
         trial = str(sys.argv[3])
         cache = str(sys.argv[4])
+        epochs = int(sys.argv[5])
         config_path = os.path.join(cache, dsname, trial, 'config.yaml')
         config = yaml.safe_load(open(config_path))
-        run_qm9_graph_vector(dsname, config, cache, trial)
+        run_qm9_graph_vector(dsname, config, cache, epochs, trial=trial)
     else:
         raise RuntimeError("Unknown 'dowhat' protocol")

@@ -154,6 +154,10 @@ def add_qm9_args(ap):
         'required if not calling --prime',
         required='--prime' not in sys.argv
     )
+    execute_groups.add_argument(
+        '--epochs', dest='epochs', type=int, required=True,
+        help='specify the number of epochs to train for'
+    )
 
 
 def global_parser():

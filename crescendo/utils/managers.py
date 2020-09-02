@@ -99,7 +99,7 @@ class Manager:
             if slurm_config['ngpu'] > 0:
                 f.write(f"#SBATCH --gres=gpu:{slurm_config['ngpu']}\n")
             if slurm_config['exclusive']:
-                f.write(f"#SBATCH --exclusive\n")
+                f.write("#SBATCH --exclusive\n")
             f.write(f"#SBATCH --output=job_data/{self.dsname}_%A.out\n")
             f.write(f"#SBATCH --error=job_data/{self.dsname}_%A.err\n")
             f.write("\n")
@@ -198,7 +198,7 @@ class QM9Manager(Manager):
         dsG.init_splits(p_tvt=args.split)
         dsG.save_state(directory=args.cache, override=args.force)
 
-    def submit(self):
+    def submit(self, epochs):
         """Submits jobs to the job controller."""
 
         # Move the script to the working directory
@@ -210,7 +210,8 @@ class QM9Manager(Manager):
         trials = [f"{ii:03}" for ii in range(len(all_dirs))]
 
         for trial in trials:
-            s = f'sbatch submit.sh 0 {self.dsname} {trial} {self.cache}'
+            s = f'sbatch submit.sh 0 {self.dsname} {trial} {self.cache} ' \
+                f'{epochs}'
             dlog.info(f"Submitting {s}")
 
             _call_subprocess(s)

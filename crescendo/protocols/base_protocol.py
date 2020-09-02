@@ -213,7 +213,7 @@ class TrainProtocol:
 
         if self.checkpoint is not None:
             self.optimizer.load_state_dict(self.checkpoint['optimizer'])
-            log.info(f"Optimizer initialization from checkpoint successful")
+            log.info("Optimizer initialization from checkpoint successful")
 
     def _init_criterion(self, crit_str):
         """Initializes the criterion.
@@ -265,7 +265,7 @@ class TrainProtocol:
 
         if self.checkpoint is not None:
             self.scheduler.load_state_dict(self.checkpoint['scheduler'])
-            log.info(f"Scheduler initialization from checkpoint successful")
+            log.info("Scheduler initialization from checkpoint successful")
 
     def initialize_support(
         self, criterion='l1', optimizer=('adam', {'lr': 1e-4}),
