@@ -20,9 +20,12 @@ def add_qm9_args(ap):
 
     # Specify the dataset name
     # ap = ap.add_argument_group('General options')
-    ap.add_argument(
+    req = ap.add_argument_group(
+        'required'
+    )
+    req.add_argument(
         '-d', '--dsname', dest='dsname', type=str,
-        default='qm9_dataset', help='Sets the dataset name.'
+        required=True, help='Sets the dataset name. Required.'
     )
     ap.add_argument(
         '-c', '--cache', dest='cache', type=str, default=None,
@@ -87,7 +90,7 @@ def add_qm9_args(ap):
     )
 
     methods = graph_subparser.add_argument_group(
-        'Graph featurization methods.'
+        'graph featurization methods'
     )
     methods.add_argument(
         '--node-method', dest='node_method', type=str, default='weave',
