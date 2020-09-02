@@ -130,12 +130,12 @@ def add_qm9_args(ap):
     )
     prime_subparser.add_argument(
         '--ml-config', dest='ml_config', type=str,
-        default='configs/ml_config_template.yaml',
+        default='configs/ml_config.yaml',
         help='Sets the config file path.'
     )
     prime_subparser.add_argument(
         '--slurm-config', dest='slurm_config', type=str,
-        default='configs/slurm_config_template.yaml',
+        default='configs/slurm_config.yaml',
         help='Sets the SLURM config file path.'
     )
     prime_subparser.add_argument(
