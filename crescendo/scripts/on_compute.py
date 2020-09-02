@@ -6,7 +6,7 @@ import uuid
 
 from crescendo.datasets.qm9 import QM9GraphDataset
 from crescendo.protocols.graph_protocols import GraphToVectorProtocol
-from crescendo.utils.training_utils import save_caches
+from crescendo.utils.ml_utils import save_caches
 
 
 def run_qm9_graph_vector(
@@ -59,4 +59,8 @@ def run_qm9_graph_vector(
     )
 
     protocol.train(epochs, clip=config['clip'])
+
+    # Note that it is highly likely the training process does not reach this
+    # final state. However, the train method has internal checkpointing
+    # capability, so the model can always be reloaded.
     save_caches(protocol, mlds, data_loaders)

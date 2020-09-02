@@ -371,6 +371,12 @@ class TrainProtocol:
             Number of full passes through the training data.
         clip : float, optional
             Gradient clipping.
+
+        Returns
+        -------
+        list, list, list
+            Three lists, consisting of the training loss, validation loss and
+            the learning rates, respectively.
         """
 
         meter = ml_utils.Meter(self.root)
@@ -409,7 +415,20 @@ class TrainProtocol:
 
     def eval(self, loader_override=None, target_metadata=None):
         """Systematically evaluates the validation, or dataset corresponding to
-        the loader specified in the loader_override argument, dataset."""
+        the loader specified in the loader_override argument, dataset.
+
+        Parameters
+        ----------
+        loader_override : torch.utils.data.DataLoader, optional
+            An optional override for the usual validation loader. The user will
+            be warned that this override is happening. Note that it is usually
+            the case that overriding the validation loader is perfectly fine
+            during final evaluation, but it still warrants a warning.
+        target_metadata : tuple, optional
+            A 2-tuple consisting of the target means and standard deviations.
+            If None, then the eval function knows not to attempt any unscaling
+            of the targets.
+        """
 
         if loader_override is not None:
             log.warning("Default validation loader overridden")

@@ -691,7 +691,24 @@ class QM9GraphDataset(torch.utils.data.Dataset, _SimpleLoadSaveOperations):
         attribute tvt_splits will be set, but it will not allow the user to
         rewrite that split unless force=True. This is a failsafe mechanism to
         prevent bias in the data by constantly reshuffling the splits while
-        evaluating the results."""
+        evaluating the results.
+
+        Parameters
+        ----------
+        p_tvt : tuple
+            The proportions of the data to use in the testing, validation
+            and training splits. Note that the last element of the tuple can
+            be None, which means to use the remainder of the data in the
+            training set after the proportions have been specified for testing
+            and validation. In the default case, (0.1, 0.1, None), that means
+            that 80% of the data will be used for training.
+        method : {'random'}
+            The protocol for creating the splits. Currently only a random
+            sampler is implemented.
+        force : bool
+            If Force is False and the splits are already initialized, do
+            nothing and log an error. Default is False.
+        """
 
         if self.tvt_splits is not None:
             dlog.error("tvt_splits already initialized and force is False")

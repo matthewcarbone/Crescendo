@@ -32,8 +32,14 @@ if __name__ == '__main__':
         elif args.protocol == 'train':
             manager.submit()
 
+        # Run evaluation
+        elif args.protocol == 'eval':
+            manager.eval(force=args.force)
+
         else:
-            raise NotImplementedError("Unknown run protocol - qm9")
+            raise NotImplementedError(
+                f"Unknown qm9 protocol {args.protocol}"
+            )
 
     else:
-        raise NotImplementedError(f"Unknown run protocol")
+        raise NotImplementedError(f"Unknown project {args.project}")

@@ -25,12 +25,12 @@ def add_qm9_args(ap):
         default='qm9_dataset', help='Sets the dataset name.'
     )
     ap.add_argument(
-        '--cache', dest='cache', type=str, default=None,
+        '-c', '--cache', dest='cache', type=str, default=None,
         help='Sets the directory to save the dataset, ML results, etc; '
         'otherwise set by the QM9_DS_CACHE environment variable.'
     )
     ap.add_argument(
-        '--qm9-path', dest='qm9_path', type=str, default=None,
+        '-q', '--qm9-path', dest='qm9_path', type=str, default=None,
         help='Sets the path for various datasets; otherwise set by the '
         'QM9_DATA_PATH environment variable.'
     )
@@ -154,12 +154,23 @@ def add_qm9_args(ap):
         help='Specifies the number of epochs to train for; required.'
     )
 
+    # Evaluation
+    subparsers.add_parser(
+        "eval", formatter_class=SortingHelpFormatter,
+        description='Evaluates all stored results and saves a summary csv '
+        'file in the dataset directory. Note that once this method is called, '
+        'it is recommended that no further training/evaluation be performed '
+        'on that dataset, as the results from the testing set will be visible '
+        'to the experimenter.'
+    )
+
 
 def global_parser(sys_argv):
     ap = argparse.ArgumentParser(formatter_class=SortingHelpFormatter)
     ap.add_argument(
         '--debug', dest='debug', type=int, default=-1,
-        help='Sets the debug flag for max number of loaded data points.'
+        help='Sets the debug flag for max number of loaded data points. '
+        'If unspecified, disables debug mode.'
     )
     ap.add_argument(
         '--force', dest='force', default=False, action='store_true',
@@ -167,17 +178,23 @@ def global_parser(sys_argv):
     )
     ap.add_argument(
         '--seed', dest='seed', type=int, default=None,
-        help='Seeds the random number generators.'
+        help='Seeds the random number generators. If unspecified, will '
+        'randomly seed the generators.'
     )
 
     # Initialize qm9 subparser
     subparsers = ap.add_subparsers(
-        help='Global options. Each option here represents '
+        help='Global options. Each choice here represents '
         'a different project with fundamentally different datasets and likely '
-        'different models as well', dest='project'
+        'different models as well.', dest='project'
     )
     qm9_subparser = subparsers.add_parser(
-        "qm9", formatter_class=SortingHelpFormatter
+        "qm9", formatter_class=SortingHelpFormatter,
+        description='QM9 molecular data. The general protocol here is loading '
+        'SMILES and target property data from QM9 .xyz files, processing the '
+        'SMILES data into graph-representations, and using a message passing '
+        'neural network to make predictions on fixed length vectors. The '
+        'workflow is raw -> graph -> prime -> train -> eval.'
     )
     # matrix_subparser = subparsers.add_parser("--matrix")
     add_qm9_args(qm9_subparser)
