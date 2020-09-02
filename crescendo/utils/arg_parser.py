@@ -3,7 +3,6 @@
 import argparse
 from argparse import HelpFormatter, ArgumentDefaultsHelpFormatter
 from operator import attrgetter
-import sys
 
 
 # https://stackoverflow.com/questions/
@@ -22,8 +21,8 @@ def add_qm9_args(ap):
     # Specify the dataset name
     # ap = ap.add_argument_group('General options')
     ap.add_argument(
-        '-d', '--dsname', dest='dsname', type=str, required=True,
-        help='Sets the dataset name and is required.'
+        '-d', '--dsname', dest='dsname', type=str,
+        default='qm9_dataset', help='Sets the dataset name.'
     )
     ap.add_argument(
         '--cache', dest='cache', type=str, default=None,
