@@ -12,7 +12,7 @@ class TestQM9Pipeline:
 
         args = global_parser(
             'qm9 -d test123 --cache __test --qm9-path data/qm9_test_data '
-            'raw --qm8-path data/qm8_test_data.txt'.split()
+            'raw --qm8-path data/qm8_test_data.txt --no-oxygen-xanes'.split()
         )
         manager = QM9Manager(dsname=args.dsname, cache=args.cache)
         manager.init_raw(args)
