@@ -149,7 +149,7 @@ class QM9Manager(Manager):
             the user.
         """
 
-        ds = QM9Dataset(dsname=args.dataset_raw, debug=args.debug)
+        ds = QM9Dataset(dsname=args.dsname, debug=args.debug)
 
         if not args.force:
             p = ds.check_exists('raw', directory=args.cache)
@@ -158,7 +158,7 @@ class QM9Manager(Manager):
                     f"This RAW dataset {p} exists and override is False"
                 )
 
-        ds = QM9Manager.try_load_all(ds, args, path=args.qm9_path)
+        ds = QM9Manager._try_load_all(ds, args, path=args.qm9_path)
         ds.save_state(directory=args.cache, override=args.force)
 
     def init_graph(self, args):
@@ -172,8 +172,8 @@ class QM9Manager(Manager):
             the user.
         """
 
-        ds = QM9Dataset(dsname=args.dataset_graph)
-        ds.load_state(dsname=args.dataset_graph, directory=args.cache)
+        ds = QM9Dataset(dsname=args.dsname)
+        ds.load_state(dsname=args.dsname, directory=args.cache)
 
         dsG = QM9GraphDataset(ds, seed=args.seed)
 

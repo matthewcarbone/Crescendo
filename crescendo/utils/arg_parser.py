@@ -23,79 +23,84 @@ def add_qm9_args(ap):
     # ap = ap.add_argument_group('General options')
     ap.add_argument(
         '-d', '--dsname', dest='dsname', type=str, required=True,
-        help='set the dataset name; required'
+        help='Sets the dataset name and is required.'
     )
     ap.add_argument(
         '--cache', dest='cache', type=str, default=None,
-        help='sets the directory to save the dataset, ML results, etc; '
-        'otherwise set by the QM9_DS_CACHE environment variable'
+        help='Sets the directory to save the dataset, ML results, etc; '
+        'otherwise set by the QM9_DS_CACHE environment variable.'
     )
     ap.add_argument(
         '--qm9-path', dest='qm9_path', type=str, default=None,
-        help='set the path for various datasets; otherwise set by the '
-        'QM9_DATA_PATH environment variable'
+        help='Sets the path for various datasets; otherwise set by the '
+        'QM9_DATA_PATH environment variable.'
     )
 
     subparsers = ap.add_subparsers(
-        help='execution protocols for qm9', dest='protocol'
+        help='Execution protocols for qm9.', dest='protocol'
     )
 
     # Raw ---------------------------------------------------------------------
     raw_subparser = subparsers.add_parser(
-        "raw", formatter_class=SortingHelpFormatter
+        "raw", formatter_class=SortingHelpFormatter,
+        description='Loads in the raw data from various sources and properly '
+        'pairs them together in a concise way.'
     )
     raw_subparser.add_argument(
         '--qm8-path', dest='qm8_path', type=str, default=None,
-        help='sets the QM8 path; otherwise set by the QM8_EP_DATA_PATH '
-        'environment variable'
+        help='Sets the QM8 path; otherwise set by the QM8_EP_DATA_PATH '
+        'environment variable.'
     )
     raw_subparser.add_argument(
         '--oxygen-xanes-path', dest='O_xanes_path', type=str, default=None,
-        help='sets the Oxygen XANES path; otherwise set by the '
-        'QM9_O_FEFF_PATH environment variable'
+        help='Sets the Oxygen XANES path; otherwise set by the '
+        'QM9_O_FEFF_PATH environment variable.'
     )
     raw_subparser.add_argument(
         '--no-qm8', dest='load_qm8', default=True, action='store_false',
-        help='switch off the default loading of QM8 electronic properties'
+        help='Switch off the default loading of QM8 electronic properties.'
     )
     raw_subparser.add_argument(
         '--no-oxygen-xanes', dest='load_O_xanes', default=True,
-        action='store_false', help='switch off the default loading of '
-        'Oxygen XANES spectra'
+        action='store_false', help='Switch off the default loading of '
+        'Oxygen XANES spectra.'
     )
 
     # Graph -------------------------------------------------------------------
     graph_subparser = subparsers.add_parser(
-        "graph", formatter_class=SortingHelpFormatter
+        "graph", formatter_class=SortingHelpFormatter,
+        description='Initializes the graph objects and the QM9GraphDataset, '
+        'and prepares these objects for machine learning training later.'
     )
 
     graph_subparser.add_argument(
         '--analyze', dest='analyze', default=False, action='store_true',
-        help='runs the analysis method on the graphs, initializing the '
+        help='Runs the analysis method on the graphs, initializing the '
         '"summary" attribute for each QM9DataPoint; useful for performing '
         'analysis afterwards via e.g. loading the dataset into a Jupyter '
-        'notebook'
+        'notebook. Note that this can take a while!'
     )
     graph_subparser.add_argument(
         '--split', nargs='+', type=float,
-        help='specify the split proportions for test validation and train',
+        help='Specifies the split proportions for the test, validation and '
+        'training partitions.',
         default=[0.03, 0.03, 0.94]
     )
 
     methods = graph_subparser.add_argument_group(
-        'graph featurization methods'
+        'Graph featurization methods.'
     )
     methods.add_argument(
         '--node-method', dest='node_method', type=str, default='weave',
-        help='sets the node featurization method'
+        help='Sets the node featurization method.'
     )
     methods.add_argument(
         '--edge-method', dest='edge_method', type=str, default='canonical',
-        help='sets the edge featurization method'
+        help='Sets the edge featurization method.'
     )
     methods.add_argument(
         '--canonical', dest='canonical', default=False, action='store_true',
-        help='uses the canonical smiles instead of normal ones'
+        help='Uses the canonical smiles instead of normal ones.'
     )
 
     targets = graph_subparser.add_argument_group(
@@ -103,81 +108,74 @@ def add_qm9_args(ap):
     )
     targets.add_argument(
         '--target-type', dest='target_type', type=str, default='qm9properties',
-        help='sets the target type',
+        help='Sets the target type.',
         choices=['qm9properties', 'qm8properties', 'oxygenXANES']
     )
     targets.add_argument(
         '--targets-to-use', dest='targets_to_use', nargs='+', type=int,
-        help='specify the indexes of the targets to use',
+        help='Specifies the indexes of the targets to use.',
         default=[10]
     )
     targets.add_argument(
         '--scale-targets', dest='scale_targets', default=False,
         action='store_true',
-        help='if True, scales the targets to zero mean and unit variance'
+        help='Scales the targets to zero mean and unit variance.'
     )
 
-    # Machine learning --------------------------------------------------------
+    # Prime ML ----------------------------------------------------------------
     prime_subparser = subparsers.add_parser(
-        "ml", formatter_class=SortingHelpFormatter
+        "prime", formatter_class=SortingHelpFormatter,
+        description='prepare for machine learning training by'
+        'Creates the necessary directories and trial directories for '
+        'running train in a later step.',
     )
-    prime_groups = prime_subparser.add_argument_group(
-        'Prepare machine learning training'
-    )
-    prime_groups.add_argument(
-        '--prime', dest='prime', default=False, action='store_true',
-        help='creates the necessary directories and trial directories for '
-        'running --train in a later step; required if not calling --train',
-        required='--train' not in sys.argv
-    )
-    prime_groups.add_argument(
+    prime_subparser.add_argument(
         '--ml-config', dest='ml_config', type=str,
         default='configs/ml_config_template.yaml',
-        help='sets the config file path'
+        help='Sets the config file path.'
     )
-    prime_groups.add_argument(
+    prime_subparser.add_argument(
         '--slurm-config', dest='slurm_config', type=str,
-        default='configs/slurm_config.yaml',
-        help='sets the SLURM config file path'
+        default='configs/slurm_config_template.yaml',
+        help='Sets the SLURM config file path.'
     )
-    prime_groups.add_argument(
+    prime_subparser.add_argument(
         '--max-hp', dest='max_hp', type=int, default=24,
-        help='maximum number of hyperparameters to use in one shot'
+        help='Maximum number of hyper parameters to use in one shot.'
     )
 
-    execute_groups = prime_subparser.add_argument_group(
-        'Run machine learning training'
+    # Training ----------------------------------------------------------------
+    execute_subparser = subparsers.add_parser(
+        "train", formatter_class=SortingHelpFormatter,
+        description='Runs ML training via submitting to the SLURM job '
+        'controller.'
     )
-    execute_groups.add_argument(
-        '--train', dest='train', default=False, action='store_true',
-        help='runs ML training via submitting to the SLURM job controller; '
-        'required if not calling --prime',
-        required='--prime' not in sys.argv
-    )
-    execute_groups.add_argument(
+    execute_subparser.add_argument(
         '--epochs', dest='epochs', type=int, required=True,
-        help='specify the number of epochs to train for'
+        help='Specifies the number of epochs to train for; required.'
     )
 
 
-def global_parser():
+def global_parser(sys_argv):
     ap = argparse.ArgumentParser(formatter_class=SortingHelpFormatter)
     ap.add_argument(
         '--debug', dest='debug', type=int, default=-1,
-        help='sets the debug flag for max number of loaded data points'
+        help='Sets the debug flag for max number of loaded data points.'
     )
     ap.add_argument(
         '--force', dest='force', default=False, action='store_true',
-        help='override failsafes for e.g. overwriting datasets'
+        help='Overrides failsafes for e.g. overwriting datasets.'
     )
     ap.add_argument(
         '--seed', dest='seed', type=int, default=None,
-        help='seeds the RNG'
+        help='Seeds the random number generators.'
     )
 
     # Initialize qm9 subparser
     subparsers = ap.add_subparsers(
-        help='overall options for the project', dest='project'
+        help='Global options. Each option here represents '
+        'a different project with fundamentally different datasets and likely '
+        'different models as well', dest='project'
     )
     qm9_subparser = subparsers.add_parser(
         "qm9", formatter_class=SortingHelpFormatter
@@ -185,4 +183,4 @@ def global_parser():
     # matrix_subparser = subparsers.add_parser("--matrix")
     add_qm9_args(qm9_subparser)
 
-    return ap.parse_args()
+    return ap.parse_args(sys_argv)
