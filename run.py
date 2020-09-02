@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
         # Run training
         elif args.protocol == 'train':
-            manager.submit()
+            manager.submit(args.epochs)
 
         # Run evaluation
         elif args.protocol == 'eval':
