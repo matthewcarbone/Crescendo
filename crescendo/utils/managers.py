@@ -305,6 +305,9 @@ class QM9Manager(Manager):
                 hidden_edge_size=config['hidden_edge_size']
             )
 
+            # We'll always use the MAE criterion for final eval.
+            protocol._init_criterion('l1')
+
             test_cache, valid_cache, train_cache = \
                 save_caches(protocol, mlds, data_loaders)
 
