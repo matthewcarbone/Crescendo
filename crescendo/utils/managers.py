@@ -257,7 +257,7 @@ class QM9Manager(Manager):
                 "fine-tuning the network, you could be introducing human bias "
                 "into the results. Please ensure this is intended behavior."
             )
-        elif os.path.exist(summary_path) and not force:
+        elif os.path.exists(summary_path) and not force:
             dlog.error(
                 "FINAL_SUMMARY exists for this dataset and force is False. "
                 "Exiting without re-evaluating."
