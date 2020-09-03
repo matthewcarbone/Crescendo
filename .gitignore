@@ -1,3 +1,7 @@
 *.pyc
 .ipynb_checkpoints/
 .coverage
+.old/
+job_data/
+configs/ml_config.yaml
+configs/slurm_config.yaml

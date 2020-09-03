@@ -1,0 +1,9 @@
+partition: long
+runtime: "08:00:00"
+account: cfn4
+nodes: 1
+tasks: 32
+qos: normal
+ngpu: 1
+exclusive: True
+constraint: pascal

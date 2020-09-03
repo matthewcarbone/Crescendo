@@ -1,0 +1,12 @@
+hidden_node_size: [128]
+hidden_edge_size: [32, 64]
+
+optimizer: ['adam']
+lr: [0.5e-3]
+
+patience: [5]
+factor: [0.02]
+min_lr: [1.0e-6]
+clip: [0.01, 0.1, 0.5, 1, 2, 10]
+
+batch_size: [[1000, 1000, 320]]
