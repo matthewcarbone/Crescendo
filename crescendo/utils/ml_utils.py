@@ -29,7 +29,10 @@ def read_config(path):
 
 
 def save_caches(protocol, mlds, data_loaders):
-    """Pickles the cache results from every split to disk.
+    """Pickles the cache results from every split to disk. Note that if the
+    cache already exists, it will not recalculate it. This script will simply
+    load it and return it. The reason for this is that computing especially
+    the training split is very expensive on a CPU (~7m on QM9, 100k points).
 
     Returns
     -------
@@ -39,32 +42,41 @@ def save_caches(protocol, mlds, data_loaders):
     root = protocol.root
     epoch = protocol.epoch
 
-    train_cache = protocol.eval(
-        target_metadata=mlds.target_metadata,
-        loader_override=data_loaders['train']
-    )
     d = f"{root}/train"
     f = f"{d}/{epoch:04}.pkl"
-    os.makedirs(d, exist_ok=True)
-    pickle.dump(train_cache, open(f, 'wb'), protocol=P_PROTOCOL)
+    if os.path.exists(f):
+        train_cache = pickle.load(open(f, 'rb'))
+    else:
+        train_cache = protocol.eval(
+            target_metadata=mlds.target_metadata,
+            loader_override=data_loaders['train']
+        )
+        os.makedirs(d, exist_ok=True)
+        pickle.dump(train_cache, open(f, 'wb'), protocol=P_PROTOCOL)
 
-    valid_cache = protocol.eval(
-        target_metadata=mlds.target_metadata,
-        loader_override=data_loaders['valid']
-    )
     d = f"{root}/valid"
     f = f"{d}/{epoch:04}.pkl"
-    os.makedirs(d, exist_ok=True)
-    pickle.dump(valid_cache, open(f, 'wb'), protocol=P_PROTOCOL)
+    if os.path.exists(f):
+        valid_cache = pickle.load(open(f, 'rb'))
+    else:
+        valid_cache = protocol.eval(
+            target_metadata=mlds.target_metadata,
+            loader_override=data_loaders['valid']
+        )
+        os.makedirs(d, exist_ok=True)
+        pickle.dump(valid_cache, open(f, 'wb'), protocol=P_PROTOCOL)
 
-    test_cache = protocol.eval(
-        target_metadata=mlds.target_metadata,
-        loader_override=data_loaders['test']
-    )
     d = f"{root}/====test===="
     f = f"{d}/{epoch:04}.pkl"
-    os.makedirs(d, exist_ok=True)
-    pickle.dump(test_cache, open(f, 'wb'), protocol=P_PROTOCOL)
+    if os.path.exists(f):
+        test_cache = pickle.load(open(f, 'rb'))
+    else:
+        test_cache = protocol.eval(
+            target_metadata=mlds.target_metadata,
+            loader_override=data_loaders['test']
+        )
+        os.makedirs(d, exist_ok=True)
+        pickle.dump(test_cache, open(f, 'wb'), protocol=P_PROTOCOL)
 
     return test_cache, valid_cache, train_cache
 
