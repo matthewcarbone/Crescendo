@@ -101,9 +101,7 @@ class TrainProtocol:
         # Get the location of the directory for this particular trial. Also,
         # create that directory and save the root as an attribute
         self.root = root
-        log.info(
-            f"Root directory for saving model and states set to {self.root}"
-        )
+        log.info(f"Root directory for model checkpoints set to {self.root}")
 
         if os.path.isdir(self.root):
 
@@ -115,16 +113,28 @@ class TrainProtocol:
 
             else:
                 log.info(
-                    "Override is False, will resume training from checkpoint"
+                    "Override is False, will resume from checkpoint"
                 )
+
                 try:
-                    self.checkpoint = torch.load(f"{self.root}/checkpoint.pt")
+                    # Try to load the checkpoint. If the model was trained on
+                    # a GPU but we're loading on a CPU, this will throw a
+                    # RuntimeError is the map_location is not specified.
+                    try:
+                        self.checkpoint = torch.load(
+                            f"{self.root}/checkpoint.pt"
+                        )
+                    except RuntimeError:
+                        self.checkpoint = torch.load(
+                            f"{self.root}/checkpoint.pt",
+                            map_location=torch.device('cpu')
+                        )
                     self.epoch = self.checkpoint['epoch']
-                    log.info(f"Will resume training at epoch {self.epoch}")
+                    log.info(f"Will resume at epoch {self.epoch}")
                 except FileNotFoundError:
                     pass
-
-        os.makedirs(self.root, exist_ok=True)
+        else:
+            os.makedirs(self.root)
 
     # The following two functions are based off of:
     # https://medium.com/analytics-vidhya/
@@ -133,8 +143,7 @@ class TrainProtocol:
         """We'll save a model checkpoint only when the validation loss is less
         than all previous ones. Note that this system only works if the user
         provides the same model initizations (e.g., we can only load from an
-        Adam optimizer state if we use Adam for training).
-        """
+        Adam optimizer state if we use Adam for training)."""
 
         state = {
             'epoch': self.epoch + 1,
