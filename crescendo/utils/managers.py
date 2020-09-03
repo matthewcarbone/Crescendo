@@ -293,8 +293,11 @@ class QM9Manager(Manager):
                 validLoader=data_loaders['valid']
             )
 
-            # This will automatically apply the saved checkpoint
+            # This will automatically apply the saved checkpoint; specifically,
+            # the **best** model as evaluated on the validation data.
             protocol.initialize_model(
+                best=True,
+                model_name='MPNN',
                 n_node_features=mlds.node_edge_features[0],
                 n_edge_features=mlds.node_edge_features[1],
                 output_size=mlds.n_targets,

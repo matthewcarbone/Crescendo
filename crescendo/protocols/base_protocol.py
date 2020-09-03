@@ -138,7 +138,8 @@ class TrainProtocol:
 
         state = {
             'epoch': self.epoch + 1,
-            'model': self.best_model_state_dict,
+            'model': self.model.state_dict(),
+            'best_model': self.best_model_state_dict,
             'optimizer': self.optimizer.state_dict(),
             'scheduler': self.scheduler.state_dict()
         }
@@ -334,11 +335,12 @@ class TrainProtocol:
                 f'{best_valid_loss:.02e}'
             )
             log.info("\tUpdating best_model_state_dict and checkpoint")
-            self.save_checkpoint()
 
         else:
             log.info(f'\tVal. Loss: {valid_loss:.05e}')
 
+        # No matter what, we save the checkpoint every epoch.
+        self.save_checkpoint()
         return min(best_valid_loss, valid_loss)
 
     def _step_scheduler(self, valid_loss):

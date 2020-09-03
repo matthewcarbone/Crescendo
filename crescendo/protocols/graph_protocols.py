@@ -16,7 +16,7 @@ class GraphToVectorProtocol(TrainProtocol):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def initialize_MPNN(
+    def _initialize_MPNN(
         self, n_node_features, n_edge_features, output_size,
         hidden_node_size=64, hidden_edge_size=128
     ):
@@ -41,23 +41,27 @@ class GraphToVectorProtocol(TrainProtocol):
         self._send_model_to_device()
         self._log_model_info()
 
-    def initialize_model(self, model_name='MPNN', **kwargs):
+    def initialize_model(self, model_name='MPNN', best=False, **kwargs):
         """Initializes the graph neural network.
 
         Parameters
         ----------
         model_name : {'MPNN'}
-            See initialize_MPNN.
+            See _initialize_MPNN.
+        best : bool
+            If True, initializes the model from the best model parameters as
+            evaluated on the validation set.
         """
 
         if model_name == 'MPNN':
-            self.initialize_MPNN(**kwargs)
+            self._initialize_MPNN(**kwargs)
         else:
             raise NotImplementedError
 
         if self.checkpoint is not None:
-            self.model.load_state_dict(self.checkpoint['model'])
-            self.best_model_state_dict = self.checkpoint['model']
+            m = 'best_model' if best else 'model'
+            self.model.load_state_dict(self.checkpoint[m])
+            self.best_model_state_dict = self.checkpoint[m]
             log.info("Model initialization from checkpoint successful")
 
     def _get_batch(self, batch):
