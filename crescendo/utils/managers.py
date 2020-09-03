@@ -333,7 +333,7 @@ class QM9Manager(Manager):
             'valid_SD': valid_sd_list, 'test_MAE': test_mu_list,
             'test_SD': test_sd_list
         })
-        results_df.sort_values(by='test_MAE', inplace=True)
+        results_df.sort_values(by='valid_MAE', inplace=True)
         results_df.to_csv(summary_path)
         dlog.info(f"Done: saved to {summary_path}")
 
