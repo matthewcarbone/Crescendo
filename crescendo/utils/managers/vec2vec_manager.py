@@ -45,11 +45,11 @@ class Vec2VecManager(Manager):
         ds = Vec2VecDataset(dsname=args.dsname, debug=args.debug)
 
         if not args.force:
-            p = ds.check_exists('raw', directory=args.cache)
+            p = ds.check_exists(directory=args.cache)
             if p is not None:
-                raise RuntimeError(
-                    f"This RAW dataset {p} exists and override is False"
-                )
+                critical = f"This RAW dataset {p} exists and override is False"
+                dlog.critical(critical)
+                raise RuntimeError(critical)
 
         ds.smart_load(directory=args.path)
         ds.init_splits(

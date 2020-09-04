@@ -8,7 +8,7 @@ import yaml
 
 from crescendo.utils.logger import logger_default as dlog
 from crescendo.utils.ml_utils import read_config, \
-    execution_parameters_permutations
+    execution_parameters_permutations, _call_subprocess
 
 
 class Manager:
@@ -111,3 +111,23 @@ class Manager:
             f.write('python3 .submit.py "$@"\n')
 
         dlog.info(f"Wrote SLURM script to {self.root_above}/submit.sh")
+
+    def submit(self, epochs):
+        """Submits jobs to the job controller."""
+
+        # Move the script to the working directory
+        script = f"{self.root_above}/submit.sh"
+        _call_subprocess(f'mv {script} .')
+
+        # Submit the jobs
+        all_dirs = self._get_all_trial_dirs()
+        trials = [f"{ii:03}" for ii in range(len(all_dirs))]
+
+        for trial in trials:
+            s = f'sbatch submit.sh 0 {self.dsname} {trial} {self.cache} ' \
+                f'{epochs}'
+            dlog.info(f"Submitting {s}")
+
+            _call_subprocess(s)
+
+        _call_subprocess(f'mv submit.sh {self.root_above}')

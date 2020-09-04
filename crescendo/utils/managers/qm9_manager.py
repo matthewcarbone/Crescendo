@@ -13,7 +13,6 @@ from crescendo.datasets.qm9 import QM9Dataset, QM9GraphDataset
 from crescendo.protocols.graph_protocols import GraphToVectorProtocol
 from crescendo.defaults import QM9_DS_ENV_VAR
 from crescendo.utils.logger import logger_default as dlog
-from crescendo.utils.ml_utils import _call_subprocess
 from crescendo.utils.py_utils import check_for_environment_variable
 from crescendo.utils.ml_utils import save_caches
 
@@ -98,26 +97,6 @@ class QM9Manager(Manager):
         )
         dsG.init_splits(p_tvt=args.split)
         dsG.save_state(directory=args.cache, override=args.force)
-
-    def submit(self, epochs):
-        """Submits jobs to the job controller."""
-
-        # Move the script to the working directory
-        script = f"{self.root_above}/submit.sh"
-        _call_subprocess(f'mv {script} .')
-
-        # Submit the jobs
-        all_dirs = self._get_all_trial_dirs()
-        trials = [f"{ii:03}" for ii in range(len(all_dirs))]
-
-        for trial in trials:
-            s = f'sbatch submit.sh 0 {self.dsname} {trial} {self.cache} ' \
-                f'{epochs}'
-            dlog.info(f"Submitting {s}")
-
-            _call_subprocess(s)
-
-        _call_subprocess(f'mv submit.sh {self.root_above}')
 
     @staticmethod
     def _eval_single_cache(cache):

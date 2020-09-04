@@ -39,11 +39,18 @@ def add_vec2vec_args(ap):
 
     # Raw ---------------------------------------------------------------------
     raw_subparser = subparsers.add_parser(
-        "raw", formatter_class=SortingHelpFormatter,
-        description='Loads in the raw data from the specified path.'
+        "init", formatter_class=SortingHelpFormatter,
+        description='Loads in the raw data from the specified path, and '
+        'converts it into machine learning-ready format as per the specified '
+        'parameters in the command line interface.'
     )
-    raw_subparser.add_argument(
-        'path', type=str,
+
+    req2 = raw_subparser.add_argument_group(
+        'required'
+    )
+
+    req2.add_argument(
+        '--path', type=str, required=True,
         help='Sets the path that points to the directory containing the '
         'feature, target, metadata and index information. Note that we use '
         'the smart loader to do this, so the feature .csv, which should be a '
@@ -76,6 +83,49 @@ def add_vec2vec_args(ap):
         '--scale-targets', dest='scale_targets', default=False,
         action='store_true',
         help='Scale target data by the mean/sd of the training split.'
+    )
+
+    # Prime ML ----------------------------------------------------------------
+    prime_subparser = subparsers.add_parser(
+        "prime", formatter_class=SortingHelpFormatter,
+        description='Prepare for machine learning training by'
+        'Creates the necessary directories and trial directories for '
+        'running train in a later step.',
+    )
+    prime_subparser.add_argument(
+        '--ml-config', dest='ml_config', type=str,
+        default='configs/vec2vec_ml_config.yaml',
+        help='Sets the config file path.'
+    )
+    prime_subparser.add_argument(
+        '--slurm-config', dest='slurm_config', type=str,
+        default='configs/vec2vec_slurm_config.yaml',
+        help='Sets the SLURM config file path.'
+    )
+    prime_subparser.add_argument(
+        '--max-hp', dest='max_hp', type=int, default=24,
+        help='Maximum number of hyper parameters to use in one shot.'
+    )
+
+    # Training ----------------------------------------------------------------
+    execute_subparser = subparsers.add_parser(
+        "train", formatter_class=SortingHelpFormatter,
+        description='Runs ML training via submitting to the SLURM job '
+        'controller.'
+    )
+    execute_subparser.add_argument(
+        '--epochs', dest='epochs', type=int, required=True,
+        help='Specifies the number of epochs to train for; required.'
+    )
+
+    # Evaluation
+    subparsers.add_parser(
+        "eval", formatter_class=SortingHelpFormatter,
+        description='Evaluates all stored results and saves a summary csv '
+        'file in the dataset directory. Note that once this method is called, '
+        'it is recommended that no further training/evaluation be performed '
+        'on that dataset, as the results from the testing set will be visible '
+        'to the experimenter.'
     )
 
 
@@ -191,18 +241,18 @@ def add_qm9_args(ap):
     # Prime ML ----------------------------------------------------------------
     prime_subparser = subparsers.add_parser(
         "prime", formatter_class=SortingHelpFormatter,
-        description='prepare for machine learning training by'
+        description='Prepare for machine learning training by'
         'Creates the necessary directories and trial directories for '
         'running train in a later step.',
     )
     prime_subparser.add_argument(
         '--ml-config', dest='ml_config', type=str,
-        default='configs/ml_config.yaml',
+        default='configs/qm9_ml_config.yaml',
         help='Sets the config file path.'
     )
     prime_subparser.add_argument(
         '--slurm-config', dest='slurm_config', type=str,
-        default='configs/slurm_config.yaml',
+        default='configs/qm9_slurm_config.yaml',
         help='Sets the SLURM config file path.'
     )
     prime_subparser.add_argument(
@@ -273,7 +323,7 @@ def global_parser(sys_argv):
         'loading the feature, target, meta and index information from '
         'individual .csv files. These must all have the same number of rows '
         'such that row `i` in any of the files corresponds to row `i` in the '
-        'others. The general workflow is raw -> prime -> train -> eval.'
+        'others. The general workflow is init -> prime -> train -> eval.'
     )
     add_vec2vec_args(vec2vec_subparser)
 

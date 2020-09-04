@@ -5,6 +5,11 @@ import sys
 from crescendo.utils.arg_parser import global_parser
 
 
+def _prime(manager, args):
+    manager.prime(config_path=args.ml_config, max_hp=args.max_hp)
+    manager.write_SLURM_script(slurm_config=args.slurm_config)
+
+
 if __name__ == '__main__':
     args = global_parser(sys.argv[1:])
 
@@ -25,8 +30,7 @@ if __name__ == '__main__':
         # Load in the Graph Dataset and the ml_config.yaml file (which should
         # be) in the working directory, and execute training.
         elif args.protocol == 'prime':
-            manager.prime(config_path=args.ml_config, max_hp=args.max_hp)
-            manager.write_SLURM_script(slurm_config=args.slurm_config)
+            _prime(manager, args)
 
         # Run training
         elif args.protocol == 'train':
@@ -43,8 +47,19 @@ if __name__ == '__main__':
 
     elif args.project == 'vec2vec':
 
-        # from crescendo.utils.managers import Vec2VecManager
-        print(args)
+        from crescendo.utils.managers.vec2vec_manager import Vec2VecManager
+        manager = Vec2VecManager(dsname=args.dsname, cache=args.cache)
+
+        if args.protocol == 'init':
+            manager.init_ml(args)
+
+        elif args.protocol == 'prime':
+            _prime(manager, args)
+
+        else:
+            raise NotImplementedError(
+                f"Unknown vec2vec protocol {args.protocol}"
+            )
 
     else:
         raise NotImplementedError(f"Unknown project {args.project}")
