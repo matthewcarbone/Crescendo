@@ -2,7 +2,7 @@
 
 import shutil
 
-from crescendo.utils.managers import QM9Manager
+from crescendo.utils.managers.qm9_manager import QM9Manager
 from crescendo.utils.arg_parser import global_parser
 
 

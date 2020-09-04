@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 
 
+# Default pickle protocol
+P_PROTOCOL = 4
+
+# QM9 -------------------------------------------------------------------------
+
 # Environment variables
 QM9_ENV_VAR = "QM9_DATA_PATH"
 QM8_EP_ENV_VAR = "QM8_EP_DATA_PATH"
@@ -17,5 +22,6 @@ QM9_TEST_DATA_PATH = "data/qm9_test_data"
 QM8_TEST_DATA_PATH = "data/qm8_test_data.txt"
 
 
-# Default pickle protocol
-P_PROTOCOL = 4
+# Vector2Vector ---------------------------------------------------------------
+
+VEC2VEC_GENERAL_DS_ENV_VAR = "VEC2VEC_GENERAL_DS_CACHE"

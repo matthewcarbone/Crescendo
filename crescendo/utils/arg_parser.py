@@ -15,6 +15,70 @@ class SortingHelpFormatter(ArgumentDefaultsHelpFormatter, HelpFormatter):
         # self._width = 100
 
 
+def add_vec2vec_args(ap):
+    """Adds the vector2vector parser options."""
+
+    req = ap.add_argument_group(
+        'required'
+    )
+    req.add_argument(
+        '-d', '--dsname', dest='dsname', type=str,
+        required=True, help='Sets the dataset name. Required.'
+    )
+
+    ap.add_argument(
+        '-c', '--cache', dest='cache', type=str, default=None,
+        help='Sets the directory to save the dataset, ML results, etc; '
+        'otherwise set by the VEC2VEC_GENERAL_DS_ENV_VAR environment variable.'
+    )
+
+    subparsers = ap.add_subparsers(
+        help='Execution protocols for vector-to-vector methods.',
+        dest='protocol'
+    )
+
+    # Raw ---------------------------------------------------------------------
+    raw_subparser = subparsers.add_parser(
+        "raw", formatter_class=SortingHelpFormatter,
+        description='Loads in the raw data from the specified path.'
+    )
+    raw_subparser.add_argument(
+        'path', type=str,
+        help='Sets the path that points to the directory containing the '
+        'feature, target, metadata and index information. Note that we use '
+        'the smart loader to do this, so the feature .csv, which should be a '
+        'labeld .csv file (with headers), should contain the word "features" '
+        'in its file name, same for targets, meta for metadata, and index '
+        'or idx for the index information. Note also that the metadata and '
+        'indexes are optional.'
+    )
+
+    raw_subparser.add_argument(
+        '--split', nargs='+', type=float,
+        help='Specifies the split proportions for the test, validation and '
+        'training partitions.',
+        default=[0.03, 0.03, 0.94]
+    )
+    raw_subparser.add_argument(
+        '--override-split', dest='override_split', type=str,
+        help='The absolute path to a pickle file containing a pickled python '
+        'dictionary with keys "train", "valid" and "test", which each contain '
+        'a list of the indexes to use in generating the splits. This '
+        'overrides any default options this method is to use in favor of the '
+        'user-provided splits.'
+    )
+    raw_subparser.add_argument(
+        '--scale-features', dest='scale_features', default=False,
+        action='store_true',
+        help='Scale feature data by the mean/sd of the training split.'
+    )
+    raw_subparser.add_argument(
+        '--scale-targets', dest='scale_targets', default=False,
+        action='store_true',
+        help='Scale target data by the mean/sd of the training split.'
+    )
+
+
 def add_qm9_args(ap):
     """Adds the QM9 parser options."""
 
@@ -185,12 +249,13 @@ def global_parser(sys_argv):
         'randomly seed the generators.'
     )
 
-    # Initialize qm9 subparser
     subparsers = ap.add_subparsers(
         help='Global options. Each choice here represents '
         'a different project with fundamentally different datasets and likely '
         'different models as well.', dest='project'
     )
+
+    # (1)
     qm9_subparser = subparsers.add_parser(
         "qm9", formatter_class=SortingHelpFormatter,
         description='QM9 molecular data. The general protocol here is loading '
@@ -199,7 +264,17 @@ def global_parser(sys_argv):
         'neural network to make predictions on fixed length vectors. The '
         'workflow is raw -> graph -> prime -> train -> eval.'
     )
-    # matrix_subparser = subparsers.add_parser("--matrix")
     add_qm9_args(qm9_subparser)
+
+    # (2)
+    vec2vec_subparser = subparsers.add_parser(
+        "vec2vec", formatter_class=SortingHelpFormatter,
+        description='Vector-to-vector data. The general protocol consists of '
+        'loading the feature, target, meta and index information from '
+        'individual .csv files. These must all have the same number of rows '
+        'such that row `i` in any of the files corresponds to row `i` in the '
+        'others. The general workflow is raw -> prime -> train -> eval.'
+    )
+    add_vec2vec_args(vec2vec_subparser)
 
     return ap.parse_args(sys_argv)

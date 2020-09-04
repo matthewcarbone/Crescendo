@@ -10,7 +10,7 @@ if __name__ == '__main__':
 
     if args.project == 'qm9':
 
-        from crescendo.utils.managers import QM9Manager
+        from crescendo.utils.managers.qm9_manager import QM9Manager
         manager = QM9Manager(dsname=args.dsname, cache=args.cache)
 
         # First we create a qm9 raw dataset
@@ -40,6 +40,11 @@ if __name__ == '__main__':
             raise NotImplementedError(
                 f"Unknown qm9 protocol {args.protocol}"
             )
+
+    elif args.project == 'vec2vec':
+
+        # from crescendo.utils.managers import Vec2VecManager
+        print(args)
 
     else:
         raise NotImplementedError(f"Unknown project {args.project}")
