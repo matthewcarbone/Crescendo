@@ -84,8 +84,8 @@ class TrainProtocol:
         self.validLoader = validLoader
         self.device = torch.device('cuda:0' if CUDA_AVAIL else 'cpu')
         self.parallel = parallel and CUDA_AVAIL
-        if self.parallel and not torch.cuda.device_count() > 1:
-            self.paralel = False
+        if torch.cuda.device_count() < 2:
+            self.parallel = False
         self._log_cuda_info()
         if seed is not None:
             ml_utils.seed_all(seed)
