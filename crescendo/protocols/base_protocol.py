@@ -348,8 +348,11 @@ class TrainProtocol:
         else:
             log.info(f'\tVal. Loss: {valid_loss:.05e}')
 
-        # No matter what, we save the checkpoint every epoch.
-        self.save_checkpoint()
+        # No matter what, we save the checkpoint every 10 epochs. Saving
+        # every epoch means a ton of writing to disk which can take some time
+        # depending on the complexity of the model.
+        if self.epoch % 10 == 0:
+            self.save_checkpoint()
         return min(best_valid_loss, valid_loss)
 
     def _step_scheduler(self, valid_loss):
