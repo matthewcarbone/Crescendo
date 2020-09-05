@@ -249,7 +249,7 @@ class Vec2VecDataset(torch.utils.data.Dataset, _SimpleLoadingAndSaving):
 
     def init_splits(
         self, p_tvt=(0.1, 0.1, None), method='random', force=False,
-        splits_override=None
+        splits_override=None, downsample_train=None
     ):
         """Chooses the splits based on some criteria. Note that the first time
         this method is called, the attribute tvt_splits will be set, but it
@@ -276,6 +276,12 @@ class Vec2VecDataset(torch.utils.data.Dataset, _SimpleLoadingAndSaving):
             A dictionary with keys train, valid, test containing lists with the
             indexes of the splits. Default is None, and if specified, it will
             initialize the splits to these values.
+        downsample_train : int, optional
+            If None, will use the full amount of training data. However, if
+            some integer number, will take the **first** downsample_train
+            indexes in tvt_splits['train'] to use to construct the subset.
+            This means it really only makes sense to downsample the training
+            set when the order of the indexes is meaningful. Default is None.
         """
 
         if self.tvt_splits is not None:
@@ -301,19 +307,23 @@ class Vec2VecDataset(torch.utils.data.Dataset, _SimpleLoadingAndSaving):
             assert set(self.tvt_splits['test']) \
                 .isdisjoint(self.tvt_splits['valid'])
             dlog.info("Using the user-specified splits override")
-            return
-
-        np.random.seed(self.seed)
-
-        if method == 'random':
-            s = RandomSampler(len(self.raw['features']))
-            s.shuffle_(self.seed)
-            assert s.indexes_modified
-            self.tvt_splits = s.split(p_tvt[0], p_tvt[1], p_train=p_tvt[2])
         else:
-            critical = f"Invalid split method {method}"
-            dlog.critical(critical)
-            raise NotImplementedError(critical)
+            np.random.seed(self.seed)
+
+            if method == 'random':
+                s = RandomSampler(len(self.raw['features']))
+                s.shuffle_(self.seed)
+                assert s.indexes_modified
+                self.tvt_splits = s.split(p_tvt[0], p_tvt[1], p_train=p_tvt[2])
+            else:
+                critical = f"Invalid split method {method}"
+                dlog.critical(critical)
+                raise NotImplementedError(critical)
+
+        if downsample_train is not None:
+            dlog.warning(f"Downsampling training set by {downsample_train}")
+            self.tvt_splits['train'] = \
+                self.tvt_splits['train'][:downsample_train]
 
     @staticmethod
     def collating_function_vector_to_vector(batch):
@@ -332,6 +342,7 @@ class Vec2VecDataset(torch.utils.data.Dataset, _SimpleLoadingAndSaving):
         specified split as cached in the tvt_splits."""
 
         arr = self.raw[what][self.tvt_splits[split], :]
+        dlog.info(f"Computing statistics on array of shape {arr.shape}")
         mu = arr.mean(axis=0)
         sd = arr.std(axis=0)
         _mu = mu.mean()
@@ -417,7 +428,14 @@ class Vec2VecDataset(torch.utils.data.Dataset, _SimpleLoadingAndSaving):
         dlog.info(f"Done init ml_data of size {len(self.ml_data)}")
 
     def get_loaders(self, batch_sizes=(32, 32, 32)):
-        """Returns the loaders as computed by the prior sampling."""
+        """Returns the loaders as computed by the prior sampling.
+
+        Parameters
+        ----------
+        batch_sizes : tuple
+            The sizes of the minibatches for training, in order of test, valid
+            and train. Default is (32, 32, 32).
+        """
 
         # Initialize the subset objects
         testSubset = torch.utils.data.Subset(self, self.tvt_splits['test'])

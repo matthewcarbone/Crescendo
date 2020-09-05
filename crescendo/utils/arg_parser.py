@@ -84,6 +84,12 @@ def add_vec2vec_args(ap):
         action='store_true',
         help='Scale target data by the mean/sd of the training split.'
     )
+    raw_subparser.add_argument(
+        '--downsample-train', dest='downsample_train', type=int, default=None,
+        help='If specified, will downsample the training set by selecting the '
+        'first "downsample_train" points in the training split and using only '
+        'those for training.'
+    )
 
     # Prime ML ----------------------------------------------------------------
     prime_subparser = subparsers.add_parser(

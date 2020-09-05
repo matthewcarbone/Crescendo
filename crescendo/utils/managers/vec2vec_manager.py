@@ -5,6 +5,7 @@ import os
 
 import numpy as np
 import pandas as pd
+import pickle
 import yaml
 
 from crescendo.utils.managers.manager_base import Manager
@@ -51,9 +52,14 @@ class Vec2VecManager(Manager):
                 raise RuntimeError(critical)
 
         ds.smart_load(directory=args.path)
+
+        override = None
+        if args.splits_override is not None:
+            override = pickle.load(open(args.splits_override, 'rb'))
+
         ds.init_splits(
-            p_tvt=args.split, force=args.force,
-            splits_override=args.override_split
+            p_tvt=args.split, force=args.force, splits_override=override,
+            downsample_train=args.downsample_train
         )
         ds.init_ml_data(
             scale_features=args.scale_features,
