@@ -93,7 +93,8 @@ def run_vec2vec(
     protocol = Vec2VecProtocol(
         root,
         trainLoader=data_loaders['train'],
-        validLoader=data_loaders['valid']
+        validLoader=data_loaders['valid'],
+        parallel=True
     )
 
     protocol.initialize_model(
