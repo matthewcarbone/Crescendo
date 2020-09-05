@@ -281,7 +281,10 @@ class Vec2VecDataset(torch.utils.data.Dataset, _SimpleLoadingAndSaving):
             some integer number, will take the **first** downsample_train
             indexes in tvt_splits['train'] to use to construct the subset.
             This means it really only makes sense to downsample the training
-            set when the order of the indexes is meaningful. Default is None.
+            set when the order of the indexes is meaningful. Note that the
+            first index of the loaded splits contains this dictionary, the
+            second contains metadata about how the splits were generated, such
+            as the seed used to generate the splits. Default is None.
         """
 
         if self.tvt_splits is not None:
@@ -299,7 +302,7 @@ class Vec2VecDataset(torch.utils.data.Dataset, _SimpleLoadingAndSaving):
                 return
 
         if splits_override is not None:
-            self.tvt_splits = splits_override
+            self.tvt_splits = splits_override[0]
             assert set(self.tvt_splits['train']) \
                 .isdisjoint(self.tvt_splits['valid'])
             assert set(self.tvt_splits['train']) \
