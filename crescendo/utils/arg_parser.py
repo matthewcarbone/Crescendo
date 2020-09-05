@@ -67,7 +67,7 @@ def add_vec2vec_args(ap):
         default=[0.03, 0.03, 0.94]
     )
     raw_subparser.add_argument(
-        '--override-split', dest='override_split', type=str,
+        '--override-split', dest='splits_override', type=str,
         help='The absolute path to a pickle file containing a pickled python '
         'dictionary with keys "train", "valid" and "test", which each contain '
         'a list of the indexes to use in generating the splits. This '

@@ -29,8 +29,8 @@ class TestQM9Pipeline:
     def test_prime(self):
 
         args = global_parser(
-            'qm9 -d test123 --cache __test prime --ml-config '
-            'configs/ml_config_template.yaml '
+            'qm9 -d test123 --cache __test prime '
+            '--ml-config configs/qm9_ml_config_template.yaml '
             '--slurm-config configs/slurm_config_template.yaml'.split()
         )
         manager = QM9Manager(dsname=args.dsname, cache=args.cache)
