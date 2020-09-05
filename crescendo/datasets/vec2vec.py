@@ -307,6 +307,13 @@ class Vec2VecDataset(torch.utils.data.Dataset, _SimpleLoadingAndSaving):
             assert set(self.tvt_splits['test']) \
                 .isdisjoint(self.tvt_splits['valid'])
             dlog.info("Using the user-specified splits override")
+
+            # Ensure that the loaded splits are actually compatible with this
+            # data.
+            assert len(self.tvt_splits['test']) \
+                + len(self.tvt_splits['valid']) \
+                + len(self.tvt_splits['train']) \
+                == self.raw['features'].shape[0]
         else:
             np.random.seed(self.seed)
 
