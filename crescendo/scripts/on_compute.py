@@ -85,8 +85,8 @@ def run_vec2vec(
     from crescendo.datasets.vec2vec import Vec2VecDataset
     from crescendo.protocols.vec2vec_protocols import Vec2VecProtocol
 
-    mlds = Vec2VecDataset()
-    mlds.load_state(dsname=dsname, directory=cache)
+    mlds = Vec2VecDataset(dsname=dsname)
+    mlds.load_state(directory=cache)
     data_loaders = mlds.get_loaders(config['batch_size'])
 
     root = os.path.join(cache, dsname, trial)
