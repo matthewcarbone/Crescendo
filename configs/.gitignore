@@ -1,0 +1,4 @@
+*.yaml
+!qm9_ml_config_template.yaml
+!slurm_config_template.yaml
+!vec2vec_ml_config_template.yaml
