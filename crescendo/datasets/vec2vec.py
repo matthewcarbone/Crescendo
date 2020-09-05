@@ -115,6 +115,9 @@ class Vec2VecDataset(torch.utils.data.Dataset, _SimpleLoadingAndSaving):
         self.raw = None
         self.ml_data = None
 
+        self.n_features = None
+        self.n_targets = None
+
     def __getitem__(self, ii):
         return self.ml_data[ii]
 
@@ -183,6 +186,8 @@ class Vec2VecDataset(torch.utils.data.Dataset, _SimpleLoadingAndSaving):
         fshape = self.raw['features'].shape
         tshape = self.raw['targets'].shape
         dlog.info(f"Done: features {fshape} targets {tshape}")
+        self.n_features = self.raw['features'].shape[1]
+        self.n_targets = self.raw['targets'].shape[1]
 
         if meta is not None:
             mshape = self.raw['meta'].shape

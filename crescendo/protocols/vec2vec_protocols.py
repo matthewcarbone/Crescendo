@@ -13,7 +13,7 @@ class Vec2VecProtocol(TrainProtocol):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def initialize_model(self, best=False, **kwargs):
+    def initialize_model(self, model_type='mlp', best=False, **kwargs):
         """Initializes the standard MLP neural network.
 
         Parameters
@@ -23,7 +23,10 @@ class Vec2VecProtocol(TrainProtocol):
             evaluated on the validation set.
         """
 
-        self.model = StandardPerceptron(**kwargs)
+        if model_type == 'mlp':
+            self.model = StandardPerceptron(**kwargs)
+        else:
+            raise NotImplementedError
 
         self._send_model_to_device()
         self._log_model_info()
@@ -124,7 +127,8 @@ class Vec2VecProtocol(TrainProtocol):
                     (
                         np.array(idx[ii]),
                         output[ii].cpu().detach().numpy() * sd + mu,
-                        t[ii].cpu().detach().numpy() * sd + mu
+                        t[ii].cpu().detach().numpy() * sd + mu,
+                        np.array(meta[ii])
                     ) for ii in range(t.shape[0])
                 ]
                 cache_list.extend(cache_list_batch)

@@ -56,6 +56,12 @@ if __name__ == '__main__':
         elif args.protocol == 'prime':
             _prime(manager, args)
 
+        elif args.protocol == 'train':
+            manager.submit(args.epochs)
+
+        elif args.protocol == 'eval':
+            manager.eval(force=args.force)
+
         else:
             raise NotImplementedError(
                 f"Unknown vec2vec protocol {args.protocol}"
