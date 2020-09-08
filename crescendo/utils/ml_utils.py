@@ -38,19 +38,19 @@ def load_latest_caches(root):
 
     d = f"{root}/train"
     latest_epoch = os.listdir(d)
-    latest_epoch = sorted(latest_epoch)[-1]
+    latest_epoch = os.path.join(d, sorted(latest_epoch)[-1])
 
     train_cache = pickle.load(open(latest_epoch, 'rb'))
 
     d = f"{root}/valid"
     latest_epoch = os.listdir(d)
-    latest_epoch = sorted(latest_epoch)[-1]
+    latest_epoch = os.path.join(d, sorted(latest_epoch)[-1])
 
     valid_cache = pickle.load(open(latest_epoch, 'rb'))
 
     d = f"{root}/test"
     latest_epoch = os.listdir(d)
-    latest_epoch = sorted(latest_epoch)[-1]
+    latest_epoch = os.path.join(d, sorted(latest_epoch)[-1])
 
     test_cache = pickle.load(open(latest_epoch, 'rb'))
 
