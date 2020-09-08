@@ -6,16 +6,14 @@ import os
 import numpy as np
 import pandas as pd
 import pickle
-import yaml
 
 from crescendo.utils.managers.manager_base import Manager
 
 from crescendo.datasets.vec2vec import Vec2VecDataset
-from crescendo.protocols.vec2vec_protocols import Vec2VecProtocol
 from crescendo.defaults import VEC2VEC_GENERAL_DS_ENV_VAR
 from crescendo.utils.logger import logger_default as dlog
 from crescendo.utils.py_utils import check_for_environment_variable
-from crescendo.utils.ml_utils import save_caches, _call_subprocess, \
+from crescendo.utils.ml_utils import _call_subprocess, \
     load_latest_caches
 
 
@@ -135,7 +133,6 @@ class Vec2VecManager(Manager):
         valid_sd_list = []
         test_mu_list = []
         test_sd_list = []
-        configs = dict()
 
         for trial in trials:
             dlog.info(f"Evaluating trial {trial}")
@@ -170,6 +167,4 @@ class Vec2VecManager(Manager):
         dlog.info(f"Done: saved to {summary_path}")
 
         best_trial = results_df.iloc[0, 0]
-        dlog.info(f"Best trial is {best_trial} with configuration")
-        for key, value in configs[best_trial].items():
-            dlog.info(f"\t {key} - {value}")
+        dlog.info(f"Best trial is {best_trial}")
