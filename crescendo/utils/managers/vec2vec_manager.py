@@ -136,8 +136,8 @@ class Vec2VecManager(Manager):
         test_sd_list = []
         configs = dict()
 
-        mlds = Vec2VecDataset()
-        mlds.load_state(dsname=self.dsname, directory=self.cache)
+        mlds = Vec2VecDataset(dsname=self.dsname)
+        mlds.load_state(directory=self.cache)
 
         for trial in trials:
             dlog.info(f"Evaluating trial {trial}")
@@ -159,7 +159,6 @@ class Vec2VecManager(Manager):
             # the **best** model as evaluated on the validation data.
             protocol.initialize_model(
                 best=True,
-                model_name='MPNN',
                 n_node_features=mlds.node_edge_features[0],
                 n_edge_features=mlds.node_edge_features[1],
                 output_size=mlds.n_targets,
