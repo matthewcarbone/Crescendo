@@ -15,7 +15,8 @@ from crescendo.protocols.vec2vec_protocols import Vec2VecProtocol
 from crescendo.defaults import VEC2VEC_GENERAL_DS_ENV_VAR
 from crescendo.utils.logger import logger_default as dlog
 from crescendo.utils.py_utils import check_for_environment_variable
-from crescendo.utils.ml_utils import save_caches, _call_subprocess
+from crescendo.utils.ml_utils import save_caches, _call_subprocess, \
+    load_latest_caches
 
 
 class Vec2VecManager(Manager):
@@ -136,42 +137,11 @@ class Vec2VecManager(Manager):
         test_sd_list = []
         configs = dict()
 
-        mlds = Vec2VecDataset(dsname=self.dsname)
-        mlds.load_state(directory=self.cache)
-
         for trial in trials:
             dlog.info(f"Evaluating trial {trial}")
 
             root = os.path.join(self.cache, self.dsname, trial)
-            config_path = os.path.join(root, 'config.yaml')
-            config = yaml.safe_load(open(config_path))
-            configs[trial] = config
-            data_loaders = mlds.get_loaders(config['batch_size'])
-
-            # This will automatically load the saved checkpoint
-            protocol = Vec2VecProtocol(
-                root,
-                trainLoader=data_loaders['train'],
-                validLoader=data_loaders['valid']
-            )
-
-            # This will automatically apply the saved checkpoint; specifically,
-            # the **best** model as evaluated on the validation data.
-            protocol.initialize_model(
-                best=True,
-                model_type=config['model_type'],
-                input_size=mlds.n_features,
-                hidden_size=config['hidden_size'],
-                output_size=mlds.n_targets,
-                n_hidden_layers=config['n_hidden_layers'],
-                dropout=config['dropout']
-            )
-
-            # We'll always use the MAE criterion for final eval.
-            protocol._init_criterion('l1')
-
-            test_cache, valid_cache, train_cache = \
-                save_caches(protocol, mlds, data_loaders)
+            test_cache, valid_cache, train_cache = load_latest_caches(root)
 
             test_mu, test_sd = Vec2VecManager._eval_single_cache(test_cache)
             test_mu_list.append(test_mu)

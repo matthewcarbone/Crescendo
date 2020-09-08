@@ -28,6 +28,35 @@ def read_config(path):
     return yaml.safe_load(open(path))
 
 
+def load_latest_caches(root):
+    """Loads the most-progressed caches from the storage directories.
+
+    Returns
+    -------
+    The caches
+    """
+
+    d = f"{root}/train"
+    latest_epoch = os.listdir(d)
+    latest_epoch = sorted(latest_epoch)[-1]
+
+    train_cache = pickle.load(open(latest_epoch, 'rb'))
+
+    d = f"{root}/valid"
+    latest_epoch = os.listdir(d)
+    latest_epoch = sorted(latest_epoch)[-1]
+
+    valid_cache = pickle.load(open(latest_epoch, 'rb'))
+
+    d = f"{root}/test"
+    latest_epoch = os.listdir(d)
+    latest_epoch = sorted(latest_epoch)[-1]
+
+    test_cache = pickle.load(open(latest_epoch, 'rb'))
+
+    return test_cache, valid_cache, train_cache
+
+
 def save_caches(protocol, mlds, data_loaders):
     """Pickles the cache results from every split to disk. Note that if the
     cache already exists, it will not recalculate it. This script will simply
