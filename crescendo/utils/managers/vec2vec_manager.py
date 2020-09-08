@@ -159,11 +159,12 @@ class Vec2VecManager(Manager):
             # the **best** model as evaluated on the validation data.
             protocol.initialize_model(
                 best=True,
-                n_node_features=mlds.node_edge_features[0],
-                n_edge_features=mlds.node_edge_features[1],
+                model_type=config['model_type'],
+                input_size=mlds.n_features,
+                hidden_size=config['hidden_size'],
                 output_size=mlds.n_targets,
-                hidden_node_size=config['hidden_node_size'],
-                hidden_edge_size=config['hidden_edge_size']
+                n_hidden_layers=config['n_hidden_layers'],
+                dropout=config['dropout']
             )
 
             # We'll always use the MAE criterion for final eval.
