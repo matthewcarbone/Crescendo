@@ -427,7 +427,10 @@ class TrainProtocol:
         return meter.train_loss_list, meter.valid_loss_list, \
             meter.learning_rates
 
-    def eval(self, loader_override=None, target_metadata=None):
+    def eval(
+        self, loader_override=None, feature_metadata=None,
+        target_metadata=None
+    ):
         """Systematically evaluates the validation, or dataset corresponding to
         the loader specified in the loader_override argument, dataset.
 
@@ -453,7 +456,8 @@ class TrainProtocol:
         # defaults.Result
         with torch.no_grad():
             total_loss, cache = self._eval_valid_pass(
-                loader, cache=True, target_metadata=target_metadata
+                loader, cache=True, feature_metadata=feature_metadata,
+                target_metadata=target_metadata
             )
 
         return cache
