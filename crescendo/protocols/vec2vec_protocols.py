@@ -64,8 +64,8 @@ class Vec2VecProtocol(TrainProtocol):
         fend = 1 + self.n_meta + self.n_features
         for __, batch in enumerate(self.trainLoader):
 
-            f = batch[:, fstart:fend].to(self.device)
-            t = batch[:, fend:].to(self.device)
+            f = batch[0][:, fstart:fend].to(self.device)
+            t = batch[0][:, fend:].to(self.device)
 
             # Zero the gradients
             self.optimizer.zero_grad()
@@ -132,10 +132,10 @@ class Vec2VecProtocol(TrainProtocol):
 
         for __, batch in enumerate(loader):
 
-            idx = batch[:, 0]
-            meta = batch[:, 1:fstart]
-            f = batch[:, fstart:fend].to(self.device)
-            t = batch[:, fend:].to(self.device)
+            idx = batch[0][:, 0]
+            meta = batch[0][:, 1:fstart]
+            f = batch[0][:, fstart:fend].to(self.device)
+            t = batch[0][:, fend:].to(self.device)
 
             output = self.model.forward(f)
 
