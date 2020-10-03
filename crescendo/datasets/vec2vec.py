@@ -449,13 +449,13 @@ class Vec2VecDataset(torch.utils.data.Dataset, _SimpleLoadingAndSaving):
         # trainSubset = torch.utils.data.Subset(self, self.tvt_splits['train'])
 
         trainSubset = torch.utils.data.TensorDataset(
-            self.ml_data[self.tvt_splits['train']]
+            self.ml_data[self.tvt_splits['train'], :]
         )
         validSubset = torch.utils.data.TensorDataset(
-            self.ml_data[self.tvt_splits['valid']]
+            self.ml_data[self.tvt_splits['valid'], :]
         )
         testSubset = torch.utils.data.TensorDataset(
-            self.ml_data[self.tvt_splits['test']]
+            self.ml_data[self.tvt_splits['test'], :]
         )
 
         # Initialize the loader objects
