@@ -52,7 +52,7 @@ class TrainProtocol:
 
     def __init__(
         self, root, trainLoader, validLoader,
-        seed=None, parallel=False, override=False
+        seed=None, parallel=True, override=False
     ):
         """Initializer.
 
