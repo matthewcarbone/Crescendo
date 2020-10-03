@@ -117,6 +117,7 @@ class Vec2VecDataset(torch.utils.data.Dataset, _SimpleLoadingAndSaving):
 
         self.n_features = None
         self.n_targets = None
+        self.n_meta = None
 
     def __getitem__(self, ii):
         return self.ml_data[ii]
@@ -191,6 +192,7 @@ class Vec2VecDataset(torch.utils.data.Dataset, _SimpleLoadingAndSaving):
 
         if meta is not None:
             mshape = self.raw['meta'].shape
+            self.n_meta = self.raw['meta'].shape[1]
             dlog.info(f"Also read metadata {mshape}")
 
     def smart_load(self, directory):
@@ -335,18 +337,6 @@ class Vec2VecDataset(torch.utils.data.Dataset, _SimpleLoadingAndSaving):
             self.tvt_splits['train'] = \
                 self.tvt_splits['train'][:downsample_train]
 
-    @staticmethod
-    def collating_function_vector_to_vector(batch):
-        """Collates the vector-to-vector batches in which single training
-        examples consist of (features, targets, idxs, metadata)."""
-
-        meta = [xx[3] for xx in batch]
-        idxs = [xx[2] for xx in batch]
-        targets = torch.tensor([xx[1] for xx in batch])
-        features = torch.tensor([xx[0] for xx in batch])
-
-        return (features, targets, idxs, meta)
-
     def _statistics(self, what, split):
         """Get's the statistics on what (features, targets, ...) for a
         specified split as cached in the tvt_splits."""
@@ -425,20 +415,26 @@ class Vec2VecDataset(torch.utils.data.Dataset, _SimpleLoadingAndSaving):
             self._statistics('targets', 'valid')
             self._statistics('targets', 'test')
 
-        self.ml_data = [
-            [
-                list(self.raw['features'][ii]),
-                list(self.raw['targets'][ii]),
-                self.raw['idx'][ii],
-                list(self.raw['meta'][ii]) if self.raw['meta'] is not None
-                else None
-            ] for ii in range(len(self.raw['features']))
-        ]
+        # self.ml_data = [
+        #     [
+        #         list(self.raw['features'][ii]),
+        #         list(self.raw['targets'][ii]),
+        #         self.raw['idx'][ii],
+        #         list(self.raw['meta'][ii]) if self.raw['meta'] is not None
+        #         else None
+        #     ] for ii in range(len(self.raw['features']))
+        # ]
 
-        dlog.info(f"Done init ml_data of size {len(self.ml_data)}")
+        self.ml_data = torch.from_numpy(np.concatenate([
+            self.raw['idx'].reshape(-1, 1), self.raw['meta'],
+            self.raw['features'], self.raw['targets']
+        ], axis=1))
+
+        dlog.info(f"Done init ml_data of shape {self.ml_data.shape}")
 
     def get_loaders(self, batch_sizes=(32, 32, 32)):
         """Returns the loaders as computed by the prior sampling.
+        from torch.utils.data import TensorDataset, DataLoader
 
         Parameters
         ----------
@@ -448,22 +444,32 @@ class Vec2VecDataset(torch.utils.data.Dataset, _SimpleLoadingAndSaving):
         """
 
         # Initialize the subset objects
-        testSubset = torch.utils.data.Subset(self, self.tvt_splits['test'])
-        validSubset = torch.utils.data.Subset(self, self.tvt_splits['valid'])
-        trainSubset = torch.utils.data.Subset(self, self.tvt_splits['train'])
+        # testSubset = torch.utils.data.Subset(self, self.tvt_splits['test'])
+        # validSubset = torch.utils.data.Subset(self, self.tvt_splits['valid'])
+        # trainSubset = torch.utils.data.Subset(self, self.tvt_splits['train'])
+
+        trainSubset = torch.utils.data.TensorDataset(
+            self.ml_data[self.tvt_splits['train']]
+        )
+        validSubset = torch.utils.data.TensorDataset(
+            self.ml_data[self.tvt_splits['valid']]
+        )
+        testSubset = torch.utils.data.TensorDataset(
+            self.ml_data[self.tvt_splits['test']]
+        )
 
         # Initialize the loader objects
-        testLoader = torch.utils.data.DataLoader(
-            testSubset, batch_size=batch_sizes[0], shuffle=False,
-            collate_fn=Vec2VecDataset.collating_function_vector_to_vector
+        trainLoader = torch.utils.data.DataLoader(
+            trainSubset, batch_size=batch_sizes[2], shuffle=True,
+            pin_memory=True
         )
         validLoader = torch.utils.data.DataLoader(
             validSubset, batch_size=batch_sizes[1], shuffle=False,
-            collate_fn=Vec2VecDataset.collating_function_vector_to_vector
+            pin_memory=True
         )
-        trainLoader = torch.utils.data.DataLoader(
-            trainSubset, batch_size=batch_sizes[2], shuffle=True,
-            collate_fn=Vec2VecDataset.collating_function_vector_to_vector
+        testLoader = torch.utils.data.DataLoader(
+            testSubset, batch_size=batch_sizes[0], shuffle=False,
+            pin_memory=False
         )
 
         return {

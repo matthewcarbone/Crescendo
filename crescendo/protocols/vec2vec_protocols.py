@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import numpy as np
 import torch
 
 from crescendo.models.feedforward import StandardPerceptron
@@ -13,7 +12,10 @@ class Vec2VecProtocol(TrainProtocol):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def initialize_model(self, model_type='mlp', best=False, **kwargs):
+    def initialize_model(
+        self, n_features, n_targets, n_meta, model_type='mlp', best=False,
+        **kwargs
+    ):
         """Initializes the standard MLP neural network.
 
         Parameters
@@ -37,6 +39,10 @@ class Vec2VecProtocol(TrainProtocol):
             self.best_model_state_dict = self.checkpoint[m]
             log.info("Model initialization from checkpoint successful")
 
+        self.n_features = n_features
+        self.n_targets = n_targets
+        self.n_meta = n_meta
+
     def _train_single_epoch(self, clip=None):
         """Executes the training of the model over a single full pass of
         training data.
@@ -54,11 +60,12 @@ class Vec2VecProtocol(TrainProtocol):
 
         self.model.train()  # Unfreeze weights, set model in train mode
         epoch_loss = []
-        for idx, batch in enumerate(self.trainLoader):
+        fstart = 1 + self.n_meta
+        fend = 1 + self.n_meta + self.n_features
+        for __, batch in enumerate(self.trainLoader):
 
-            (f, t, idx, meta) = batch
-            f = f.float().to(self.device)
-            t = t.float().to(self.device)
+            f = batch[:, fstart:fend].to(self.device)
+            t = batch[:, fend:].to(self.device)
 
             # Zero the gradients
             self.optimizer.zero_grad()
@@ -84,7 +91,9 @@ class Vec2VecProtocol(TrainProtocol):
 
         return sum(epoch_loss) / len(epoch_loss)  # mean loss over this epoch
 
-    def _eval_valid_pass(self, loader, cache=False, target_metadata=None):
+    def _eval_valid_pass(
+        self, loader, cache=False, feature_metadata=None, target_metadata=None
+    ):
         """Performs the for loop in evaluating the validation sets. This allows
         for interchanging the passed loaders as desired.
 
@@ -106,18 +115,27 @@ class Vec2VecProtocol(TrainProtocol):
         total_loss = []
         cache_list = []
 
+        fstart = 1 + self.n_meta
+        fend = 1 + self.n_meta + self.n_features
+
         if cache:
-            mu = 0.0
-            sd = 1.0
+            mu_targ = 0.0
+            sd_targ = 1.0
             if target_metadata is not None:
-                mu = target_metadata[0]
-                sd = target_metadata[1]
+                mu_targ = target_metadata[0]
+                sd_targ = target_metadata[1]
+            mu_feat = 0.0
+            sd_feat = 0.0
+            if feature_metadata is not None:
+                mu_feat = feature_metadata[0]
+                sd_feat = feature_metadata[1]
 
-        for idx, batch in enumerate(loader):
+        for __, batch in enumerate(loader):
 
-            (f, t, idx, meta) = batch
-            f = f.float().to(self.device)
-            t = t.float().to(self.device)
+            idx = batch[:, 0]
+            meta = batch[:, 1:fstart]
+            f = batch[:, fstart:fend].to(self.device)
+            t = batch[:, fend:].to(self.device)
 
             output = self.model.forward(f)
 
@@ -125,10 +143,10 @@ class Vec2VecProtocol(TrainProtocol):
             if cache:
                 cache_list_batch = [
                     (
-                        np.array(idx[ii]),
-                        output[ii].cpu().detach().numpy() * sd + mu,
-                        t[ii].cpu().detach().numpy() * sd + mu,
-                        np.array(meta[ii])
+                        int(idx[ii]), meta[ii],
+                        f.cpu().detach().numpy() * sd_feat + mu_feat,
+                        output[ii].cpu().detach().numpy() * sd_targ + mu_targ,
+                        t[ii].cpu().detach().numpy() * sd_targ + mu_targ,
                     ) for ii in range(t.shape[0])
                 ]
                 cache_list.extend(cache_list_batch)

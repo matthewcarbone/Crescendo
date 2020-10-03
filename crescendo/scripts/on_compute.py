@@ -98,6 +98,7 @@ def run_vec2vec(
     )
 
     protocol.initialize_model(
+        mlds.n_features, mlds.n_targets, mlds.n_meta,
         model_type=config['model_type'],
         input_size=mlds.n_features,
         hidden_size=config['hidden_size'],

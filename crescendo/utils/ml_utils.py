@@ -77,6 +77,7 @@ def save_caches(protocol, mlds, data_loaders):
         train_cache = pickle.load(open(f, 'rb'))
     else:
         train_cache = protocol.eval(
+            feature_metadata=mlds.feature_metadata,
             target_metadata=mlds.target_metadata,
             loader_override=data_loaders['train']
         )
@@ -89,6 +90,7 @@ def save_caches(protocol, mlds, data_loaders):
         valid_cache = pickle.load(open(f, 'rb'))
     else:
         valid_cache = protocol.eval(
+            feature_metadata=mlds.feature_metadata,
             target_metadata=mlds.target_metadata,
             loader_override=data_loaders['valid']
         )
@@ -101,6 +103,7 @@ def save_caches(protocol, mlds, data_loaders):
         test_cache = pickle.load(open(f, 'rb'))
     else:
         test_cache = protocol.eval(
+            feature_metadata=mlds.feature_metadata,
             target_metadata=mlds.target_metadata,
             loader_override=data_loaders['test']
         )
