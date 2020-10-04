@@ -71,7 +71,6 @@ def save_caches(protocol, mlds, data_loaders):
     root = protocol.root
     epoch = protocol.epoch
 
-    """
     d = f"{root}/train"
     f = f"{d}/{epoch:04}.pkl"
     if os.path.exists(f):
@@ -97,7 +96,6 @@ def save_caches(protocol, mlds, data_loaders):
         )
         os.makedirs(d, exist_ok=True)
         pickle.dump(valid_cache, open(f, 'wb'), protocol=P_PROTOCOL)
-    """
 
     d = f"{root}/====test===="
     f = f"{d}/{epoch:04}.pkl"

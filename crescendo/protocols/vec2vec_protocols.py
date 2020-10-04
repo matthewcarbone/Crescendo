@@ -144,7 +144,7 @@ class Vec2VecProtocol(TrainProtocol):
                 cache_list_batch = [
                     (
                         int(idx[ii]), meta[ii],
-                        f.cpu().detach().numpy() * sd_feat + mu_feat,
+                        f[ii].cpu().detach().numpy() * sd_feat + mu_feat,
                         output[ii].cpu().detach().numpy() * sd_targ + mu_targ,
                         t[ii].cpu().detach().numpy() * sd_targ + mu_targ,
                     ) for ii in range(t.shape[0])
