@@ -132,8 +132,8 @@ class Vec2VecProtocol(TrainProtocol):
 
         for __, batch in enumerate(loader):
 
-            idx = batch[0][:, 0]
-            meta = batch[0][:, 1:fstart]
+            idx = batch[0][:, 0].numpy()
+            meta = batch[0][:, 1:fstart].numpy()
             f = batch[0][:, fstart:fend].float().to(self.device)
             t = batch[0][:, fend:].float().to(self.device)
 

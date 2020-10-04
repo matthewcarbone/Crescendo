@@ -2,7 +2,6 @@
 
 import os
 import uuid
-import pickle
 
 
 from crescendo.utils.ml_utils import save_caches
@@ -129,13 +128,4 @@ def run_vec2vec(
     # Note that it is highly likely the training process does not reach this
     # final state. However, the train method has internal checkpointing
     # capability, so the model can always be reloaded.
-    # save_caches(protocol, mlds, data_loaders)
-    d = f"{protocol.root}/====test===="
-    f = f"{d}/{protocol.epoch:04}.pkl"
-    test_cache = protocol.eval(
-        feature_metadata=mlds.feature_metadata,
-        target_metadata=mlds.target_metadata,
-        loader_override=data_loaders['test']
-    )
-    os.makedirs(d, exist_ok=True)
-    pickle.dump(test_cache, open(f, 'wb'), protocol=4)
+    save_caches(protocol, mlds, data_loaders)
