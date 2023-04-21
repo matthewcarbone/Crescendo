@@ -28,11 +28,16 @@ classifiers = [
     "Intended Audience :: Science/Research",
 ]
 dependencies = [
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "lightning>=2.0.0",
+    "torchmetrics>=0.11.4",
+    "hydra-core==1.3.2",
+    "hydra-colorlog==1.2.0",
+    "hydra-optuna-sweeper==1.2.0",
     "numpy",
-    "torch",
-    "lightning",
-    "scipy",
-    "scikit-learn"
+    "pyrootutils",
+    "rich"
 ]
 
 # Dynamic version reads __version__ directly from my_package.__init__
