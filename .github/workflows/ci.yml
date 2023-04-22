@@ -32,10 +32,13 @@ jobs:
         which python
         python -V
 
-    - name: Install testing dependencies
+    - name: Install dependencies
       run: |
         bash scripts/install.sh
         bash scripts/install.sh test
+
+    - name: Install crescendo in editable mode
+      run: pip install --editable .
 
     - name: Smoke tests
       run: bash scripts/smoke.sh 
