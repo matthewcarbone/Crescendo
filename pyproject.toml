@@ -37,6 +37,7 @@ dependencies = [
     "hydra-optuna-sweeper==1.2.0",
     "numpy",
     "pyrootutils",
+    "scikit-learn",
     "rich"
 ]
 
