@@ -16,7 +16,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python-version: [3.9, "3.10", 3.11]
+        python-version: [3.9]
 
     steps:
     - uses: actions/checkout@v3
@@ -31,6 +31,7 @@ jobs:
         conda --version
         which python
         python -V
+        pwd
 
     - name: Install dependencies
       run: |
