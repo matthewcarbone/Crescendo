@@ -2,7 +2,7 @@
 
 export HYDRA_FULL_ERROR=1
 
-cr debug=default
-cr debug=fdr
-cr debug=limit
-cr debug=overfit
+cr model=mlp data=california_housing debug=default
+cr model=mlp data=california_housing debug=fdr
+cr model=mlp data=california_housing debug=limit
+cr model=mlp data=california_housing debug=overfit
