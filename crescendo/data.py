@@ -97,7 +97,7 @@ class ScaleXMixin:
             raise ValueError("X-scaler is disabled")
         return self._X_scaler.transform(self._X_test)
 
-    def setup_X_scaler(self):
+    def _setup_X_scaler(self):
         """
         
         Parameters
@@ -114,6 +114,13 @@ class ScaleXMixin:
 
 
 class DataLoaderMixin:
+
+    def _init_dataloader_kwargs(self):
+        self._dataloader_kwargs = {
+            "batch_size": self.hparams.batch_size,
+            "num_workers": self.hparams.num_workers,
+            "pin_memory": self.hparams.pin_memory,
+        }
 
     def train_dataloader(self):
         X = self.X_train.copy()
@@ -180,12 +187,8 @@ class ArrayRegressionDataModule(
     ):
         super().__init__()
         self.save_hyperparameters(logger=False)
-        self.setup_X_scaler()
-        self._dataloader_kwargs = {
-            "batch_size": self.hparams.batch_size,
-            "num_workers": self.hparams.num_workers,
-            "pin_memory": self.hparams.pin_memory,
-        }
+        self._setup_X_scaler()
+        self._init_dataloader_kwargs()
 
 
 class CaliforniaHousingDataset(
@@ -202,8 +205,8 @@ class CaliforniaHousingDataset(
         normalize_inputs=True,
     ):
         super().__init__()
-        self.save_hyperparameters(logger=False)
         self.hparams.data_dir = None
+        self.save_hyperparameters(logger=False)
         with TemporaryDirectory() as t:
             path = t / Path("california_housing_data")
             download_california_housing_data(path)
@@ -213,9 +216,5 @@ class CaliforniaHousingDataset(
             self._Y_val = np.load(path / "Y_val.npy")
             self._X_test = None
             self._Y_test = None
-        self.setup_X_scaler()
-        self._dataloader_kwargs = {
-            "batch_size": self.hparams.batch_size,
-            "num_workers": self.hparams.num_workers,
-            "pin_memory": self.hparams.pin_memory,
-        }
+        self._setup_X_scaler()
+        self._init_dataloader_kwargs()

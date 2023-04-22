@@ -26,18 +26,43 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from typing import List
 
 import hydra
 from omegaconf import DictConfig
-from pytorch_lightning import Callback
-from pytorch_lightning.loggers import Logger
+from rich.console import Console
 
 
-def instantiate_callbacks(callbacks_cfg: DictConfig) -> List[Callback]:
+console = Console()
+
+
+def instantiate_datamodule(config):
+    datamodule = hydra.utils.instantiate(config.data)
+    console.log(f"Datamodule instantiated {datamodule.__class__}")
+    return datamodule
+
+
+def instantiate_model(config):
+    model = hydra.utils.instantiate(config.model)
+    console.log(f"Model instantiated {model.__class__}")
+    return model
+
+
+def instantiate_trainer(config, callbacks, loggers):
+    trainer = hydra.utils.instantiate(
+        config.trainer,
+        callbacks=callbacks,
+        logger=loggers
+    )
+    console.log(f"Trainer instantiated {trainer.__class__}")
+    return trainer
+
+
+def instantiate_callbacks(config):
     """Instantiates callbacks from config."""
 
-    callbacks: List[Callback] = []
+    callbacks_cfg = config.get("callbacks")
+
+    callbacks = []
 
     if not callbacks_cfg:
         return callbacks
@@ -49,22 +74,32 @@ def instantiate_callbacks(callbacks_cfg: DictConfig) -> List[Callback]:
         if isinstance(cb_conf, DictConfig) and "_target_" in cb_conf:
             callbacks.append(hydra.utils.instantiate(cb_conf))
 
+    for callback in callbacks:
+        console.log(f"Callbacks instantiated {callback.__class__}")
+    del callback  # Remove from locals
+
     return callbacks
 
 
-def instantiate_loggers(logger_cfg: DictConfig) -> List[Logger]:
+def instantiate_loggers(config):
     """Instantiates loggers from config."""
 
-    logger: List[Logger] = []
+    logger_cfg = config.get("logger")
+
+    _logger = []
 
     if not logger_cfg:
-        return logger
+        return _logger
 
     if not isinstance(logger_cfg, DictConfig):
         raise TypeError("Logger config must be a DictConfig!")
 
     for _, lg_conf in logger_cfg.items():
         if isinstance(lg_conf, DictConfig) and "_target_" in lg_conf:
-            logger.append(hydra.utils.instantiate(lg_conf))
+            _logger.append(hydra.utils.instantiate(lg_conf))
 
-    return logger
+    for ll in _logger:
+        console.log(f"Logger instantiated {ll.__class__}")
+    del ll
+
+    return _logger
