@@ -31,8 +31,13 @@ jobs:
         conda --version
         which python
         python -V
+        echo "CWD:"
         pwd
         ls
+        echo "Crescendo directory:"
+        ls crescendo
+        echo "Parent directory:"
+        ls ..
 
     - name: Install dependencies
       run: |
