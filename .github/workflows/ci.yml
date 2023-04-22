@@ -16,86 +16,26 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python-version: [3.7.7]
+        python-version: [3.9, "3.10", 3.11]
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
-    - name: Setup Conda
-      uses: s-weigand/setup-conda@v1
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
       with:
-          update-conda: true
-          python-version: ${{ matrix.python-version }}
-          conda-channels: anaconda, conda-forge
-          
+        python-version: ${{ matrix.python-version }}
+
     - name: Log info
       run: |
         conda --version
         which python
         python -V
 
-    - name: Install dependencies on ${{ matrix.os }}
+    - name: Install testing dependencies
       run: |
-        conda config --set always_yes yes
-        conda install -q pytorch torchvision -c pytorch
-        # or CUDA binaries
-        # conda install pytorch torchvision cudatoolkit=10.2 -c pytorch
+        bash scripts/install.sh
+        bash scripts/install.sh test
 
-        conda install -q -c dglteam dgl
-        # or CUDA binaries
-        # see here: https://docs.dgl.ai/en/0.4.x/install/index.html#install-from-conda
-
-        # Install from source - unsure if this will work on the CI pipeline
-        git clone https://github.com/awslabs/dgl-lifesci.git
-        cd dgl-lifesci/python
-        python setup.py -q install
-        cd ../..
-
-        # Need to remove that directory so as to not accidentally run those
-        # unit tests with pytest  too...
-        rm -r dgl-lifesci
-
-        # conda install -q -c conda-forge jupyterlab
-        # conda install -q -c anaconda networkx
-        # conda install -q -c conda-forge matplotlib
-        conda install -q -c anaconda pandas
-        conda install -q -c anaconda pytest
-        conda install -q -c conda-forge glob2
-        conda install -q -c rdkit rdkit
-        conda install -q -c conda-forge pymatgen
-        conda install -q -c conda-forge pytest-cov
-        conda install -q -c anaconda flake8
-
-    - name: Lint with flake8
-      run: |
-        # stop the build if there are Python syntax errors or undefined names
-        # flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        # flake8 . --count --exit-zero --max-complexity=10 --max-line-length=80 --statistics
-        flake8 crescendo
-    
-    - name: Unit tests
-      if: ${{ always() }}
-      # Coverage + pytest will automatically find the tests in the tests directory
-      run: coverage run --source=crescendo -m pytest
-
-    - name: Code coverage
-      if: ${{ always() }}
-      uses: codecov/codecov-action@v1.0.11
-      timeout-minutes: 10
-      with:
-        # Repository upload token - get it from codecov.io. Required only for private repositories
-        token: f4c6c7b7-1cf1-4928-a3b6-672eb9e3f6e8
-        # Specify whether or not CI build should fail if Codecov runs into an error during upload
-        fail_ci_if_error: false
-        # comment: true
-        # layout: "reach, diff, flags, files"
-        # behavior: default
-        # require_changes: false  # if true: only post the comment if coverage changes
-        # require_base: no        # [yes :: must have a base report to post]
-        # require_head: yes       # [yes :: must have a head report to post]
-        # branches: "master"
-
-    #- name: Upload coverage
-    #  shell: pwsh
-    #  run: coverage report -m
+    - name: Smoke tests
+      run: bash scripts/smoke.sh 

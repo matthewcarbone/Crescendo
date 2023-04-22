@@ -26,11 +26,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+from time import perf_counter
 
+from rich.console import Console
 import torch
 from torch import nn
 from lightning import LightningModule
 from torchmetrics import MeanMetric
+
+console = Console()
 
 
 class FeedforwardLayer(nn.Module):
@@ -61,7 +65,9 @@ class FeedForwardNeuralNetwork(nn.Module):
     def __init__(
         self,
         *,
+        input_dims,
         architecture,
+        output_dims,
         dropout=0.0,
         activation=nn.ReLU(),
         last_activation=None,
@@ -69,7 +75,8 @@ class FeedForwardNeuralNetwork(nn.Module):
         last_batch_norm=False,
     ):
         super().__init__()
-        assert len(architecture) > 1
+        assert len(architecture) >= 1
+        architecture = [input_dims, *architecture, output_dims]
 
         layers = []
         for ii, (n, n2) in enumerate(zip(architecture[:-1], architecture[1:])):
@@ -100,29 +107,30 @@ class MultilayerPerceptron(LightningModule):
     def __init__(
         self,
         *,
-        neural_network,
+        net,
         optimizer,
         scheduler=None,
         criterion=nn.MSELoss(),
-        pbar=False,
     ):
         super().__init__()
-        self.save_hyperparameters(
-            logger=False,
-            ignore=["neural_network", "criterion"]
-        )
+        self.save_hyperparameters(logger=False, ignore=["net", "criterion"])
 
-        self.neural_network = neural_network
+        self.net = net
         self.criterion = criterion
         self.train_loss = MeanMetric()
         self.val_loss = MeanMetric()
         self.test_loss = MeanMetric()
+        self._t_epoch_started = None
 
     def forward(self, x):
-        return self.neural_network(x)
+        return self.net(x)
 
     def on_train_start(self):
+        self.train_loss.reset()
         self.val_loss.reset()
+
+    def on_train_epoch_start(self):
+        self._t_epoch_started = perf_counter()
 
     def model_step(self, batch):
         """Steps the model for one minibatch.
@@ -160,12 +168,11 @@ class MultilayerPerceptron(LightningModule):
             self.train_loss,
             on_step=False,
             on_epoch=True,
-            prog_bar=self.hparams.pbar
+            prog_bar=False
         )
         return loss
 
     def on_train_epoch_end(self):
-        # May want to log time here
         pass
 
     def validation_step(self, batch, batch_idx):
@@ -176,11 +183,20 @@ class MultilayerPerceptron(LightningModule):
             self.val_loss,
             on_step=False,
             on_epoch=True,
-            prog_bar=self.hparams.pbar
+            prog_bar=False
         )
 
     def on_validation_epoch_end(self):
-        pass
+        if self._t_epoch_started is None:
+            return
+        dt = perf_counter() - self._t_epoch_started
+        avg_loss = self.train_loss.compute()
+        avg_val_loss = self.val_loss.compute()
+        lr = self.optimizers().param_groups[0]['lr']
+        console.log(
+            f"{self.current_epoch} \t {dt:.02f} s \t T={avg_loss:.02e} "
+            f"\t V={avg_val_loss:.02e} \t lr={lr:.02e}"
+        )
 
     def test_step(self, batch, batch_idx):
         loss, ypred, y = self.model_step(batch)
@@ -190,7 +206,7 @@ class MultilayerPerceptron(LightningModule):
             self.test_loss,
             on_step=False,
             on_epoch=True,
-            prog_bar=self.hparams.pbar
+            prog_bar=False
         )
 
     def on_test_epoch_end(self):

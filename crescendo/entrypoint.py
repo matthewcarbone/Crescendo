@@ -1,17 +1,14 @@
-from contextlib import redirect_stderr
 import hydra
-from io import StringIO
 from pyrootutils import setup_root
-import os
 
-import lightning as L
-import torch
+
+from rich.console import Console
+
 
 from crescendo import utils
 
-
 setup_root(__file__, indicator=".project-root", pythonpath=True)
-log = utils.get_pylogger(__name__)
+console = Console()
 
 
 @hydra.main(
@@ -19,51 +16,20 @@ log = utils.get_pylogger(__name__)
     config_path="../configs",
     config_name="train.yaml"
 )
-def main(config):
-    # print("Working directory : {}".format(os.getcwd()))
-    
-    if config.get("seed"):
-        L.seed_everything(config.seed, workers=True)
-        log.warning(f"Config seed set: {config.seed}")
+@utils.log_warnings("Warnings were caught during training")
+def train(config):
 
-    datamodule = hydra.utils.instantiate(config.data)
-    log.info(f"Datamodule instantiated {datamodule.__class__}")
-    
-    model = hydra.utils.instantiate(config.model)
-    log.info(f"Model instantiated {model.__class__}")
+    utils.seed_everything(config)
+    datamodule = utils.instantiate_datamodule(config)
+    utils.update_architecture_in_out_(config, datamodule)
+    model = utils.instantiate_model(config)
+    callbacks = utils.instantiate_callbacks(config)
+    loggers = utils.instantiate_loggers(config)
+    trainer = utils.instantiate_trainer(config, callbacks, loggers)
 
-    callbacks = utils.instantiate_callbacks(config.get("callbacks"))
-    for callback in callbacks:
-        log.info(f"Callbacks instantiated {callback.__class__}")
+    console.log(log_locals=True)
 
-    logger = utils.instantiate_loggers(config.get("logger"))
-    for _logger in logger:
-        log.info(f"Logger instantiated {_logger.__class__}")
-
-    f = StringIO()
-    with redirect_stderr(f):
-        trainer = hydra.utils.instantiate(
-            config.trainer,
-            callbacks=callbacks,
-            logger=logger
-        )
-    s = f.getvalue()
-    log.info(f"Trainer instantiated {trainer.__class__}")
-    if len(s) > 2:
-        log.warning(s)
-
-    # all_objects = {
-    #     "cfg": config,
-    #     "datamodule": datamodule,
-    #     "model": model,
-    #     "callbacks": callbacks,
-    #     "logger": logger,
-    #     "trainer": trainer,
-    # }
-
-    # return
-
-    # model = torch.compile(model)
+    model = utils.compile_model(config, model)
 
     trainer.fit(
         model=model,
@@ -73,4 +39,5 @@ def main(config):
 
 
 def entrypoint():
-    main()
+    train()
+    console.log("PROGRAM END", style="bold red")

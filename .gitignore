@@ -3,8 +3,7 @@
 .coverage
 .old/
 job_data/
-configs/ml_config.yaml
-configs/slurm_config.yaml
+old_configs/
 
 .DS_Store
 

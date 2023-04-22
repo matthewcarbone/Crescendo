@@ -1,8 +1,10 @@
 _target_: crescendo.models.mlp.MultilayerPerceptron
 
-neural_network:
+net:
   _target_: crescendo.models.mlp.FeedForwardNeuralNetwork
-  architecture: [8, 7, 5, 3, 1]
+  input_dims: auto
+  architecture: [7, 5, 3]
+  output_dims: auto
   dropout: 0.0
   activation:
     _target_: torch.nn.ReLU
@@ -20,10 +22,8 @@ scheduler:
   _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
   _partial_: true
   mode: min
-  factor: 0.05
+  factor: 0.95
   patience: 10
 
 criterion:
   _target_: torch.nn.MSELoss
-
-pbar: False

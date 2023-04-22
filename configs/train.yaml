@@ -4,8 +4,8 @@
 # order of defaults determines the order in which configs override each other
 defaults:
   - _self_
-  - data: california_housing.yaml
-  - model: mlp.yaml
+  - data: null
+  - model: null
   - callbacks: default.yaml
   - logger: csv.yaml # set logger here or use command line (e.g. `python train.py logger=tensorboard`)
   - trainer: default.yaml
@@ -20,10 +20,6 @@ defaults:
   # config for hyperparameter optimization
   - hparams_search: null
 
-  # optional local config for machine/user specific settings
-  # it's optional since it doesn't need to exist and is excluded from version control
-  - optional local: default.yaml
-
   # debugging config (enable through command line, e.g. `python train.py debug=default)
   - debug: null
 
@@ -34,13 +30,6 @@ task_name: "train"
 # you can overwrite this in experiment configs
 # overwrite from command line with `python train.py tags="[first_tag, second_tag]"`
 tags: ["dev"]
-
-# set False to skip model training
-train: True
-
-# evaluate on test set, using best model weights achieved during training
-# lightning chooses best weights based on the metric specified in checkpoint callback
-test: True
 
 # compile model for faster training with pytorch 2.0
 compile: False
