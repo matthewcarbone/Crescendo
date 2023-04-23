@@ -187,16 +187,22 @@ class MultilayerPerceptron(LightningModule):
         )
 
     def on_validation_epoch_end(self):
-        if self._t_epoch_started is None:
+
+        # Sometimes this is called on the trainer.validate step, and in those
+        # cases the train_loss has not been updated.
+        if self._t_epoch_started is None or self.train_loss._update_count == 0:
             return
+
         dt = perf_counter() - self._t_epoch_started
         avg_loss = self.train_loss.compute()
         avg_val_loss = self.val_loss.compute()
         lr = self.optimizers().param_groups[0]['lr']
-        console.log(
-            f"{self.current_epoch} \t {dt:.02f} s \t T={avg_loss:.02e} "
-            f"\t V={avg_val_loss:.02e} \t lr={lr:.02e}"
-        )
+
+        if not torch.isnan(avg_loss):
+            console.log(
+                f"{self.current_epoch} \t {dt:.02f} s \t T={avg_loss:.02e} "
+                f"\t V={avg_val_loss:.02e} \t lr={lr:.02e}"
+            )
 
     def test_step(self, batch, batch_idx):
         loss, ypred, y = self.model_step(batch)

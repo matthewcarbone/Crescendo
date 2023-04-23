@@ -18,7 +18,22 @@ console = Console()
 )
 @utils.log_warnings("Warnings were caught during training")
 def train(config):
+    """Executes training powered by Hydra, given the configuration file. Note
+    that Hydra handles setting up the config.
+    
+    Parameters
+    ----------
+    config : omegaconf.DictConfig
+    
+    Returns
+    -------
+    dict
+        Validation metrics on the best checkpoint.
+    """
 
+    # Hydra magic, basically. Instantiate all relevant Lightning objects via
+    # the hydra instantiator. Everything's under the hood in Crescendo's
+    # utils module.
     utils.seed_everything(config)
     datamodule = utils.instantiate_datamodule(config)
     utils.update_architecture_in_out_(config, datamodule)
@@ -29,13 +44,27 @@ def train(config):
 
     console.log(log_locals=True)
 
+    # This a PyTorch 2.0 special. Compiles the model if possible for faster
+    # runtime (if specified to try in the config). Will fail gracefully and
+    # fall back on eager execution otherwise.
     model = utils.compile_model(config, model)
 
+    # Fit the model, of course!
     trainer.fit(
         model=model,
         datamodule=datamodule,
         ckpt_path=config.get("ckpt_path")
     )
+
+    # Evaluate on the validation set. This will be important for hyperparameter
+    # tuning later. Requires that the .validate method is defined on the
+    # model.
+    best_ckpt = trainer.checkpoint_callback.best_model_path
+    trainer.validate(model=model, datamodule=datamodule, ckpt_path=best_ckpt)
+    val_metric = trainer.callback_metrics
+    console.log(f"Validation metric: {val_metric}")
+
+    return val_metric
 
 
 def entrypoint():
