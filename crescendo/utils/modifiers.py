@@ -1,12 +1,18 @@
 """Controls making modifications to hydra configurations. Modifiers come with
 a bold yellow output style."""
 
+from os import cpu_count
+
 import lightning as L
 from rich.console import Console
 
 
 CONSOLE = Console()
 OUTPUT_STYLE = "bold yellow"
+
+
+def _log(msg):
+    CONSOLE.log(msg, style=OUTPUT_STYLE)
 
 
 def seed_everything(config):
@@ -19,7 +25,7 @@ def seed_everything(config):
 
     if config.get("seed"):
         L.seed_everything(config.seed, workers=True)
-        CONSOLE.log(f"Config seed set: {config.seed}", style=OUTPUT_STYLE)
+        _log(f"Config seed set: {config.seed}")
 
 
 def update_architecture_in_out_(config, datamodule):
@@ -41,19 +47,17 @@ def update_architecture_in_out_(config, datamodule):
     n_features = datamodule.n_features
     if config.model["net"]["input_dims"] == "auto":
         config.model["net"]["input_dims"] = n_features
-        CONSOLE.log(
+        _log(
             "Input MLP dimensions automatically set from dataloader "
-            f"to n_features={n_features}",
-            style=OUTPUT_STYLE
+            f"to n_features={n_features}"
         )
 
     n_targets = datamodule.n_targets
     if config.model["net"]["output_dims"] == "auto":
         config.model["net"]["output_dims"] = n_targets
-        CONSOLE.log(
+        _log(
             "Output MLP dimensions automatically set from dataloader "
-            f"to n_targets={n_targets}",
-            style=OUTPUT_STYLE
+            f"to n_targets={n_targets}"
         )
 
 
@@ -62,12 +66,12 @@ def compile_model(config, model):
     acceleration. Will fail gracefully."""
 
     if not config.compile:
-        CONSOLE.log("Model compile==False")
+        _log("Model compile==False")
         return model
 
     import torch
     from torch import _dynamo
     _dynamo.config.suppress_errors = True
     model = torch.compile(model)
-    CONSOLE.log("Model compilation attempted... see logs above")
+    _log("Model compilation attempted... see logs above")
     return model
