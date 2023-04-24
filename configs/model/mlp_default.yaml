@@ -1,0 +1,26 @@
+net:
+  _target_: crescendo.models.mlp.FeedForwardNeuralNetwork
+  input_dims: auto
+  output_dims: auto
+  dropout: 0.0
+  activation:
+    _target_: torch.nn.ReLU
+  last_activation: null
+  batch_norm: True
+  last_batch_norm: False
+
+optimizer:
+  _target_: torch.optim.Adam
+  _partial_: true
+  lr: 0.001
+  weight_decay: 0.0
+
+scheduler:
+  _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+  _partial_: true
+  mode: min
+  factor: 0.95
+  patience: 10
+
+criterion:
+  _target_: torch.nn.MSELoss

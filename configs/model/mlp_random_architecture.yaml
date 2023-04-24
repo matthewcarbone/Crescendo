@@ -1,7 +1,9 @@
 _target_: crescendo.models.mlp.MultilayerPerceptron
 
 net:
-  architecture: [7, 5, 3]
+  architecture:
+    neurons_range: [3, 10]
+    ramp_std: 1.0
 
 defaults:
   - mlp_default.yaml
