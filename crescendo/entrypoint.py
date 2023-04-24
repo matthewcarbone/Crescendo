@@ -31,6 +31,10 @@ def train(config):
         Validation metrics on the best checkpoint.
     """
 
+    hydra_cfg = hydra.core.hydra_config.HydraConfig.get()
+    out = hydra_cfg['runtime']['output_dir']
+    console.log(f"Output dir: {out}")
+
     # Hydra magic, basically. Instantiate all relevant Lightning objects via
     # the hydra instantiator. Everything's under the hood in Crescendo's
     # utils module.
@@ -64,7 +68,7 @@ def train(config):
     val_metric = trainer.callback_metrics
     console.log(f"Validation metric: {val_metric}")
 
-    return val_metric
+    return val_metric["val/loss"].item()
 
 
 def entrypoint():

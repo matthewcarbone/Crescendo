@@ -3,4 +3,3 @@ batch_size: 64
 num_workers: 0
 pin_memory: False
 normalize_inputs: True
-# Useful for later ${paths.data_dir}

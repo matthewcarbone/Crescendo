@@ -29,7 +29,7 @@ task_name: "train"
 # tags to help you identify your experiments
 # you can overwrite this in experiment configs
 # overwrite from command line with `python train.py tags="[first_tag, second_tag]"`
-tags: ["dev"]
+tags: []
 
 # compile model for faster training with pytorch 2.0
 compile: False
