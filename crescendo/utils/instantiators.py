@@ -31,6 +31,11 @@ import hydra
 from omegaconf import DictConfig
 from rich.console import Console
 
+from crescendo.utils.modifiers import (
+    seed_everything,
+    update_architecture_in_out_,
+)
+
 
 console = Console()
 
@@ -41,17 +46,17 @@ def instantiate_datamodule(config):
     return datamodule
 
 
-def instantiate_model(config):
+def instantiate_model(config, checkpoint=None):
     model = hydra.utils.instantiate(config.model)
     console.log(f"Model instantiated {model.__class__}")
+    if checkpoint is not None:
+        model = model.load_from_checkpoint(checkpoint)
     return model
 
 
 def instantiate_trainer(config, callbacks, loggers):
     trainer = hydra.utils.instantiate(
-        config.trainer,
-        callbacks=callbacks,
-        logger=loggers
+        config.trainer, callbacks=callbacks, logger=loggers
     )
     console.log(f"Trainer instantiated {trainer.__class__}")
     return trainer
@@ -103,3 +108,19 @@ def instantiate_loggers(config):
     del ll
 
     return _logger
+
+
+def instantiate_all_(config):
+    """Core utility which instantiates the datamodule, model, callbacks,
+    loggers and trainer from the hydra config. This makes modifications to the
+    config where appropriate."""
+
+    seed_everything(config)
+    datamodule = instantiate_datamodule(config)
+    update_architecture_in_out_(config, datamodule)
+    model = instantiate_model(config)
+    callbacks = instantiate_callbacks(config)
+    loggers = instantiate_loggers(config)
+    trainer = instantiate_trainer(config, callbacks, loggers)
+
+    return datamodule, model, callbacks, loggers, trainer

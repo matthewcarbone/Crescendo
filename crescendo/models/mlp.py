@@ -103,19 +103,36 @@ class FeedForwardNeuralNetwork(nn.Module):
 
 
 class MultilayerPerceptron(LightningModule):
-
     def __init__(
         self,
         *,
-        net,
+        input_dims,
+        architecture,
+        output_dims,
         optimizer,
+        dropout=0.0,
+        activation=nn.ReLU(),
+        last_activation=None,
+        batch_norm=False,
+        last_batch_norm=False,
         scheduler=None,
         criterion=nn.MSELoss(),
     ):
         super().__init__()
-        self.save_hyperparameters(logger=False, ignore=["net", "criterion"])
+        self.save_hyperparameters(
+            logger=False, ignore=["net", "criterion", "activation"]
+        )
 
-        self.net = net
+        self.net = FeedForwardNeuralNetwork(
+            input_dims=input_dims,
+            architecture=architecture,
+            output_dims=output_dims,
+            dropout=dropout,
+            activation=activation,
+            last_activation=last_activation,
+            batch_norm=batch_norm,
+            last_batch_norm=last_batch_norm,
+        )
         self.criterion = criterion
         self.train_loss = MeanMetric()
         self.val_loss = MeanMetric()
@@ -134,12 +151,12 @@ class MultilayerPerceptron(LightningModule):
 
     def model_step(self, batch):
         """Steps the model for one minibatch.
-        
+
         Parameters
         ----------
         batch : tuple
             Contains the (x, y) feature-target data.
-        
+
         Returns
         -------
         tuple
@@ -152,7 +169,7 @@ class MultilayerPerceptron(LightningModule):
 
     def training_step(self, batch, batch_idx):
         """Executes a single training step, logs information, etc.
-        
+
         Parameters
         ----------
         batch : TYPE
@@ -168,7 +185,7 @@ class MultilayerPerceptron(LightningModule):
             self.train_loss,
             on_step=False,
             on_epoch=True,
-            prog_bar=False
+            prog_bar=False,
         )
         return loss
 
@@ -183,7 +200,7 @@ class MultilayerPerceptron(LightningModule):
             self.val_loss,
             on_step=False,
             on_epoch=True,
-            prog_bar=False
+            prog_bar=False,
         )
 
     def on_validation_epoch_end(self):
@@ -196,7 +213,7 @@ class MultilayerPerceptron(LightningModule):
         dt = perf_counter() - self._t_epoch_started
         avg_loss = self.train_loss.compute()
         avg_val_loss = self.val_loss.compute()
-        lr = self.optimizers().param_groups[0]['lr']
+        lr = self.optimizers().param_groups[0]["lr"]
 
         if not torch.isnan(avg_loss):
             console.log(
@@ -212,7 +229,7 @@ class MultilayerPerceptron(LightningModule):
             self.test_loss,
             on_step=False,
             on_epoch=True,
-            prog_bar=False
+            prog_bar=False,
         )
 
     def on_test_epoch_end(self):
@@ -330,7 +347,7 @@ class MultilayerPerceptron(LightningModule):
 #         max_epochs=10000,
 #     ):
 #         """Initializes and returns the trainer object.
-        
+
 #         Parameters
 #         ----------
 #         early_stopping_kwargs : dict, optional
@@ -340,7 +357,7 @@ class MultilayerPerceptron(LightningModule):
 #         max_epochs : int, optional
 #         monitor : str, optional
 #         early_stopper_patience : int, optional
-        
+
 #         Returns
 #         -------
 #         pl.Trainer
@@ -493,7 +510,7 @@ class MultilayerPerceptron(LightningModule):
 #         trainer.fit(
 #             model,
 #             datamodule=data,
-#             print_every_epoch=print_every_epoch   
+#             print_every_epoch=print_every_epoch
 #         )
 
 #         self._best_checkpoint = trainer.checkpoint_callback.best_model_path
@@ -718,7 +735,7 @@ class MultilayerPerceptron(LightningModule):
 #         min_spectra_value=0.05
 #     ):
 #         """Summary
-        
+
 #         Parameters
 #         ----------
 #         x : TYPE
@@ -727,7 +744,7 @@ class MultilayerPerceptron(LightningModule):
 #             Description
 #         threshold_sd : float, optional
 #             Description
-        
+
 #         Returns
 #         -------
 #         numpy.ma.core.MaskedArray

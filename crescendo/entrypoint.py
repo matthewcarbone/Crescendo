@@ -1,9 +1,8 @@
+from pathlib import Path
+
 import hydra
-from pyrootutils import setup_root
-
-
 from rich.console import Console
-
+from pyrootutils import setup_root
 
 from crescendo import utils
 
@@ -12,39 +11,38 @@ console = Console()
 
 
 @hydra.main(
-    version_base="1.3",
-    config_path="../configs",
-    config_name="train.yaml"
+    version_base="1.3", config_path="../configs", config_name="train.yaml"
 )
 @utils.log_warnings("Warnings were caught during training")
 def train(config):
     """Executes training powered by Hydra, given the configuration file. Note
     that Hydra handles setting up the config.
-    
+
     Parameters
     ----------
     config : omegaconf.DictConfig
-    
+
     Returns
     -------
-    dict
+    float
         Validation metrics on the best checkpoint.
     """
 
     hydra_cfg = hydra.core.hydra_config.HydraConfig.get()
-    out = hydra_cfg['runtime']['output_dir']
+    out = hydra_cfg["runtime"]["output_dir"]
     console.log(f"Output dir: {out}")
 
     # Hydra magic, basically. Instantiate all relevant Lightning objects via
     # the hydra instantiator. Everything's under the hood in Crescendo's
     # utils module.
-    utils.seed_everything(config)
-    datamodule = utils.instantiate_datamodule(config)
-    utils.update_architecture_in_out_(config, datamodule)
-    model = utils.instantiate_model(config)
-    callbacks = utils.instantiate_callbacks(config)
-    loggers = utils.instantiate_loggers(config)
-    trainer = utils.instantiate_trainer(config, callbacks, loggers)
+    datamodule, model, callbacks, loggers, trainer = utils.instantiate_all_(
+        config
+    )
+
+    # Save the processed configuration file as yaml
+    yaml_path = Path(out) / "final_config.yaml"
+    utils.omegaconf_to_yaml(config, yaml_path)
+    console.log(f"Final config saved to {yaml_path}")
 
     console.log(log_locals=True)
 
@@ -55,9 +53,7 @@ def train(config):
 
     # Fit the model, of course!
     trainer.fit(
-        model=model,
-        datamodule=datamodule,
-        ckpt_path=config.get("ckpt_path")
+        model=model, datamodule=datamodule, ckpt_path=config.get("ckpt_path")
     )
 
     # Evaluate on the validation set. This will be important for hyperparameter
