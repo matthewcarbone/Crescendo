@@ -18,7 +18,7 @@ def _log(msg):
 
 def seed_everything(config):
     """Runs the Lightning ``seed_everything`` method.
-    
+
     Parameters
     ----------
     config : omegaconf.dictconfig.DictConfig
@@ -34,31 +34,36 @@ def _update_for_random_architectures_(config):
     can either be a list (the actual interior layers) or a dictionary
     containing parameters for random initialization. The function returns the
     new interior layers of the network.
-    
+
     Parameters
     ----------
     config : omegaconf.dictconfig.DictConfig
         The configuration file which will be modified in-place.
     """
 
-    if isinstance(config.model["net"]["architecture"], ListConfig):
+    if isinstance(config.model["architecture"], ListConfig):
         return
 
-    if not isinstance(config.model["net"]["architecture"], DictConfig):
-        t = type(config.model["net"]["architecture"])
+    if not isinstance(config.model["architecture"], DictConfig):
+        t = type(config.model["architecture"])
         raise ValueError(
-            "Config's MLP architecture must be list or dict. "
-            f"Found type {t}"
+            "Config's MLP architecture must be list or dict. " f"Found type {t}"
+        )
+
+    if config.get("seed") is None:
+        raise ValueError(
+            "For reproducibility, seed must be set for the random "
+            "architecture initialization"
         )
 
     # Otherwise, we do our magic. Note that the random state should've been
     # provided earlier (via ``seed_everything``)
-    neurons_range = config.model["net"]["architecture"]["neurons_range"]
-    ramp_std = config.model["net"]["architecture"]["ramp_std"]
+    neurons_range = config.model["architecture"]["neurons_range"]
+    ramp_std = config.model["architecture"]["ramp_std"]
 
     # These will have been set beforehand even if previously unset
-    n_in = config.model["net"]["input_dims"]
-    n_out = config.model["net"]["output_dims"]
+    n_in = config.model["input_dims"]
+    n_out = config.model["output_dims"]
 
     # Make a random choice of the number of interior neurons
     n_interior = np.random.randint(
@@ -82,7 +87,7 @@ def _update_for_random_architectures_(config):
     y_interp[y_interp <= 0] = 1
     _log(f"Architecture after noise: {y_interp}")
 
-    config.model["net"]["architecture"] = y_interp.tolist()
+    config.model["architecture"] = y_interp.tolist()
 
 
 def update_architecture_in_out_(config, datamodule):
@@ -92,7 +97,7 @@ def update_architecture_in_out_(config, datamodule):
     populate those values based on the dataloader. In addition,
     ``architecture`` can be a list (corresponding to the dimensions of the
     hidden layers themselves), or a dictionary. If this is a list, it is just
-    the architecture itself. If it is a dictionary, the first required key is 
+    the architecture itself. If it is a dictionary, the first required key is
     ``neurons_range``, which is a list of two integers (the low and high,
     inclusive) values for the number of interior layers, chosen in a uniform
     random way. The second key is ``ramp_std``. This is a standard deviation of
@@ -105,7 +110,7 @@ def update_architecture_in_out_(config, datamodule):
     ----
     This method will only execute on models matching the path
     ``crescendo.models.mlp``.
-    
+
     Parameters
     ----------
     config : omegaconf.dictconfig.DictConfig
@@ -116,18 +121,18 @@ def update_architecture_in_out_(config, datamodule):
 
     if "crescendo.models.mlp" not in config.model["_target_"]:
         return
-    
+
     n_features = datamodule.n_features
-    if config.model["net"]["input_dims"] == "auto":
-        config.model["net"]["input_dims"] = n_features
+    if config.model["input_dims"] == "auto":
+        config.model["input_dims"] = n_features
         _log(
             "Input MLP dimensions automatically set from dataloader "
             f"to n_features={n_features}"
         )
 
     n_targets = datamodule.n_targets
-    if config.model["net"]["output_dims"] == "auto":
-        config.model["net"]["output_dims"] = n_targets
+    if config.model["output_dims"] == "auto":
+        config.model["output_dims"] = n_targets
         _log(
             "Output MLP dimensions automatically set from dataloader "
             f"to n_targets={n_targets}"
@@ -146,6 +151,7 @@ def compile_model(config, model):
 
     import torch
     from torch import _dynamo
+
     _dynamo.config.suppress_errors = True
     model = torch.compile(model)
     _log("Model compilation attempted... see logs above")

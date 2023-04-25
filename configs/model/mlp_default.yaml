@@ -1,13 +1,11 @@
-net:
-  _target_: crescendo.models.mlp.FeedForwardNeuralNetwork
-  input_dims: auto
-  output_dims: auto
-  dropout: 0.0
-  activation:
-    _target_: torch.nn.ReLU
-  last_activation: null
-  batch_norm: True
-  last_batch_norm: False
+input_dims: auto
+output_dims: auto
+dropout: 0.0
+activation:
+  _target_: torch.nn.ReLU
+last_activation: null
+batch_norm: True
+last_batch_norm: False
 
 optimizer:
   _target_: torch.optim.Adam
