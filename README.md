@@ -1,10 +1,16 @@
-# Crescendo
+<div align="center">
 
-⚠️ **Crescendo is a work in progress and highly subject to change**
+# Crescendo
 
 Crescendo provides a unified command line + API for training and dealing with PyTorch Lightning models.
 
-Note, a large amount of the boilerplate of this software is based on the wonderful template by ashleve! See here: [github.com/ashleve/lightning-hydra-template](https://github.com/ashleve/lightning-hydra-template).
+</div>
+
+------------
+
+⚠️ **Crescendo is a work in progress and highly subject to change**
+
+🙏 Some of our boilerplate is based on the wonderful template by [ashleve](https://github.com/ashleve)! See here: [github.com/ashleve/lightning-hydra-template](https://github.com/ashleve/lightning-hydra-template).
 
 # Install
 
