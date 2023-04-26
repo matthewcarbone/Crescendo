@@ -8,7 +8,7 @@
 [![python](https://img.shields.io/badge/-Python_>=3.9-blue?logo=python&logoColor=white)](https://github.com/pre-commit/pre-commit)
 [![black](https://img.shields.io/badge/Code%20Style-Black-black.svg?labelColor=gray)](https://black.readthedocs.io/en/stable/)
 
-Crescendo provides a unified command line + API for training and dealing with PyTorch Lightning models.
+Crescendo provides a unified command line + API for training and evaluating Lightning models
 
 </div>
 
@@ -17,6 +17,14 @@ Crescendo provides a unified command line + API for training and dealing with Py
 ⚠️ **Crescendo is a work in progress and highly subject to change**
 
 🙏 Some of our boilerplate is based on the wonderful template by [ashleve](https://github.com/ashleve)! See here: [github.com/ashleve/lightning-hydra-template](https://github.com/ashleve/lightning-hydra-template).
+
+# Summary
+
+⭐️ Crescendo leverages the power of [Hydra](https://hydra.cc), [Lightning](https://lightning.ai) and the humble command line to make executing the training of neural networks as easy as possible.
+
+⭐️ Hydra supports an incredible suite of tools such as powerful approaches for hyperparameter tuning. These are built in and accessible.
+
+⭐️ Loading your models will be handled with the `crescendo.analysis` API, so you can train your models via the command line on a supercomputer, then load the results in your local Jupyter notebook.
 
 # Install
 
