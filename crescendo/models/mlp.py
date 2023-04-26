@@ -1,5 +1,5 @@
 """Container for various LightningModule models
-Code is modified based off of 
+Code is modified based off of
 https://github.com/ashleve/lightning-hydra-template/blob/
 89194063e1a3603cfd1adafa777567bc98da2368/src/models/mnist_module.py
 
@@ -120,7 +120,8 @@ class MultilayerPerceptron(LightningModule):
     ):
         super().__init__()
         self.save_hyperparameters(
-            logger=False, ignore=["net", "criterion", "activation"]
+            logger=False,
+            ignore=["net", "criterion", "activation", "last_activation"],
         )
 
         self.net = FeedForwardNeuralNetwork(
@@ -204,7 +205,6 @@ class MultilayerPerceptron(LightningModule):
         )
 
     def on_validation_epoch_end(self):
-
         # Sometimes this is called on the trainer.validate step, and in those
         # cases the train_loss has not been updated.
         if self._t_epoch_started is None or self.train_loss._update_count == 0:
@@ -258,7 +258,7 @@ class MultilayerPerceptron(LightningModule):
 #     def export_csv_log(
 #         self, columns=["epoch", "train_loss", "val_loss", "lr"]
 #     ):
-#         """Custom method for exporting the trainer logs to something much more
+#         """Custom method for exporting the trainer logs to something muchmore
 #         readable. Only executes on the 0th global rank for DDP jobs."""
 
 #         if self.global_rank > 0:
