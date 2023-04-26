@@ -33,6 +33,8 @@ At the moment, the recommended way to use this work is to install in editable mo
 ```bash
 git clone git@github.com:matthewcarbone/crescendo.git
 cd crescendo
+conda create -n py3.9-crescendo python=3.9 -y
+conda activate py3.9-crescendo
 pip install --editable .
 ```
 
