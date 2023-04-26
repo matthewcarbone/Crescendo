@@ -1,9 +1,26 @@
 # Crescendo
 
+⚠️ **Crescendo is a work in progress and highly subject to change**
+
 Crescendo provides a unified command line + API for training and dealing with PyTorch Lightning models.
 
 Note, a large amount of the boilerplate of this software is based on the wonderful template by ashleve! See here: [github.com/ashleve/lightning-hydra-template](https://github.com/ashleve/lightning-hydra-template).
 
+# Install
+
+At the moment, the recommended way to use this work is to install in editable mode:
+
+```bash
+git clone git@github.com:matthewcarbone/crescendo.git
+cd crescendo
+pip install --editable .
+```
+
+This installs the `cr` command line executable which can be run anywhere on your computer, but still references the `crescendo/configs` files, which you can customize to your liking. A simple example to test that everything is working properly:
+
+```bash
+cr model=mlp data=california_housing
+```
 
 # Acknowledgement
 
