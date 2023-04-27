@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import hydra
+from omegaconf import OmegaConf
 from rich.console import Console
 from pyrootutils import setup_root
 
@@ -44,7 +45,9 @@ def train(config):
     utils.omegaconf_to_yaml(config, yaml_path)
     console.log(f"Final config saved to {yaml_path}")
 
-    console.log(log_locals=True)
+    if config.log_locals:
+        console.log(log_locals=True)
+    console.log(OmegaConf.to_container(config))
 
     # This a PyTorch 2.0 special. Compiles the model if possible for faster
     # runtime (if specified to try in the config). Will fail gracefully and
