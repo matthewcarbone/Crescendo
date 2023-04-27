@@ -45,5 +45,8 @@ hydra:
 
     # define hyperparameter search space
     params:
-      model.optimizer.lr: interval(0.0001, 0.1)
-      data.batch_size: choice(32, 64, 128, 256)
+      # Require the user to explicitly set
+      # model.optimizer.lr: interval(0.0001, 0.1)
+      # data.batch_size: choice(32, 64, 128, 256)
+      # model.architecture: choice(10, 20)
+      # model.architecture: "SWAG"
