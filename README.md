@@ -5,7 +5,8 @@
 [![pytorch](https://img.shields.io/badge/PyTorch_2.0+-ee4c2c?logo=pytorch&logoColor=white)](https://pytorch.org/get-started/locally/)
 [![lightning](https://img.shields.io/badge/-Lightning_2.0+-792ee5?logo=pytorchlightning&logoColor=white)](https://pytorchlightning.ai/)
 [![hydra](https://img.shields.io/badge/Config-Hydra_1.3-89b8cd)](https://hydra.cc/)
-[![python](https://img.shields.io/badge/-Python_>=3.9-blue?logo=python&logoColor=white)](https://github.com/pre-commit/pre-commit)
+[![python](https://img.shields.io/badge/-Python_>=3.9-blue?logo=python&logoColor=white)](https://github.com/pre-commit/pre-commit) <br>
+[![image](https://github.com/matthewcarbone/crescendo/actions/workflows/smoke.yml/badge.svg)](https://github.com/matthewcarbone/crescendo/actions/workflows/smoke.yml)
 [![black](https://img.shields.io/badge/Code%20Style-Black-black.svg?labelColor=gray)](https://black.readthedocs.io/en/stable/)
 
 Crescendo provides a unified command line + API for training and evaluating Lightning models
