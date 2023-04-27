@@ -3,6 +3,7 @@
 export HYDRA_FULL_ERROR=1
 
 cr model=mlp data=california_housing
+cr model=mlp model.architecture=4 data=california_housing
 cr model=mlp data=california_housing debug=default
 cr model=mlp data=california_housing debug=limit
 cr model=mlp data=california_housing debug=overfit
