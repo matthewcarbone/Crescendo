@@ -12,8 +12,9 @@ from .modifiers import (  # noqa
     compile_model,
 )
 from .wrappers import log_warnings  # noqa
-from .other_utils import (
+from .other_utils import (  # noqa
     remove_files_matching_patterns,
     omegaconf_to_yaml,
     omegaconf_from_yaml,
-)  # noqa
+    run_command,
+)

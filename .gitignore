@@ -1,4 +1,4 @@
-hydra_tests
+results
 *.ipynb
 *.pyc
 .ipynb_checkpoints/

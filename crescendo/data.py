@@ -1,5 +1,5 @@
 """Container for various LightningDataModules
-Code is modified based off of 
+Code is modified based off of
 https://github.com/ashleve/lightning-hydra-template/blob/
 89194063e1a3603cfd1adafa777567bc98da2368/src/data/mnist_datamodule.py
 """
@@ -19,7 +19,6 @@ from crescendo.utils.datasets import download_california_housing_data
 
 
 class XYPropertyMixin:
-
     @cached_property
     def X_train(self):
         if self.hparams.data_dir is not None:
@@ -78,7 +77,6 @@ class XYPropertyMixin:
 
 
 class ScaleXMixin:
-
     @cached_property
     def X_train_scaled(self):
         if self._X_scaler is None:
@@ -99,7 +97,7 @@ class ScaleXMixin:
 
     def _setup_X_scaler(self):
         """
-        
+
         Parameters
         ----------
         stage : Optional[str], optional
@@ -114,7 +112,6 @@ class ScaleXMixin:
 
 
 class DataLoaderMixin:
-
     def _init_dataloader_kwargs(self):
         self._dataloader_kwargs = {
             "batch_size": self.hparams.batch_size,
@@ -148,10 +145,7 @@ class DataLoaderMixin:
 
 
 class ArrayRegressionDataModule(
-    XYPropertyMixin,
-    ScaleXMixin,
-    DataLoaderMixin,
-    LightningDataModule
+    XYPropertyMixin, ScaleXMixin, DataLoaderMixin, LightningDataModule
 ):
     """A standard data module for array data.
 
@@ -161,7 +155,7 @@ class ArrayRegressionDataModule(
     keep in the same order:
 
     - prepare_data: things done on a single compute unit cpu/gpu, such as
-      downloading data, preprocessing, etc. 
+      downloading data, preprocessing, etc.
     - setup: things done on every ddp process
     - train_dataloader
     - val_dataloader
@@ -170,11 +164,6 @@ class ArrayRegressionDataModule(
 
     See the documentation for further reference
     https://lightning.ai/docs/pytorch/latest/data/datamodule.html
-    
-    Attributes
-    ----------
-    transforms : TYPE
-        Description
     """
 
     def __init__(
@@ -192,10 +181,7 @@ class ArrayRegressionDataModule(
 
 
 class CaliforniaHousingDataset(
-    XYPropertyMixin,
-    ScaleXMixin,
-    DataLoaderMixin,
-    LightningDataModule
+    XYPropertyMixin, ScaleXMixin, DataLoaderMixin, LightningDataModule
 ):
     def __init__(
         self,

@@ -1,5 +1,4 @@
 _target_: crescendo.data.CaliforniaHousingDataset
-batch_size: 64
-num_workers: 0
-pin_memory: False
-normalize_inputs: True
+
+defaults:
+  - regression.yaml

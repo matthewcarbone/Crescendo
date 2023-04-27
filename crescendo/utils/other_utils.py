@@ -1,4 +1,6 @@
 from pathlib import Path
+from subprocess import Popen, PIPE
+from time import perf_counter
 
 from omegaconf import OmegaConf
 
@@ -23,3 +25,21 @@ def omegaconf_to_yaml(d, path):
 
 def omegaconf_from_yaml(path):
     return OmegaConf.load(path)
+
+
+def run_command(cmd):
+    """Execute the external command and get its exitcode, stdout and
+    stderr."""
+
+    t0 = perf_counter()
+    proc = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
+    out, err = proc.communicate()
+    exitcode = proc.returncode
+    dt = perf_counter() - t0
+
+    return {
+        "exitcode": exitcode,
+        "output": out.decode("utf-8").strip(),
+        "error": err.decode("utf-8").strip(),
+        "elapsed": dt,
+    }
