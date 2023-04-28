@@ -1,0 +1,35 @@
+name: Examples
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python-version: [3.9]
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: |
+        bash scripts/install.sh
+        bash scripts/install.sh test
+
+    - name: Install crescendo in editable mode
+      run: pip install --editable .
+
+    - name: Smoke tests
+      run: bash scripts/run_examples.sh 
