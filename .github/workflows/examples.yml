@@ -31,5 +31,5 @@ jobs:
     - name: Install crescendo in editable mode
       run: pip install --editable .
 
-    - name: Smoke tests
+    - name: Test examples
       run: bash scripts/run_examples.sh 
