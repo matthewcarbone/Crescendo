@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 from rich.console import Console
-from sklearn.model_selection import KFold
+from sklearn.model_selection import KFold, train_test_split
 
 from crescendo import utils
 
@@ -19,6 +19,10 @@ def ensemble_split(data_dir, n_splits=20, shuffle=True, random_state=42):
     ----------
     data_dir : os.PathLike
         Data directory. Must contain X_train.npy.
+    n_splits : int, optional
+        The number of KFold splits to take.
+    shuffle : bool, optional
+    random_state : int, optional
     """
 
     assert n_splits > 1
@@ -46,3 +50,50 @@ def ensemble_split(data_dir, n_splits=20, shuffle=True, random_state=42):
 
     save_path = root / "splits.json"
     utils.save_json(res, save_path)
+
+
+def construct_example_from_data(data_dir, example_data_dir, keep_prop=0.05):
+    """Creates an example of a real database to put on GitHub for use in
+    smoke tests and for examples for people.
+
+    Parameters
+    ----------
+    data_dir : os.PathLike
+        The source of the data. Must contain ``X_train.npy``, ``X_val.npy``,
+        etc.
+    example_data_dir : os.PathLike
+        The target for the example.
+    keep_prop : float, optional
+        The proportion of the data to actually keep for the example.
+    """
+
+    target = Path(example_data_dir)
+    target.mkdir(exist_ok=True, parents=True)
+    data_dir = Path(data_dir)
+
+    # Training data
+    X_train = np.load(data_dir / "X_train.npy")
+    Y_train = np.load(data_dir / "Y_train.npy")
+    _, X, _, Y = train_test_split(X_train, Y_train, test_size=keep_prop)
+    console.log(f"New example training data of shapes {X.shape} & {Y.shape}")
+    np.save(target / "X_train.npy", X)
+    np.save(target / "Y_train.npy", Y)
+    # except FileNotFoundError?
+
+    # Validation data
+    X_val = np.load(data_dir / "X_val.npy")
+    Y_val = np.load(data_dir / "Y_val.npy")
+    _, X, _, Y = train_test_split(X_val, Y_val, test_size=keep_prop)
+    console.log(f"New example validation data of shapes {X.shape} & {Y.shape}")
+    np.save(target / "X_val.npy", X)
+    np.save(target / "Y_val.npy", Y)
+
+    # Testing data
+    X_test = np.load(data_dir / "X_test.npy")
+    Y_test = np.load(data_dir / "Y_test.npy")
+    _, X, _, Y = train_test_split(X_test, Y_test, test_size=keep_prop)
+    console.log(f"New example testing data of shapes {X.shape} & {Y.shape}")
+    np.save(target / "X_test.npy", X)
+    np.save(target / "Y_test.npy", Y)
+
+    console.log(f"Data saved to target={target}")
