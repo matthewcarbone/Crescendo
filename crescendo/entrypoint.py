@@ -71,5 +71,6 @@ def train(config):
 
 
 def entrypoint():
-    train()
-    console.log("PROGRAM END", style="bold red")
+    with utils.Timer() as dt:
+        train()
+    console.log(f"PROGRAM END ({str(int(dt()))} s)", style="bold red")

@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 import json
 from pathlib import Path
 from subprocess import Popen, PIPE
@@ -28,15 +29,20 @@ def omegaconf_from_yaml(path):
     return OmegaConf.load(path)
 
 
+@contextmanager
+def Timer():
+    start = perf_counter()
+    yield lambda: perf_counter() - start
+
+
 def run_command(cmd):
     """Execute the external command and get its exitcode, stdout and
     stderr."""
 
-    t0 = perf_counter()
-    proc = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
-    out, err = proc.communicate()
-    exitcode = proc.returncode
-    dt = perf_counter() - t0
+    with Timer() as dt:
+        proc = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
+        out, err = proc.communicate()
+        exitcode = proc.returncode
 
     return {
         "exitcode": exitcode,
