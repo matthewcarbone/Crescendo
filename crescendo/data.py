@@ -9,23 +9,46 @@ from functools import cached_property
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-import numpy as np
-import torch
 from lightning import LightningDataModule
+import numpy as np
+from rich.console import Console
 from sklearn.preprocessing import StandardScaler
+import torch
 from torch.utils.data import DataLoader, TensorDataset
 
 from crescendo.utils.datasets import download_california_housing_data
+from crescendo.utils.other_utils import read_json
+
+
+console = Console()
 
 
 class XYPropertyMixin:
     @cached_property
+    def ensemble_splits(self):
+        path = Path(self.hparams.data_dir) / "splits.json"
+        if not path.exists():
+            return None
+        return read_json(path)
+
+    @cached_property
     def X_train(self):
         if self.hparams.data_dir is not None:
-            return np.load(Path(self.hparams.data_dir) / "X_train.npy")
-        if self._X_train is None:
+            dat = np.load(Path(self.hparams.data_dir) / "X_train.npy")
+        elif self._X_train is not None:
+            dat = self._X_train
+        else:
             raise ValueError("_X_train not initialized")
-        return self._X_train
+        if self.hparams.ensemble_split_index is not None:
+            s = f"split-{self.hparams.ensemble_split_index}"
+            split = self.ensemble_splits[s]
+            console.log(
+                f"Training data downsampled from {dat.shape[0]} -> "
+                f"{len(split)}",
+                style="bold yellow",
+            )
+            return dat[split, :]
+        return dat
 
     @cached_property
     def X_val(self):
@@ -46,10 +69,16 @@ class XYPropertyMixin:
     @cached_property
     def Y_train(self):
         if self.hparams.data_dir is not None:
-            return np.load(Path(self.hparams.data_dir) / "Y_train.npy")
-        if self._Y_train is None:
+            dat = np.load(Path(self.hparams.data_dir) / "Y_train.npy")
+        elif self._Y_train is not None:
+            dat = self._Y_train
+        else:
             raise ValueError("_Y_train not initialized")
-        return self._Y_train
+        if self.hparams.ensemble_split_index is not None:
+            s = f"split-{self.hparams.ensemble_split_index}"
+            split = self.ensemble_splits[s]
+            return dat[split, :]
+        return dat
 
     @cached_property
     def Y_val(self):
@@ -173,6 +202,7 @@ class ArrayRegressionDataModule(
         num_workers=0,
         pin_memory=False,
         normalize_inputs=True,
+        ensemble_split_index=None,
     ):
         super().__init__()
         self.save_hyperparameters(logger=False)
