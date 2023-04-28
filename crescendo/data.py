@@ -219,8 +219,10 @@ class CaliforniaHousingDataset(
         num_workers=0,
         pin_memory=False,
         normalize_inputs=True,
+        ensemble_split_index=None,
     ):
         super().__init__()
+        assert self.hparams.ensemble_split_index is None
         self.hparams.data_dir = None
         self.save_hyperparameters(logger=False)
         with TemporaryDirectory() as t:
