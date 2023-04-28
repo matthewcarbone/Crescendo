@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from subprocess import Popen, PIPE
 from time import perf_counter
@@ -43,3 +44,14 @@ def run_command(cmd):
         "error": err.decode("utf-8").strip(),
         "elapsed": dt,
     }
+
+
+def save_json(d, path):
+    with open(path, "w") as outfile:
+        json.dump(d, outfile, indent=4, sort_keys=True)
+
+
+def read_json(path):
+    with open(path, "r") as infile:
+        dat = json.load(infile)
+    return dat
