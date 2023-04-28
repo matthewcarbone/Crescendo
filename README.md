@@ -34,8 +34,8 @@ Crescendo provides a unified command line + API for training and evaluating Ligh
 At the moment, the recommended way to use this work is to install in editable mode:
 
 ```bash
-git clone git@github.com:matthewcarbone/crescendo.git
-cd crescendo
+git clone git@github.com:matthewcarbone/Crescendo.git
+cd Crescendo
 conda create -n py3.9-crescendo python=3.9 -y
 conda activate py3.9-crescendo
 pip install --editable .
