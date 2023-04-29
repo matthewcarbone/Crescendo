@@ -9,6 +9,7 @@
 [![python](https://img.shields.io/badge/-Python_>=3.9-blue?logo=python&logoColor=white)](https://github.com/pre-commit/pre-commit) <br>
 [![image](https://github.com/matthewcarbone/crescendo/actions/workflows/smoke.yml/badge.svg)](https://github.com/matthewcarbone/crescendo/actions/workflows/smoke.yml)
 [![image](https://github.com/matthewcarbone/crescendo/actions/workflows/examples.yml/badge.svg)](https://github.com/matthewcarbone/crescendo/actions/workflows/examples.yml)
+[![image](https://github.com/matthewcarbone/crescendo/actions/workflows/unit.yml/badge.svg)](https://github.com/matthewcarbone/crescendo/actions/workflows/unit.yml)
 
 
 Crescendo provides a unified command line + API for training and evaluating Lightning models
