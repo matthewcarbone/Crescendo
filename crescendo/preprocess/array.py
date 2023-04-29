@@ -11,6 +11,44 @@ from crescendo import utils
 console = Console()
 
 
+def split_and_save(X, Y, target, p_valid, p_test, **kwargs):
+    """Executes the usual train-validation-test split on provided arrays ``X``
+    and ``Y``, then saves the results in the correct format to the provided
+    directory. ``p_test`` indicates the proportion of the original data to be
+    used for testing. The remainder is used for training and validation.
+    ``p_valid`` is the proportion of the remaining training+validation data to
+    be used for validation. All data is saved as ``.npy``.
+
+    Parameters
+    ----------
+    X : numpy.ndarray
+    Y : numpy.ndarray
+    target : os.PathLike
+        The target directory to save the data to.
+    p_valid : float
+        Proportion of the non-testing data to be used for validation.
+    p_test : float
+        Proportion of the original data to be used for testing.
+    **kwargs
+        Extra keyword arguments to be passed to ``train_test_split``.
+    """
+
+    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=p_test)
+    X_train, X_val, Y_train, Y_val = train_test_split(
+        X_train, Y_train, test_size=p_valid
+    )
+
+    d = Path(target)
+
+    np.save(d / "X_train.npy", X_train)
+    np.save(d / "X_val.npy", X_val)
+    np.save(d / "X_test.npy", X_test)
+
+    np.save(d / "Y_train.npy", Y_train)
+    np.save(d / "Y_val.npy", Y_val)
+    np.save(d / "Y_test.npy", Y_test)
+
+
 def ensemble_split(data_dir, n_splits=20, shuffle=True, random_state=42):
     """Creates an auxiliary file in ``data_dir`` containing the indexes of
     multiple folds for ensemble training via training set downsampling.
