@@ -11,12 +11,52 @@ from crescendo import utils
 console = Console()
 
 
-def split_and_save(X, Y, target, p_valid, p_test, **kwargs):
+def train_validation_test_split(X, Y, p_val, p_test, **kwargs):
+    """Lightweight wrapper for scikit-learn's ``train_test_split`` function.
+    Splits provided data into training, validation and testing splits of the
+    correct proportions. Runs a few sanity checks along the way as well.
+
+    Parameters
+    ----------
+    X : numpy.ndarray
+    Y : numpy.ndarray
+    p_val : float
+        Proportion of the non-testing data to be used for validation.
+    p_test : float
+        Proportion of the original data to be used for testing.
+    **kwargs
+        Extra keyword arguments to be passed to ``train_test_split``.
+
+    Returns
+    -------
+    tuple
+        The data in the order X_train, X_val, X_test, Y_train, Y_val, Y_test.
+    """
+
+    N = X.shape[0]
+
+    assert N == Y.shape[0]
+    assert p_test + p_val < 1.0
+
+    N_test = int(N * p_test)
+    N_val = int(N * p_val)
+
+    assert N_test + N_val < N
+
+    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=N_test)
+    X_train, X_val, Y_train, Y_val = train_test_split(
+        X_train, Y_train, test_size=N_val
+    )
+
+    return X_train, X_val, X_test, Y_train, Y_val, Y_test
+
+
+def split_and_save(X, Y, target, p_val, p_test, **kwargs):
     """Executes the usual train-validation-test split on provided arrays ``X``
     and ``Y``, then saves the results in the correct format to the provided
     directory. ``p_test`` indicates the proportion of the original data to be
     used for testing. The remainder is used for training and validation.
-    ``p_valid`` is the proportion of the remaining training+validation data to
+    ``p_val`` is the proportion of the remaining training+validation data to
     be used for validation. All data is saved as ``.npy``.
 
     Parameters
@@ -25,7 +65,7 @@ def split_and_save(X, Y, target, p_valid, p_test, **kwargs):
     Y : numpy.ndarray
     target : os.PathLike
         The target directory to save the data to.
-    p_valid : float
+    p_val : float
         Proportion of the non-testing data to be used for validation.
     p_test : float
         Proportion of the original data to be used for testing.
@@ -33,10 +73,14 @@ def split_and_save(X, Y, target, p_valid, p_test, **kwargs):
         Extra keyword arguments to be passed to ``train_test_split``.
     """
 
-    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=p_test)
-    X_train, X_val, Y_train, Y_val = train_test_split(
-        X_train, Y_train, test_size=p_valid
-    )
+    (
+        X_train,
+        X_val,
+        X_test,
+        Y_train,
+        Y_val,
+        Y_test,
+    ) = train_validation_test_split(X, Y, p_val, p_test, **kwargs)
 
     d = Path(target)
 

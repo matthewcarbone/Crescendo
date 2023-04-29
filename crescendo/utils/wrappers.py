@@ -7,9 +7,7 @@ CONSOLE = Console()
 
 
 def log_warnings(header_message):
-
     def inner(func):
-
         @wraps(func)
         def wrapper(*args, **kwargs):
             with warnings.catch_warnings(record=True) as warnings_caught:

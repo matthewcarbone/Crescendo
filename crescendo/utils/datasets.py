@@ -6,7 +6,6 @@ from sklearn.model_selection import train_test_split
 
 
 def download_california_housing_data(path, random_state=1234):
-
     path = Path(path)
     if not path.exists():
         path.mkdir()
