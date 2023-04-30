@@ -19,7 +19,35 @@ from crescendo.utils.other_utils import read_json
 console = Console()
 
 
-class XYPropertyMixin:
+class XYArrayPropertyMixin:
+    def _apply_ensemble_split(self, data):
+        if self.hparams.ensemble_split_index is None:
+            return data
+        s = f"split-{self.hparams.ensemble_split_index}"
+        split = self.ensemble_splits[s]
+        new_dat = data[split, :]
+        console.log(
+            f"Training data downsampled from {data.shape} -> {new_dat.shape}",
+            style="bold yellow",
+        )
+        return new_dat
+
+    def _load_data(self, property_name):
+        # Attempt to load from disk
+        fname = f"{property_name}.npy"
+        if self.hparams.data_dir is not None:
+            return np.load(Path(self.hparams.data_dir) / fname)
+
+        # If appropriate file does not exist, attempt to access the internal
+        # value of the object
+        attr_name = f"_{property_name}"
+        dat = getattr(self, attr_name)
+        if dat is not None:
+            return dat
+
+        # Otherwise raise an error
+        raise ValueError(f"_{attr_name} not initialized and dne on disk")
+
     @cached_property
     def ensemble_splits(self):
         path = Path(self.hparams.data_dir) / "splits.json"
@@ -29,68 +57,29 @@ class XYPropertyMixin:
 
     @cached_property
     def X_train(self):
-        if self.hparams.data_dir is not None:
-            dat = np.load(Path(self.hparams.data_dir) / "X_train.npy")
-        elif self._X_train is not None:
-            dat = self._X_train
-        else:
-            raise ValueError("_X_train not initialized")
-        if self.hparams.ensemble_split_index is not None:
-            s = f"split-{self.hparams.ensemble_split_index}"
-            split = self.ensemble_splits[s]
-            console.log(
-                f"Training data downsampled from {dat.shape[0]} -> "
-                f"{len(split)}",
-                style="bold yellow",
-            )
-            return dat[split, :]
-        return dat
+        dat = self._load_data("X_train")
+        return self._apply_ensemble_split(dat)
 
     @cached_property
     def X_val(self):
-        if self.hparams.data_dir is not None:
-            return np.load(Path(self.hparams.data_dir) / "X_val.npy")
-        if self._X_val is None:
-            raise ValueError("_X_val not initialized")
-        return self._X_val
+        return self._load_data("X_val")
 
     @cached_property
     def X_test(self):
-        if self.hparams.data_dir is not None:
-            return np.load(Path(self.hparams.data_dir) / "X_test.npy")
-        if self._X_test is None:
-            raise ValueError("_X_test not initialized")
-        return self._X_test
+        return self._load_data("X_test")
 
     @cached_property
     def Y_train(self):
-        if self.hparams.data_dir is not None:
-            dat = np.load(Path(self.hparams.data_dir) / "Y_train.npy")
-        elif self._Y_train is not None:
-            dat = self._Y_train
-        else:
-            raise ValueError("_Y_train not initialized")
-        if self.hparams.ensemble_split_index is not None:
-            s = f"split-{self.hparams.ensemble_split_index}"
-            split = self.ensemble_splits[s]
-            return dat[split, :]
-        return dat
+        dat = self._load_data("Y_train")
+        return self._apply_ensemble_split(dat)
 
     @cached_property
     def Y_val(self):
-        if self.hparams.data_dir is not None:
-            return np.load(Path(self.hparams.data_dir) / "Y_val.npy")
-        if self._Y_val is None:
-            raise ValueError("_Y_val not initialized")
-        return self._Y_val
+        return self._load_data("Y_val")
 
     @cached_property
     def Y_test(self):
-        if self.hparams.data_dir is not None:
-            return np.load(Path(self.hparams.data_dir) / "Y_test.npy")
-        if self._Y_test is None:
-            raise ValueError("_Y_test not initialized")
-        return self._Y_test
+        return self._load_data("Y_test")
 
     @cached_property
     def n_features(self):
@@ -170,7 +159,7 @@ class DataLoaderMixin:
 
 
 class ArrayRegressionDataModule(
-    XYPropertyMixin, ScaleXMixin, DataLoaderMixin, LightningDataModule
+    XYArrayPropertyMixin, ScaleXMixin, DataLoaderMixin, LightningDataModule
 ):
     """A standard data module for array data.
 
@@ -207,7 +196,7 @@ class ArrayRegressionDataModule(
 
 
 class CaliforniaHousingDataset(
-    XYPropertyMixin, ScaleXMixin, DataLoaderMixin, LightningDataModule
+    XYArrayPropertyMixin, ScaleXMixin, DataLoaderMixin, LightningDataModule
 ):
     def __init__(
         self,
