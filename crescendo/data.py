@@ -1,8 +1,4 @@
-"""Container for various LightningDataModules
-Code is modified based off of
-https://github.com/ashleve/lightning-hydra-template/blob/
-89194063e1a3603cfd1adafa777567bc98da2368/src/data/mnist_datamodule.py
-"""
+"""Container for various LightningDataModules."""
 
 
 from functools import cached_property
