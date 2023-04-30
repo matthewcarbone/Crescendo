@@ -126,20 +126,15 @@ class ScaleXMixin:
 
 
 class DataLoaderMixin:
-    def _init_dataloader_kwargs(self):
-        self._dataloader_kwargs = {
-            "batch_size": self.hparams.batch_size,
-            "num_workers": self.hparams.num_workers,
-            "pin_memory": self.hparams.pin_memory,
-        }
-
     def train_dataloader(self):
         X = self.X_train.copy()
         if self._X_scaler is not None:
             X = self._X_scaler.transform(X)
         X = torch.tensor(X).float()
         Y = torch.tensor(self.Y_train.copy()).float()
-        return DataLoader(TensorDataset(X, Y), **self._dataloader_kwargs)
+        return DataLoader(
+            TensorDataset(X, Y), **self.hparams.dataloader_kwargs
+        )
 
     def val_dataloader(self):
         X = self.X_val.copy()
@@ -147,7 +142,9 @@ class DataLoaderMixin:
             X = self._X_scaler.transform(X)
         X = torch.tensor(X).float()
         Y = torch.tensor(self.Y_val.copy()).float()
-        return DataLoader(TensorDataset(X, Y), **self._dataloader_kwargs)
+        return DataLoader(
+            TensorDataset(X, Y), **self.hparams.dataloader_kwargs
+        )
 
     def test_dataloader(self):
         X = self.X_test.copy()
@@ -155,7 +152,9 @@ class DataLoaderMixin:
             X = self._X_scaler.transform(X)
         X = torch.tensor(X).float()
         Y = torch.tensor(self.Y_test.copy()).float()
-        return DataLoader(TensorDataset(X, Y), **self._dataloader_kwargs)
+        return DataLoader(
+            TensorDataset(X, Y), **self.hparams.dataloader_kwargs
+        )
 
 
 class ArrayRegressionDataModule(
@@ -178,21 +177,41 @@ class ArrayRegressionDataModule(
 
     See the documentation for further reference
     https://lightning.ai/docs/pytorch/latest/data/datamodule.html
+
+    Properties
+    ----------
+    data_dir : os.PathLike
+        The location of the data to load. This data is assumed to be kept in
+        files like ``X_train.npy``, ``Y_val.npy``, etc.
+    normalize_inputs : bool
+        If True, will standard-scale the input features to the standard normal
+        distribution using the training set, and execute that transform on the
+        other splits. These objects are stored in ``X_train_scaled``, etc.
+    ensemble_split_index : int, optional
+        If not None, this is an integer referencing the file splits.json in the
+        same directory as the data. This json file contains keys such as
+        "split-0", "split-1", etc., with values corresponding to the training
+        set indexes of the split. You can use
+        ``crescendo.preprocess.array:ensemble_split`` to create this file.
+    dataloader_kwargs : dict, optional
+        A dictionary containing the keyword arguments to pass to all
+        dataloaders.
     """
 
     def __init__(
         self,
         data_dir,
-        batch_size=64,
-        num_workers=0,
-        pin_memory=False,
         normalize_inputs=True,
         ensemble_split_index=None,
+        dataloader_kwargs={
+            "batch_size": 64,
+            "num_workers": 0,
+            "pin_memory": False,
+        },
     ):
         super().__init__()
         self.save_hyperparameters(logger=False)
         self._setup_X_scaler()
-        self._init_dataloader_kwargs()
 
 
 class CaliforniaHousingDataset(
@@ -200,10 +219,12 @@ class CaliforniaHousingDataset(
 ):
     def __init__(
         self,
-        batch_size=64,
-        num_workers=0,
-        pin_memory=False,
         normalize_inputs=True,
+        dataloader_kwargs={
+            "batch_size": 64,
+            "num_workers": 0,
+            "pin_memory": False,
+        },
     ):
         super().__init__()
         self.hparams.ensemble_split_index = None

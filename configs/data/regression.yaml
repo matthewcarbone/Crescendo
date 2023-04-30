@@ -1,5 +1,6 @@
 _target_: crescendo.data.ArrayRegressionDataModule
-batch_size: 64
-num_workers: 0
-pin_memory: False
+dataloader_kwargs:
+  batch_size: 64
+  num_workers: 0
+  pin_memory: False
 normalize_inputs: True

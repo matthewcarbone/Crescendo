@@ -71,7 +71,7 @@ packages = ["crescendo"]
 cr = "crescendo.entrypoint:entrypoint"
 
 [tool.black]
-line-length = 80
+line-length = 79
 include = '\.pyi?$'
 exclude = '''
 /(
