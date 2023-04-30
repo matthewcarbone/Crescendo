@@ -32,6 +32,26 @@ class XYArrayPropertyMixin:
         )
         return new_dat
 
+    def _apply_feature_selection_logic(self, data):
+        """Runs the feature selection logic on the data based on the provided
+        value of self.hparams.feature_select."""
+
+        if self.hparams.feature_select is None:
+            return data
+
+        # First, split by the comma separation
+        split = self.hparams.feature_select.split(",")
+
+        # For each entry, we split by the second delimiter, a :
+        split = [np.array(xx.split(":")).astype(int).tolist() for xx in split]
+
+        # Edge case
+        if len(split) == 1:
+            return data[:, split[0][0] : split[0][1]]
+
+        # Otherwise we iterate through the splits and concatenate
+        return np.concatenate([data[:, s[0] : s[1]] for s in split], axis=1)
+
     def _load_data(self, property_name):
         # Attempt to load from disk
         fname = f"{property_name}.npy"
@@ -58,28 +78,34 @@ class XYArrayPropertyMixin:
     @cached_property
     def X_train(self):
         dat = self._load_data("X_train")
-        return self._apply_ensemble_split(dat)
+        dat = self._apply_ensemble_split(dat)
+        return self._apply_feature_selection_logic(dat)
 
     @cached_property
     def X_val(self):
-        return self._load_data("X_val")
+        dat = self._load_data("X_val")
+        return self._apply_feature_selection_logic(dat)
 
     @cached_property
     def X_test(self):
-        return self._load_data("X_test")
+        dat = self._load_data("X_test")
+        return self._apply_feature_selection_logic(dat)
 
     @cached_property
     def Y_train(self):
         dat = self._load_data("Y_train")
-        return self._apply_ensemble_split(dat)
+        dat = self._apply_ensemble_split(dat)
+        return self._apply_feature_selection_logic(dat)
 
     @cached_property
     def Y_val(self):
-        return self._load_data("Y_val")
+        dat = self._load_data("Y_val")
+        return self._apply_feature_selection_logic(dat)
 
     @cached_property
     def Y_test(self):
-        return self._load_data("Y_test")
+        dat = self._load_data("Y_test")
+        return self._apply_feature_selection_logic(dat)
 
     @cached_property
     def n_features(self):
@@ -193,6 +219,11 @@ class ArrayRegressionDataModule(
         "split-0", "split-1", etc., with values corresponding to the training
         set indexes of the split. You can use
         ``crescendo.preprocess.array:ensemble_split`` to create this file.
+    feature_select : str, optional
+        If not None, this argument provides some custom functionality to select
+        only a subset of the features provided in the data. For example,
+        ``feature_select="0:200,400:600"`` will select features 0 through 199,
+        inclusive, and 400 through 599, inclusive.
     dataloader_kwargs : dict, optional
         A dictionary containing the keyword arguments to pass to all
         dataloaders.
@@ -203,6 +234,7 @@ class ArrayRegressionDataModule(
         data_dir,
         normalize_inputs=True,
         ensemble_split_index=None,
+        feature_select=None,
         dataloader_kwargs={
             "batch_size": 64,
             "num_workers": 0,
@@ -240,4 +272,3 @@ class CaliforniaHousingDataset(
             self._X_test = None
             self._Y_test = None
         self._setup_X_scaler()
-        self._init_dataloader_kwargs()
