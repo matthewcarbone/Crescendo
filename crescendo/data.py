@@ -261,6 +261,7 @@ class CaliforniaHousingDataset(
         super().__init__()
         self.hparams.ensemble_split_index = None
         self.hparams.data_dir = None
+        self.hparams.feature_select = None
         self.save_hyperparameters(logger=False)
         with TemporaryDirectory() as t:
             path = t / Path("california_housing_data")
