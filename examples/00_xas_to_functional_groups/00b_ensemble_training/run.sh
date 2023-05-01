@@ -1,6 +1,6 @@
 #!/bin/bash
 
-for ii in {0..19}
+for ii in {0..4}
 do
     cr \
         model=mlp_random_architecture \
@@ -10,7 +10,7 @@ do
         +data.data_dir=../data/C-XANES \
         trainer.max_epochs=10 \
         model.last_activation="{_target_: torch.nn.Sigmoid}" \
-        trainer.accelerator=gpu \
+        trainer.accelerator=cpu \
         "model.architecture.neurons_range=[2,5]" \
         "model.architecture.ramp_std=1.0" \
         data.dataloader_kwargs.batch_size=32 \
