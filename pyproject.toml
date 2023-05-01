@@ -39,7 +39,8 @@ dependencies = [
     "numpy",
     "pyrootutils",
     "scikit-learn",
-    "rich"
+    "rich",
+    "dunamai"
 ]
 
 # Dynamic version reads __version__ directly from my_package.__init__

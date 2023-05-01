@@ -1,4 +1,11 @@
-__version__ = "0.0.1"
+from dunamai import Version
+
+version = Version.from_any_vcs()
+__version__ = version.serialize()
+del version
+
+
+# __version__ = "0.0.1"
 
 
 # This works, but we're going with the rich.console for now
