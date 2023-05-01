@@ -5,7 +5,7 @@ from omegaconf import OmegaConf
 from rich.console import Console
 from pyrootutils import setup_root
 
-from crescendo import utils
+from crescendo import utils, __version__
 
 setup_root(__file__, indicator=".project-root", pythonpath=True)
 console = Console()
@@ -71,6 +71,7 @@ def train(config):
 
 
 def entrypoint():
+    console.log(f"Crescendo version=={__version__}", style="bold red")
     with utils.Timer() as dt:
         train()
     console.log(f"PROGRAM END ({str(int(dt()))} s)", style="bold red")
