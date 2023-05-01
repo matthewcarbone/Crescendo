@@ -1,5 +1,7 @@
 #!/bin/bash -l
 
+set -e
+
 export HYDRA_FULL_ERROR=1
 
 cr model=mlp data=california_housing
