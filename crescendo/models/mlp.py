@@ -121,10 +121,8 @@ class MultilayerPerceptron(LightningModule):
         criterion=nn.MSELoss(),
     ):
         super().__init__()
-        self.save_hyperparameters(
-            logger=False,
-            ignore=["net", "criterion", "activation", "last_activation"],
-        )
+
+        self.save_hyperparameters(logger=False)
 
         self.net = FeedForwardNeuralNetwork(
             input_dims=input_dims,
