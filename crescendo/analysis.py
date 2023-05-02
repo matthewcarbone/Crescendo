@@ -11,12 +11,11 @@ from yaml import safe_load
 
 from crescendo import utils
 
-
 console = Console()
 
 
-class Result:
-    """The Result base class. Corresponds to a single .hydra file. It is
+class Estimator:
+    """The result base class. Corresponds to a single .hydra file. It is
     assumed that any directory containing the .hydra directory also contains
     directories checkpoints and logs.
     """
@@ -164,3 +163,36 @@ class Result:
         model.eval()
         with torch.no_grad():
             return model.forward(x).detach().numpy()
+
+
+class Ensemble:
+    """Similar to the results class, the Ensemble class assumes that every
+    directory you point it to with a ``final_config.yaml`` file in it is part
+    of a larger ensemble. Each individual model will be used as part of this
+    ensemble during inference."""
+
+    @cached_property
+    def estimators(self):
+        """Gets a list of Estimator objects."""
+
+        return [
+            Estimator.from_root(p, data_dir=self._data_dir)
+            for p in self._results_dirs
+        ]
+
+    @classmethod
+    def from_root(klass, root, **kwargs):
+        """Gets all of the paths matching final_config.yaml via Path.rglob."""
+
+        paths = [xx for xx in Path(root).rglob("final_config.yaml")]
+        console.log(
+            f"Found {len(paths)} hydra paths (n_estimators=={len(paths)})"
+        )
+        if len(paths) == 0:
+            raise ValueError("No .hydra directory found")
+        paths = [str(xx.parent) for xx in paths]
+        return klass(paths, **kwargs)
+
+    def __init__(self, results_dirs, data_dir=None):
+        self._results_dirs = results_dirs
+        self._data_dir = data_dir
