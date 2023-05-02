@@ -100,6 +100,7 @@ class Estimator:
             return None
         return str(path)
 
+    @utils.log_warnings()
     @cache
     def get_model(self, checkpoint=None):
         """Loads the model from the provided checkpoint file. If None, it will
