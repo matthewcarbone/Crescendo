@@ -94,8 +94,7 @@ class XYArrayPropertyMixin:
     @cached_property
     def Y_train(self):
         dat = self._load_data("Y_train")
-        dat = self._apply_ensemble_split(dat)
-        return self._apply_feature_selection_logic(dat)
+        return self._apply_ensemble_split(dat)
 
     @cached_property
     def Y_val(self):
