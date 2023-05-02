@@ -98,13 +98,11 @@ class XYArrayPropertyMixin:
 
     @cached_property
     def Y_val(self):
-        dat = self._load_data("Y_val")
-        return self._apply_feature_selection_logic(dat)
+        return self._load_data("Y_val")
 
     @cached_property
     def Y_test(self):
-        dat = self._load_data("Y_test")
-        return self._apply_feature_selection_logic(dat)
+        return self._load_data("Y_test")
 
     @cached_property
     def n_features(self):
