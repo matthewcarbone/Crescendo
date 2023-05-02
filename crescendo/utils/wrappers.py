@@ -6,7 +6,12 @@ from rich.console import Console
 CONSOLE = Console()
 
 
-def log_warnings(header_message):
+IGNORE = [
+    "is an instance of `nn.Module` and is already saved during checkpointing",
+]
+
+
+def log_warnings(header_message=None):
     def inner(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -14,8 +19,12 @@ def log_warnings(header_message):
                 res = func(*args, **kwargs)
 
                 if warnings_caught:
-                    CONSOLE.log(header_message, style="bold yellow")
+                    if header_message is not None:
+                        CONSOLE.log(header_message, style="bold yellow")
                     for w in warnings_caught:
+                        w = str(w)
+                        if any([xx in w for xx in IGNORE]):
+                            continue
                         CONSOLE.log(w)
 
                 return res
