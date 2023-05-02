@@ -83,15 +83,17 @@ class FeedForwardNeuralNetwork(nn.Module):
             if ii == len(architecture) - 2:
                 a = last_activation
                 b = last_batch_norm
+                c = 0.0
             else:
                 a = activation
                 b = batch_norm
+                c = dropout
             layers.append(
                 FeedforwardLayer(
                     input_size=n,
                     output_size=n2,
                     activation=a,
-                    dropout=dropout,
+                    dropout=c,
                     batch_norm=b,
                 )
             )
@@ -237,8 +239,10 @@ class MultilayerPerceptron(LightningModule):
 
     def configure_optimizers(self):
         optimizer = self.hparams.optimizer(params=self.parameters())
+        console.log(f"Optimizer configured {optimizer.__class__}")
         if self.hparams.scheduler is not None:
             scheduler = self.hparams.scheduler(optimizer=optimizer)
+            console.log(f"Scheduler configured {scheduler.__class__}")
             return {
                 "optimizer": optimizer,
                 "lr_scheduler": {

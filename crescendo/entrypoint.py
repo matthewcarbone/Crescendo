@@ -45,8 +45,7 @@ def train(config):
     utils.omegaconf_to_yaml(config, yaml_path)
     console.log(f"Final config saved to {yaml_path}")
 
-    if config.log_locals:
-        console.log(log_locals=True)
+    console.log(model)
     console.log(OmegaConf.to_container(config))
 
     # This a PyTorch 2.0 special. Compiles the model if possible for faster
