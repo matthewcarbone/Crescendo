@@ -118,19 +118,19 @@ class ScaleXMixin:
     def X_train_scaled(self):
         if self._X_scaler is None:
             raise ValueError("X-scaler is disabled")
-        return self._X_scaler.transform(self._X_train)
+        return self._X_scaler.transform(self.X_train)
 
     @cached_property
     def X_val_scaled(self):
         if self._X_scaler is None:
             raise ValueError("X-scaler is disabled")
-        return self._X_scaler.transform(self._X_val)
+        return self._X_scaler.transform(self.X_val)
 
     @cached_property
     def X_test_scaled(self):
         if self._X_scaler is None:
             raise ValueError("X-scaler is disabled")
-        return self._X_scaler.transform(self._X_test)
+        return self._X_scaler.transform(self.X_test)
 
     def _setup_X_scaler(self):
         """
