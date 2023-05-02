@@ -50,7 +50,8 @@ def instantiate_model(config, checkpoint=None):
     model = hydra.utils.instantiate(config.model)
     console.log(f"Model instantiated {model.__class__}")
     if checkpoint is not None:
-        model = model.load_from_checkpoint(checkpoint)
+        model = model.__class__.load_from_checkpoint(checkpoint)
+        console.log(f"Model loaded from checkpoint {checkpoint}")
     return model
 
 
