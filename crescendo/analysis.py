@@ -4,6 +4,7 @@ and data."""
 from functools import cached_property, cache
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from rich.console import Console
 import torch
@@ -177,8 +178,8 @@ class Ensemble:
         """Gets a list of Estimator objects."""
 
         return [
-            Estimator.from_root(p, data_dir=self._data_dir)
-            for p in self._results_dirs
+            Estimator.from_root(root, data_dir=self._data_dir)
+            for root in self._results_dirs
         ]
 
     @classmethod
@@ -197,3 +198,19 @@ class Ensemble:
     def __init__(self, results_dirs, data_dir=None):
         self._results_dirs = results_dirs
         self._data_dir = data_dir
+
+    def predict(self, x):
+        """Runs forward prediction on the estimators. The estimator index is
+        the zeroth axis of the returned array.
+
+        Parameters
+        ----------
+        x : numpy.ndarray
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        x = torch.Tensor(x).float()
+        return np.array([est.predict(x) for est in self.estimators])
