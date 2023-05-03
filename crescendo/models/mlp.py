@@ -105,6 +105,25 @@ class FeedForwardNeuralNetwork(nn.Module):
 
 
 class MultilayerPerceptron(LightningModule):
+    """A standard multilayer perceptron.
+
+    Previous kwargs
+
+    TODO: docstring here
+
+    input_dims,
+    architecture,
+    output_dims,
+    optimizer,
+    dropout=0.0,
+    activation=nn.ReLU(),
+    last_activation=None,
+    batch_norm=False,
+    last_batch_norm=False,
+    scheduler=None,
+    criterion=nn.MSELoss(),
+    """
+
     def __init__(
         self,
         *,
@@ -112,13 +131,13 @@ class MultilayerPerceptron(LightningModule):
         architecture,
         output_dims,
         optimizer,
-        dropout=0.0,
-        activation=nn.ReLU(),
-        last_activation=None,
-        batch_norm=False,
-        last_batch_norm=False,
-        scheduler=None,
-        criterion=nn.MSELoss(),
+        dropout,
+        activation,
+        last_activation,
+        batch_norm,
+        last_batch_norm,
+        scheduler,
+        criterion,
     ):
         super().__init__()
 
