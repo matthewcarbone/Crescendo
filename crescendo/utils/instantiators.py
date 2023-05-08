@@ -30,6 +30,7 @@ SOFTWARE.
 import hydra
 from omegaconf import DictConfig
 from rich.console import Console
+import torch
 
 from crescendo.utils.modifiers import (
     seed_everything,
@@ -50,7 +51,12 @@ def instantiate_model(config, checkpoint=None):
     model = hydra.utils.instantiate(config.model)
     console.log(f"Model instantiated {model.__class__}")
     if checkpoint is not None:
-        model = model.__class__.load_from_checkpoint(checkpoint)
+        try:
+            model = model.__class__.load_from_checkpoint(checkpoint)
+        except RuntimeError:
+            model = model.__class__.load_from_checkpoint(
+                checkpoint, map_location=torch.device("cpu")
+            )
         console.log(f"Model loaded from checkpoint {checkpoint}")
     return model
 
