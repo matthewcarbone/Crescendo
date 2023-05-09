@@ -195,7 +195,7 @@ class Estimator:
         self._data_dir = data_dir
         self._verbose = verbose
 
-    def predict(self, x):
+    def predict(self, x, scale_forward=True):
         """Runs forward prediction on the model.
 
         Parameters
@@ -207,6 +207,8 @@ class Estimator:
         numpy.ndarray
         """
 
+        if scale_forward:
+            x = self.get_datamodule()._X_scaler.transform(x)
         x = torch.Tensor(x).float()
         model = self.get_model()
         model.eval()
@@ -266,14 +268,6 @@ class EnsembleValTestMixin:
         return self.estimators[0].X_test
 
     @cached_property
-    def X_val_scaled(self):
-        return self.estimators[0].X_val_scaled
-
-    @cached_property
-    def X_test_scaled(self):
-        return self.estimators[0].X_test_scaled
-
-    @cached_property
     def Y_val(self):
         if len(self.estimators) > 1:
             x1 = self.estimators[0].Y_val
@@ -293,6 +287,22 @@ class EnsembleValTestMixin:
 class HPTunedSet(ModelSet, EnsembleValTestMixin):
     """A set of models which are assumed to have used some Hydra sweeper to
     find optimal parameters."""
+
+    @cached_property
+    def X_val_scaled(self):
+        if len(self.estimators) > 1:
+            x1 = self.estimators[0].X_val_scaled
+            x2 = self.estimators[1].X_val_scaled
+            assert np.allclose(x1, x2)
+        return self.estimators[0].X_val_scaled
+
+    @cached_property
+    def X_test_scaled(self):
+        if len(self.estimators) > 1:
+            x1 = self.estimators[0].X_test_scaled
+            x2 = self.estimators[1].X_test_scaled
+            assert np.allclose(x1, x2)
+        return self.estimators[0].X_test_scaled
 
     def get_best_estimator(self, X, Y, metric=None):
         """Evaluates all found models on the validation set, and returns the
@@ -337,6 +347,7 @@ class Ensemble(ModelSet, EnsembleValTestMixin):
         Parameters
         ----------
         x : numpy.ndarray
+            Assumed to be unscaled.
 
         Returns
         -------
@@ -346,4 +357,6 @@ class Ensemble(ModelSet, EnsembleValTestMixin):
         x = torch.Tensor(x).float()
 
         # Ignore the standard output
-        return np.array([est.predict(x) for est in self.estimators])
+        return np.array(
+            [est.predict(x, scale_forward=True) for est in self.estimators]
+        )
