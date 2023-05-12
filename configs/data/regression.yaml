@@ -3,4 +3,5 @@ dataloader_kwargs:
   batch_size: 64
   num_workers: 0
   pin_memory: False
+  drop_last: True
 normalize_inputs: True
