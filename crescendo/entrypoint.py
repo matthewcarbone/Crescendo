@@ -37,7 +37,7 @@ def train(config):
     # the hydra instantiator. Everything's under the hood in Crescendo's
     # utils module.
     datamodule, model, callbacks, loggers, trainer = utils.instantiate_all_(
-        config
+        config, log=True
     )
 
     # Save the processed configuration file as yaml

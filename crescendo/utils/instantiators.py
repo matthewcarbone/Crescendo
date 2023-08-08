@@ -41,15 +41,17 @@ from crescendo.utils.modifiers import (
 console = Console()
 
 
-def instantiate_datamodule(config):
+def instantiate_datamodule(config, log=False):
     datamodule = hydra.utils.instantiate(config.data)
-    console.log(f"Datamodule instantiated {datamodule.__class__}")
+    if log:
+        console.log(f"Datamodule instantiated {datamodule.__class__}")
     return datamodule
 
 
-def instantiate_model(config, checkpoint=None):
+def instantiate_model(config, checkpoint=None, log=False):
     model = hydra.utils.instantiate(config.model)
-    console.log(f"Model instantiated {model.__class__}")
+    if log:
+        console.log(f"Model instantiated {model.__class__}")
     if checkpoint is not None:
         try:
             model = model.__class__.load_from_checkpoint(checkpoint)
@@ -57,19 +59,21 @@ def instantiate_model(config, checkpoint=None):
             model = model.__class__.load_from_checkpoint(
                 checkpoint, map_location=torch.device("cpu")
             )
-        console.log(f"Model loaded from checkpoint {checkpoint}")
+        if log:
+            console.log(f"Model loaded from checkpoint {checkpoint}")
     return model
 
 
-def instantiate_trainer(config, callbacks, loggers):
+def instantiate_trainer(config, callbacks, loggers, log=False):
     trainer = hydra.utils.instantiate(
         config.trainer, callbacks=callbacks, logger=loggers
     )
-    console.log(f"Trainer instantiated {trainer.__class__}")
+    if log:
+        console.log(f"Trainer instantiated {trainer.__class__}")
     return trainer
 
 
-def instantiate_callbacks(config):
+def instantiate_callbacks(config, log=False):
     """Instantiates callbacks from config."""
 
     callbacks_cfg = config.get("callbacks")
@@ -86,14 +90,15 @@ def instantiate_callbacks(config):
         if isinstance(cb_conf, DictConfig) and "_target_" in cb_conf:
             callbacks.append(hydra.utils.instantiate(cb_conf))
 
-    for callback in callbacks:
-        console.log(f"Callbacks instantiated {callback.__class__}")
+    if log:
+        for callback in callbacks:
+            console.log(f"Callbacks instantiated {callback.__class__}")
     del callback  # Remove from locals
 
     return callbacks
 
 
-def instantiate_loggers(config):
+def instantiate_loggers(config, log=False):
     """Instantiates loggers from config."""
 
     logger_cfg = config.get("logger")
@@ -110,24 +115,25 @@ def instantiate_loggers(config):
         if isinstance(lg_conf, DictConfig) and "_target_" in lg_conf:
             _logger.append(hydra.utils.instantiate(lg_conf))
 
-    for ll in _logger:
-        console.log(f"Logger instantiated {ll.__class__}")
+    if log:
+        for ll in _logger:
+            console.log(f"Logger instantiated {ll.__class__}")
     del ll
 
     return _logger
 
 
-def instantiate_all_(config):
+def instantiate_all_(config, log=False):
     """Core utility which instantiates the datamodule, model, callbacks,
     loggers and trainer from the hydra config. This makes modifications to the
     config where appropriate."""
 
     seed_everything(config)
-    datamodule = instantiate_datamodule(config)
+    datamodule = instantiate_datamodule(config, log=log)
     update_architecture_in_out_(config, datamodule)
-    model = instantiate_model(config)
-    callbacks = instantiate_callbacks(config)
-    loggers = instantiate_loggers(config)
-    trainer = instantiate_trainer(config, callbacks, loggers)
+    model = instantiate_model(config, log=log)
+    callbacks = instantiate_callbacks(config, log=log)
+    loggers = instantiate_loggers(config, log=log)
+    trainer = instantiate_trainer(config, callbacks, loggers, log=log)
 
     return datamodule, model, callbacks, loggers, trainer
