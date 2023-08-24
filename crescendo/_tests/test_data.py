@@ -16,14 +16,32 @@ class TestArrayRegressionDataModule:
             np.save(str(Path(d) / "Y_train.npy"), Y_array_int_cols)
 
             datamodule = ArrayRegressionDataModule(
-                data_dir=d, normalize_inputs=False, feature_select="0:5"
+                data_dir=d,
+                normalize_inputs=False,
+                feature_select="0:5",
+                ensemble_split_index=None,
+                dataloader_kwargs={
+                    "batch_size": 64,
+                    "num_workers": 0,
+                    "pin_memory": False,
+                    "drop_last": True,
+                },
             )
             assert datamodule.X_train.shape[1] == 5
             for ii, column in enumerate(datamodule.X_train.T):
                 assert column[0] == ii
 
             datamodule = ArrayRegressionDataModule(
-                data_dir=d, normalize_inputs=False, feature_select="0:3,6:9"
+                data_dir=d,
+                normalize_inputs=False,
+                feature_select="0:3,6:9",
+                ensemble_split_index=None,
+                dataloader_kwargs={
+                    "batch_size": 64,
+                    "num_workers": 0,
+                    "pin_memory": False,
+                    "drop_last": True,
+                },
             )
 
             assert datamodule.X_train.shape[1] == 6
