@@ -3,4 +3,4 @@ _target_: crescendo.data.CaliforniaHousingDataset
 normalize_inputs: True
 
 defaults:
-  - regression.yaml
+  - common_data.yaml

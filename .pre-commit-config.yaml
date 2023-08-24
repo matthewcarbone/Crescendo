@@ -13,10 +13,17 @@ repos:
     rev: 0.6.0
     hooks:
       - id: nbstripout
-
-  # Lots of hooks hosted in this repo!
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0  # Use the ref you want to point at
+    rev: v4.4.0
     hooks:
-    - id: check-added-large-files
-      args: ["--maxkb=501"]
+      - id: check-added-large-files
+        args: ["--maxkb=501"]
+      - id: pretty-format-json
+        args: ["--autofix", --indent 4]
+      - id: check-byte-order-marker
+      - id: check-case-conflict
+      - id: check-json
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: mixed-line-ending
