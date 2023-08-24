@@ -42,6 +42,7 @@ dependencies = [
     "scikit-learn",
     "rich",
     "dunamai",
+    "rdkit",
     "dgl",
     "dgllife"
 ]
