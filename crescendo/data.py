@@ -3,6 +3,7 @@
 
 from functools import cached_property
 from pathlib import Path
+import pickle
 from tempfile import TemporaryDirectory
 
 from lightning import LightningDataModule
@@ -229,14 +230,10 @@ class ArrayRegressionDataModule(
     def __init__(
         self,
         data_dir,
-        normalize_inputs=True,
-        ensemble_split_index=None,
-        feature_select=None,
-        dataloader_kwargs={
-            "batch_size": 64,
-            "num_workers": 0,
-            "pin_memory": False,
-        },
+        normalize_inputs,
+        ensemble_split_index,
+        feature_select,
+        dataloader_kwargs,
     ):
         super().__init__()
         self.save_hyperparameters(logger=False)
@@ -248,12 +245,8 @@ class CaliforniaHousingDataset(
 ):
     def __init__(
         self,
-        normalize_inputs=True,
-        dataloader_kwargs={
-            "batch_size": 64,
-            "num_workers": 0,
-            "pin_memory": False,
-        },
+        normalize_inputs,
+        dataloader_kwargs,
     ):
         super().__init__()
         self.hparams.ensemble_split_index = None
@@ -269,4 +262,169 @@ class CaliforniaHousingDataset(
             self._Y_val = np.load(path / "Y_val.npy")
             self._X_test = None
             self._Y_test = None
+        self._setup_X_scaler()
+
+
+class GraphInputTargetPredictorMixin:
+    def _apply_ensemble_split(self, data):
+        """The data provided to this ensemble splitting function should be
+        a list of objects, not an array
+
+        Parameters
+        ----------
+        data : list
+
+        Returns
+        -------
+        list
+        """
+
+        if self.hparams.ensemble_split_index is None:
+            return data
+        s = f"split-{self.hparams.ensemble_split_index}"
+        split = self.ensemble_splits[s]
+        new_dat = [data[ii] for ii in split]
+        console.log(
+            f"Training data downsampled from {len(data)} -> {len(new_dat)}",
+            style="bold yellow",
+        )
+        return new_dat
+
+    def _load_data(self, property_name):
+        # Attempt to load from disk
+
+        assert property_name in [
+            "X_train",
+            "X_val",
+            "X_test",
+            "Y_train",
+            "Y_val",
+            "Y_test",
+        ]
+
+        if self.hparams.data_dir is not None:
+            p = Path(self.hparams.data_dir)
+
+            # These are graphs and are stored in pickle format
+            # TODO: must be a better format to store this data in...?
+            if "X" in property_name:
+                return pickle.load(open(p / f"{property_name}.pkl"))
+
+            # These are vectors in numpy format
+            else:
+                return np.load(p / f"{property_name}.npy")
+
+        # If appropriate file does not exist, attempt to access the internal
+        # value of the object
+        attr_name = f"_{property_name}"
+        dat = getattr(self, attr_name)
+        if dat is not None:
+            return dat
+
+        # Otherwise raise an error
+        raise ValueError(
+            f"_{attr_name} not initialized and does not exist on disk"
+        )
+
+    @cached_property
+    def ensemble_splits(self):
+        path = Path(self.hparams.data_dir) / "splits.json"
+        if not path.exists():
+            return None
+        return read_json(path)
+
+    @cached_property
+    def X_train(self):
+        dat = self._load_data("X_train")
+        return self._apply_ensemble_split(dat)
+
+    @cached_property
+    def X_test(self):
+        return self._load_data("X_test")
+
+    @cached_property
+    def X_val(self):
+        return self._load_data("X_val")
+
+    @cached_property
+    def Y_train(self):
+        dat = self._load_data("Y_train")
+        return self._apply_ensemble_split(dat)
+
+    @cached_property
+    def Y_test(self):
+        return self._load_data("Y_test")
+
+    @cached_property
+    def Y_val(self):
+        return self._load_data("Y_val")
+
+    @cached_property
+    def n_node_features(self):
+        graph = self.X_train[0]
+        return graph.ndata["features"].shape[1]
+
+    @cached_property
+    def n_edge_features(self):
+        graph = self.X_train[0]
+        return graph.edata["features"].shape[1]
+
+    @cached_property
+    def n_targets(self):
+        return self.Y_train.shape[1]
+
+
+class GraphToArrayRegressionDataModule(
+    GraphInputTargetPredictorMixin, LightningDataModule
+):
+    """A standard data module for graph-to-array data.
+
+    Notes
+    -----
+    ``LightningDataModule`` implements the following methods, which we should
+    keep in the same order:
+
+    - prepare_data: things done on a single compute unit cpu/gpu, such as
+      downloading data, preprocessing, etc.
+    - setup: things done on every ddp process
+    - train_dataloader
+    - val_dataloader
+    - test_dataloader
+    - teardown: called on every process
+
+    Properties
+    ----------
+    data_dir : os.PathLike
+        The location of the data to load. This data is assumed to be kept in
+        files like ``X_train.npy``, ``Y_val.npy``, etc.
+    normalize_inputs : bool
+        If True, will standard-scale the input features to the standard normal
+        distribution using the training set, and execute that transform on the
+        other splits. These objects are stored in ``X_train_scaled``, etc.
+    ensemble_split_index : int, optional
+        If not None, this is an integer referencing the file splits.json in the
+        same directory as the data. This json file contains keys such as
+        "split-0", "split-1", etc., with values corresponding to the training
+        set indexes of the split. You can use
+        ``crescendo.preprocess.array:ensemble_split`` to create this file.
+    feature_select : str, optional
+        If not None, this argument provides some custom functionality to select
+        only a subset of the features provided in the data. For example,
+        ``feature_select="0:200,400:600"`` will select features 0 through 199,
+        inclusive, and 400 through 599, inclusive.
+    dataloader_kwargs : dict, optional
+        A dictionary containing the keyword arguments to pass to all
+        dataloaders.
+    """
+
+    def __init__(
+        self,
+        data_dir,
+        normalize_inputs,
+        ensemble_split_index,
+        feature_select,
+        dataloader_kwargs,
+    ):
+        super().__init__()
+        self.save_hyperparameters(logger=False)
         self._setup_X_scaler()

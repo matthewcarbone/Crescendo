@@ -51,7 +51,7 @@ def _update_architecture_linear_ramp_(config):
     _log(f"Architecture set to {y_interp} given n_layers=={n_interior}")
 
 
-def _update_architecture_(config):
+def _update_architecture_(config, input_dims_key, output_dims_key):
     """Helper function for parsing through the ``architecture`` argument. This
     can either be a list (the actual interior layers) or a dictionary
     containing parameters for random initialization. The function returns the
@@ -61,6 +61,19 @@ def _update_architecture_(config):
     ----------
     config : omegaconf.dictconfig.DictConfig
         The configuration file which will be modified in-place.
+    input_dims_key : str
+        The name of the input_dimensions to the neural network for which the
+        architecture is being updated. For example, for a standard MLP, this
+        just "input_dims", but for a GNN, in which the neural network is
+        actually after the GNN, this is "n_tasks".
+    output_dims_key : str
+        Similar to input_dims_key but for the output layer. Usually this is
+        just "output_dims".
+
+    Raises
+    ------
+    ValueError
+        If various errors are present.
     """
 
     if isinstance(config.model["architecture"], int):
@@ -88,8 +101,8 @@ def _update_architecture_(config):
     ramp_std = config.model["architecture"]["ramp_std"]
 
     # These will have been set beforehand even if previously unset
-    n_in = config.model["input_dims"]
-    n_out = config.model["output_dims"]
+    n_in = config.model[input_dims_key]
+    n_out = config.model[output_dims_key]
 
     # Make a random choice of the number of interior neurons
     n_interior = np.random.randint(
@@ -135,7 +148,7 @@ def update_architecture_in_out_(config, datamodule):
     Note
     ----
     This method will only execute on models matching the path
-    ``crescendo.models.mlp``.
+    ``crescendo.models.mlp`` and ``crescendo.models.gnn``
 
     Parameters
     ----------
@@ -145,26 +158,53 @@ def update_architecture_in_out_(config, datamodule):
         The LightningDataModule corresponding to the dataset in use.
     """
 
-    if "crescendo.models.mlp" not in config.model["_target_"]:
-        return
+    if "crescendo.models.mlp" in config.model["_target_"]:
 
-    n_features = datamodule.n_features
-    if config.model["input_dims"] == "auto":
-        config.model["input_dims"] = n_features
-        _log(
-            "Input MLP dimensions automatically set from dataloader "
-            f"to n_features={n_features}"
-        )
+        n_features = datamodule.n_features
+        if config.model["input_dims"] == "auto":
+            config.model["input_dims"] = n_features
+            _log(
+                "Input MLP dimensions automatically set from dataloader "
+                f"to n_features={n_features}"
+            )
 
-    n_targets = datamodule.n_targets
-    if config.model["output_dims"] == "auto":
-        config.model["output_dims"] = n_targets
-        _log(
-            "Output MLP dimensions automatically set from dataloader "
-            f"to n_targets={n_targets}"
-        )
+        n_targets = datamodule.n_targets
+        if config.model["output_dims"] == "auto":
+            config.model["output_dims"] = n_targets
+            _log(
+                "Output MLP dimensions automatically set from dataloader "
+                f"to n_targets={n_targets}"
+            )
 
-    _update_architecture_(config)
+        _update_architecture_(config, "input_dims", "output_dims")
+
+    elif "crescendo.models.gnn" in config.model["_target_"]:
+
+        if config.model["output_dims"] == "auto":
+            n_targets = datamodule.n_targets
+            config.model["output_dims"] = n_targets
+            _log(
+                "Output GNN dimensions automatically set from dataloader "
+                f"to n_targets={n_targets}"
+            )
+
+        if config.model["node_in_feats"] == "auto":
+            node_in_feats = datamodule.node_in_feats
+            config.model["node_in_feats"] = node_in_feats
+            _log(
+                "GNN node size automatically set from dataloader "
+                f"to node_in_feats={node_in_feats}"
+            )
+
+        if config.model["edge_in_feats"] == "auto":
+            edge_in_feats = datamodule.edge_in_feats
+            config.model["edge_in_feats"] = edge_in_feats
+            _log(
+                "GNN edge size automatically set from dataloader "
+                f"to edge_in_feats={edge_in_feats}"
+            )
+
+        _update_architecture_(config, "n_tasks", "output_dims")
 
 
 def compile_model(config, model):
