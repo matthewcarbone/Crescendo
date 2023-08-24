@@ -1,6 +1,5 @@
 """Container for various LightningDataModules."""
 
-
 from functools import cached_property
 from pathlib import Path
 import pickle
@@ -12,12 +11,34 @@ from rich.console import Console
 from sklearn.preprocessing import StandardScaler
 import torch
 from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import IterableDataset
 
 from crescendo.utils.datasets import download_california_housing_data
 from crescendo.utils.other_utils import read_json
 
 
 console = Console()
+
+
+def check_batch_size(L_set, batch_size):
+    """There are some bugs (https://stackoverflow.com/a/49035538) that occur
+    when you attempt to use set sizes that are (significantly?) smaller than
+    the requrested batch size. This function checks for that.
+
+    Parameters
+    ----------
+    L_set : int
+        The length of the set provided.
+    batch_size : int
+        The batch size
+    """
+
+    if L_set < batch_size:
+        raise ValueError(
+            "The set size is smaller than the batch size. This is known to "
+            "cause weird problems (https://stackoverflow.com/a/49035538). "
+            f"Please set the batch size to at most {L_set} or get more data."
+        )
 
 
 class XYArrayPropertyMixin:
@@ -152,6 +173,7 @@ class ScaleXMixin:
 class DataLoaderMixin:
     def train_dataloader(self):
         X = self.X_train.copy()
+        check_batch_size(len(X), self.hparams.dataloader_kwargs["batch_size"])
         if self._X_scaler is not None:
             X = self._X_scaler.transform(X)
         X = torch.tensor(X).float()
@@ -162,6 +184,7 @@ class DataLoaderMixin:
 
     def val_dataloader(self):
         X = self.X_val.copy()
+        check_batch_size(len(X), self.hparams.dataloader_kwargs["batch_size"])
         if self._X_scaler is not None:
             X = self._X_scaler.transform(X)
         X = torch.tensor(X).float()
@@ -172,6 +195,7 @@ class DataLoaderMixin:
 
     def test_dataloader(self):
         X = self.X_test.copy()
+        check_batch_size(len(X), self.hparams.dataloader_kwargs["batch_size"])
         if self._X_scaler is not None:
             X = self._X_scaler.transform(X)
         X = torch.tensor(X).float()
@@ -308,7 +332,7 @@ class GraphInputTargetPredictorMixin:
             # These are graphs and are stored in pickle format
             # TODO: must be a better format to store this data in...?
             if "X" in property_name:
-                return pickle.load(open(p / f"{property_name}.pkl"))
+                return pickle.load(open(p / f"{property_name}.pkl", "rb"))
 
             # These are vectors in numpy format
             else:
@@ -360,18 +384,49 @@ class GraphInputTargetPredictorMixin:
         return self._load_data("Y_val")
 
     @cached_property
-    def n_node_features(self):
+    def node_in_feats(self):
         graph = self.X_train[0]
         return graph.ndata["features"].shape[1]
 
     @cached_property
-    def n_edge_features(self):
+    def edge_in_feats(self):
         graph = self.X_train[0]
         return graph.edata["features"].shape[1]
 
     @cached_property
     def n_targets(self):
         return self.Y_train.shape[1]
+
+
+def collating_function_graph_to_vector(batch):
+    """Collates cd / graph-fixed length vector combination. Recall that
+    in this case, each element of batch is a three vector containing the
+    graph and the target"""
+
+    # Each target is the same length, so we can use standard batching for
+    # it.
+    targets = torch.FloatTensor([xx[1] for xx in batch])
+
+    # However, graphs are not of the same "length" (diagonally on the
+    # adjacency matrix), so we need to be careful. Usually, dgl's batch
+    # method would work just fine here, but for multi-gpu training, we
+    # need to catch some subtleties, since the batch itself is split apart
+    # equally onto many GPU's, but torch doesn't know how to properly split
+    # a batch of graphs. So, we manually partition the graphs here, and
+    # will batch the output of the collating function before training.
+    # This is now just a list of graphs.
+    graphs = [xx[0] for xx in batch]
+
+    return (graphs, targets)
+
+
+class GraphData(IterableDataset):
+    def __init__(self, L):
+        self.L = L
+
+    def __iter__(self):
+        for ii in range(len(self.L)):
+            yield self.L[ii]
 
 
 class GraphToArrayRegressionDataModule(
@@ -420,11 +475,41 @@ class GraphToArrayRegressionDataModule(
     def __init__(
         self,
         data_dir,
-        normalize_inputs,
         ensemble_split_index,
-        feature_select,
         dataloader_kwargs,
     ):
         super().__init__()
         self.save_hyperparameters(logger=False)
-        self._setup_X_scaler()
+
+    def train_dataloader(self):
+        X = self.X_train
+        check_batch_size(len(X), self.hparams.dataloader_kwargs["batch_size"])
+        Y = self.Y_train
+        L = [(x, y.tolist()) for x, y in zip(X, Y)]
+        return DataLoader(
+            GraphData(L),
+            collate_fn=collating_function_graph_to_vector,
+            **self.hparams.dataloader_kwargs,
+        )
+
+    def val_dataloader(self):
+        X = self.X_val
+        check_batch_size(len(X), self.hparams.dataloader_kwargs["batch_size"])
+        Y = self.Y_val
+        L = [(x, y.tolist()) for x, y in zip(X, Y)]
+        return DataLoader(
+            GraphData(L),
+            collate_fn=collating_function_graph_to_vector,
+            **self.hparams.dataloader_kwargs,
+        )
+
+    def test_dataloader(self):
+        X = self.X_test
+        check_batch_size(len(X), self.hparams.dataloader_kwargs["batch_size"])
+        Y = self.Y_test
+        L = [(x, y.tolist()) for x, y in zip(X, Y)]
+        return DataLoader(
+            GraphData(L),
+            collate_fn=collating_function_graph_to_vector,
+            **self.hparams.dataloader_kwargs,
+        )

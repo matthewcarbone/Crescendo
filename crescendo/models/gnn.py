@@ -2,7 +2,7 @@ from time import perf_counter
 
 from rich.console import Console
 
-# import dgl
+from dgl import batch as dgl_batch
 from dgllife.model import MPNNPredictor
 from lightning import LightningModule
 import torch
@@ -11,28 +11,6 @@ from torchmetrics import MeanMetric
 from crescendo.models.mlp import FeedForwardNeuralNetwork
 
 console = Console()
-
-
-def collating_function_graph_to_vector(batch):
-    """Collates cd / graph-fixed length vector combination. Recall that
-    in this case, each element of batch is a three vector containing the
-    graph and the target"""
-
-    # Each target is the same length, so we can use standard batching for
-    # it.
-    targets = torch.FloatTensor([xx[1] for xx in batch])
-
-    # However, graphs are not of the same "length" (diagonally on the
-    # adjacency matrix), so we need to be careful. Usually, dgl's batch
-    # method would work just fine here, but for multi-gpu training, we
-    # need to catch some subtleties, since the batch itself is split apart
-    # equally onto many GPU's, but torch doesn't know how to properly split
-    # a batch of graphs. So, we manually partition the graphs here, and
-    # will batch the output of the collating function before training.
-    # This is now just a list of graphs.
-    graphs = [xx[0] for xx in batch]
-
-    return (graphs, targets)
 
 
 class MessagePassingNeuralNetwork(LightningModule):
@@ -55,6 +33,7 @@ class MessagePassingNeuralNetwork(LightningModule):
         criterion,
         optimizer,
         last_activation,
+        scheduler,
     ):
         super().__init__()
         self.save_hyperparameters(logger=False)
@@ -101,7 +80,11 @@ class MessagePassingNeuralNetwork(LightningModule):
             The loss, predictions and ground truth y value.
         """
 
-        (g, n, e, target) = batch
+        (graphs, target) = batch
+        batched_graphs = dgl_batch(graphs)
+        g = batched_graphs
+        n = batched_graphs.ndata["features"]
+        e = batched_graphs.edata["features"]
         ypred = self.forward(g, n, e)
         loss = self.criterion(ypred, target)
         return loss, ypred, target
@@ -159,6 +142,7 @@ class MessagePassingNeuralNetwork(LightningModule):
         avg_loss = self.train_loss.compute()
         avg_val_loss = self.val_loss.compute()
         lr = self.optimizers().param_groups[0]["lr"]
+        print(avg_loss, avg_val_loss)
 
         if not torch.isnan(avg_loss):
             console.log(

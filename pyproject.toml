@@ -41,7 +41,9 @@ dependencies = [
     "pymatgen",
     "scikit-learn",
     "rich",
-    "dunamai"
+    "dunamai",
+    "dgl",
+    "dgllife"
 ]
 
 # Dynamic version reads __version__ directly from my_package.__init__

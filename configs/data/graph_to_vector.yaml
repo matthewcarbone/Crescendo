@@ -1,0 +1,8 @@
+_target_: crescendo.data.GraphToArrayRegressionDataModule
+
+ensemble_split_index: null
+# feature_select: null
+# normalize_inputs: True
+
+defaults:
+  - common_data.yaml

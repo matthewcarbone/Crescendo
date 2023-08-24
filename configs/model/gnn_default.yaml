@@ -2,8 +2,8 @@
 
 node_in_feats: auto
 edge_in_feats: auto
-node_out_feats: 64  # hidden node size
-edge_hidden_feats: 128  # hidden edge size
+node_out_feats: 32  # hidden node size
+edge_hidden_feats: 64  # hidden edge size
 n_tasks: 50
 num_step_message_passing: 6
 num_step_set2set: 6

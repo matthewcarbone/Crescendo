@@ -29,14 +29,14 @@ def seed_everything(config):
         _log(f"Config seed set: {config.seed}")
 
 
-def _update_architecture_linear_ramp_(config):
+def _update_architecture_linear_ramp_(config, input_dims_key, output_dims_key):
     """If config.model["architecture"] is an integer, assumes a linear ramp
     between the input and output layers, with the integer providing the number
     of hidden layers."""
 
     # These will have been set beforehand even if previously unset
-    n_in = config.model["input_dims"]
-    n_out = config.model["output_dims"]
+    n_in = config.model[input_dims_key]
+    n_out = config.model[output_dims_key]
 
     # Make a random choice of the number of interior neurons
     n_interior = config.model["architecture"]
@@ -77,7 +77,9 @@ def _update_architecture_(config, input_dims_key, output_dims_key):
     """
 
     if isinstance(config.model["architecture"], int):
-        _update_architecture_linear_ramp_(config)
+        _update_architecture_linear_ramp_(
+            config, input_dims_key, output_dims_key
+        )
         return
 
     if isinstance(config.model["architecture"], ListConfig):
