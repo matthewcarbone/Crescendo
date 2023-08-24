@@ -1,0 +1,15 @@
+# https://lifesci.dgl.ai/api/model.zoo.html#module-dgllife.model.model_zoo.mpnn_predictor
+
+node_in_feats: auto
+edge_in_feats: auto
+node_out_feats: 64  # hidden node size
+edge_hidden_feats: 128  # hidden edge size
+n_tasks: 50
+num_step_message_passing: 6
+num_step_set2set: 6
+num_layer_set2set: 3
+
+output_dims: auto
+
+defaults:
+  - common_model.yaml

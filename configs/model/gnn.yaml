@@ -1,0 +1,8 @@
+_target_: crescendo.models.gnn.MessagePassingNeuralNetwork
+
+architecture:
+  neurons_range: [5, 5]
+  ramp_std: 0.0
+
+defaults:
+  - gnn_default.yaml
