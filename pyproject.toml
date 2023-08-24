@@ -38,6 +38,7 @@ dependencies = [
     "pandas",
     "numpy",
     "pyrootutils",
+    "pymatgen",
     "scikit-learn",
     "rich",
     "dunamai"
