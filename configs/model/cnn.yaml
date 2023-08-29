@@ -1,0 +1,12 @@
+_target_: crescendo.models.cnn.ConvolutionalNeuralNetwork
+
+architecture:
+  - out_channels: 32
+    kernel_size: 3
+    stride: 1
+  - out_channels: 64
+    kernel_size: 3
+    stride: 1
+
+defaults:
+  - cnn_default.yaml
