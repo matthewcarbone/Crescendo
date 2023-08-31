@@ -1,10 +1,12 @@
 import dgl
+import random
 
 from ase import Atom
 import numpy as np
 from pathlib import Path
 from scipy.interpolate import InterpolatedUnivariateSpline
 import torch
+from tqdm import tqdm
 
 from pymatgen.core.structure import Structure
 
@@ -147,7 +149,7 @@ def construct_single_graph(
     return graph
 
 
-def construct_feff_dataset(root, **kwargs):
+def construct_feff_dataset(root, shuffle_materials=True, seed=123, **kwargs):
     """Creates the ML dataset and saves it to disk. This function assumes
     that files are in a certain structure. Specifically, the root directory
     has a list of materials. In that directory, is a single POSCAR, and another
@@ -158,32 +160,46 @@ def construct_feff_dataset(root, **kwargs):
     Parameters
     ----------
     root : os.PathLike
+    shuffle_materials : bool, optional
+        If True, shuffles the list of materials before iterating through them.
     **kwargs
         Keyword arguments passed to construct_single_graph.
 
     Returns
     -------
-    list, list
-        Lists of the graphs and spectra
+    list, list, list
+        Lists of the graphs and spectra (and their origins, "names")
     """
 
     graphs = []
     spectra = []
+    names = []
 
-    for material in Path(root).iterdir():
+    materials = list(Path(root).iterdir())
+    if shuffle_materials:
+        random.seed(seed)
+        random.shuffle(materials)
+
+    for material in tqdm(materials):
+        if not Path(material).is_dir():
+            continue
         structure = Structure.from_file(Path(material) / "POSCAR")
         for site_directory in (Path(material) / "FEFF-XANES").iterdir():
             site = int(str(site_directory.stem).split("_")[0])
             graph = construct_single_graph(structure, site, **kwargs)
-            feff_spectrum = np.loadtxt(Path(site_directory) / "xmu.dat")
+            try:
+                feff_spectrum = np.loadtxt(Path(site_directory) / "xmu.dat")
+            except FileNotFoundError:
+                continue
             graphs.append(graph)
             spectra.append(feff_spectrum)
+            names.append(f"{material.name}_{site}")
 
     # N x L x 6
     spectra = np.array(spectra)
     spectra = np.array([spectra[:, :, 0], spectra[:, :, 3]]).T.swapaxes(0, 1)
 
-    return graphs, spectra
+    return graphs, spectra, names
 
 
 def interpolate_spectra(spectra, min_max=None, N=200):
