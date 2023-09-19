@@ -62,13 +62,12 @@ def train(config):
     # Evaluate on the validation set. This will be important for hyperparameter
     # tuning later. Requires that the .validate method is defined on the
     # model.
-    # best_ckpt = trainer.checkpoint_callback.best_model_path
-    # trainer.validate(model=model, datamodule=datamodule, ckpt_path=best_ckpt)
-    # val_metric = trainer.callback_metrics
-    # console.log(f"Validation metric: {val_metric}")
+    best_ckpt = trainer.checkpoint_callback.best_model_path
+    trainer.validate(model=model, datamodule=datamodule, ckpt_path=best_ckpt)
+    val_metric = trainer.callback_metrics
+    console.log(f"Validation metric: {val_metric}")
 
-    # return val_metric["val/loss"].item()
-    return 1
+    return val_metric["val/loss"].item()
 
 
 def entrypoint():
