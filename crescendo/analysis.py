@@ -4,11 +4,13 @@ and data."""
 from functools import cached_property, cache
 from pathlib import Path
 
+from dgl import batch as dgl_batch
 import numpy as np
 import pandas as pd
 from rich.jupyter import print
 import torch
 from yaml import safe_load
+from tqdm import tqdm
 
 from crescendo import utils
 
@@ -84,7 +86,8 @@ class Estimator:
             if self._verbose:
                 print(
                     f"Results data_dir is explicitly set to {self._data_dir}. "
-                    "Internal self.config will be appended with this directory.",
+                    "Internal self.config will be appended with this "
+                    "directory.",
                     style="bold yellow",
                 )
             config.data["data_dir"] = self._data_dir
@@ -195,25 +198,57 @@ class Estimator:
         self._data_dir = data_dir
         self._verbose = verbose
 
-    def predict(self, x, scale_forward=True):
+    @staticmethod
+    def _predict_dnn(model, x):
+        x = torch.Tensor(x).float()
+        with torch.no_grad():
+            return model.forward(x).detach().numpy()
+
+    @staticmethod
+    def _predict_gnn(model, x):
+        results = []
+        L = len(x)
+        with torch.no_grad():
+            for xx in tqdm(range(0, L, 32)):  # batch for storage reasons
+                batched_graphs = dgl_batch(x[xx : min(xx + 32, L)])
+                g = batched_graphs
+                n = batched_graphs.ndata["features"]
+                e = batched_graphs.edata["features"]
+                results.append(model.forward(g, n, e).detach().numpy())
+        return np.concatenate(results)
+
+    def predict(self, x):
         """Runs forward prediction on the model.
 
         Parameters
         ----------
-        x : numpy.ndarray
+        x
+            Depending on the type of prediction to perform, x might be a numpy
+            array, or list of objects. For example, in the case of the MLPs,
+            x is a numpy array. However, for MPNNs, it is a list of DGL graph
+            objects.
 
         Returns
         -------
         numpy.ndarray
+
+        Raises
+        ------
+        ValueError
+            If the detected model type is not known.
         """
 
-        if scale_forward:
-            x = self.get_datamodule()._X_scaler.transform(x)
-        x = torch.Tensor(x).float()
+        model_type = self.config["model"]["_target_"]
+
         model = self.get_model()
         model.eval()
-        with torch.no_grad():
-            return model.forward(x).detach().numpy()
+
+        if "crescendo.models.gnn" in model_type:
+            return self._predict_gnn(model, x)
+        elif "crescendo.models.mlp" in model_type:
+            return self._predict_dnn(model, x)
+
+        raise ValueError(f"Model type {model_type} unknown")
 
 
 class ModelSet:
