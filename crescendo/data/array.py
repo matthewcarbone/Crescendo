@@ -10,7 +10,7 @@ from rich.console import Console
 
 from crescendo.utils.datasets import download_california_housing_data
 
-from crescendo.data.common import (
+from crescendo.data._common import (
     XYArrayPropertyMixin,
     ScaleXMixin,
     DataLoaderMixin,
