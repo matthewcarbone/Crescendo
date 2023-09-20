@@ -7,7 +7,7 @@ defaults:
   - data: null
   - model: null
   - callbacks: default.yaml
-  - logger: csv.yaml # set logger here or use command line (e.g. `python train.py logger=tensorboard`)
+  - logger: csv.yaml
   - trainer: default.yaml
   - paths: default.yaml
   - extras: default.yaml
@@ -42,7 +42,3 @@ seed: null
 
 # if true will dump a lot of stuff to the console which you probably dont need
 log_locals: False
-
-# hydra:
-#   searchpath:
-#     - file://.

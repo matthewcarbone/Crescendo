@@ -138,6 +138,7 @@ class MultilayerPerceptron(LightningModule):
         last_batch_norm,
         scheduler,
         criterion,
+        print_every,
     ):
         super().__init__()
 
@@ -235,10 +236,17 @@ class MultilayerPerceptron(LightningModule):
         avg_val_loss = self.val_loss.compute()
         lr = self.optimizers().param_groups[0]["lr"]
 
-        if not torch.isnan(avg_loss):
+        if self.current_epoch == 0:
+            console.log("Epoch  | t (s)  | T loss     | V loss     | LR      ")
+            console.log("----------------------------------------------------")
+
+        if (
+            self.current_epoch == 0
+            or self.current_epoch % self.hparams.print_every == 0
+        ):
             console.log(
-                f"{self.current_epoch} \t {dt:.02f} s \t T={avg_loss:.02e} "
-                f"\t V={avg_val_loss:.02e} \t lr={lr:.02e}"
+                f"{self.current_epoch:06d} | {dt:.02f}   | {avg_loss:.02e}   "
+                f"| {avg_val_loss:.02e}   | {lr:.02e}   "
             )
 
     def test_step(self, batch, batch_idx):

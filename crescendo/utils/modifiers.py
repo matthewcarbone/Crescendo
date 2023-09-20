@@ -209,7 +209,7 @@ def update_architecture_in_out_(config, datamodule):
         _update_architecture_(config, "n_tasks", "output_dims")
 
 
-def _update_optimizer_lr(config):
+def update_optimizer_lr(config):
     """This function checks the lr parameter of the optimizer, but also
     checks against another possible parameter, log10_lr. If one is provided,
     it is set at the lr, with appropriate conversions. If neither is provided
