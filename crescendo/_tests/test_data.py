@@ -3,7 +3,7 @@ from tempfile import TemporaryDirectory
 
 import numpy as np
 
-from crescendo.data import ArrayRegressionDataModule
+from crescendo.data.array import ArrayRegressionDataModule
 
 
 class TestArrayRegressionDataModule:
