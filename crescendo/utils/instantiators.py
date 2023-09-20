@@ -34,7 +34,7 @@ import torch
 from crescendo.utils.modifiers import (
     seed_everything,
     update_architecture_in_out_,
-    _update_optimizer_lr,
+    update_optimizer_lr,
 )
 
 
@@ -131,7 +131,7 @@ def instantiate_all_(config, log=False):
     seed_everything(config)
     datamodule = instantiate_datamodule(config, log=log)
     update_architecture_in_out_(config, datamodule)
-    _update_optimizer_lr(config)
+    update_optimizer_lr(config)
     model = instantiate_model(config, log=log)
     callbacks = instantiate_callbacks(config, log=log)
     loggers = instantiate_loggers(config, log=log)

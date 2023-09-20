@@ -5,6 +5,9 @@ last_activation: null
 batch_norm: True
 last_batch_norm: False
 
+# How often to print the losses to the console
+print_every: 5
+
 optimizer:
   _target_: torch.optim.Adam
   _partial_: true

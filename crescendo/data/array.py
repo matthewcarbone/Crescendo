@@ -50,18 +50,18 @@ class ArrayRegressionDataModule(
         If True, will standard-scale the input features to the standard normal
         distribution using the training set, and execute that transform on the
         other splits. These objects are stored in ``X_train_scaled``, etc.
-    ensemble_split_index : int, optional
+    ensemble_split_index : int
         If not None, this is an integer referencing the file splits.json in the
         same directory as the data. This json file contains keys such as
         "split-0", "split-1", etc., with values corresponding to the training
         set indexes of the split. You can use
         ``crescendo.preprocess.array:ensemble_split`` to create this file.
-    feature_select : str, optional
+    feature_select : str
         If not None, this argument provides some custom functionality to select
         only a subset of the features provided in the data. For example,
         ``feature_select="0:200,400:600"`` will select features 0 through 199,
         inclusive, and 400 through 599, inclusive.
-    dataloader_kwargs : dict, optional
+    dataloader_kwargs : dict
         A dictionary containing the keyword arguments to pass to all
         dataloaders.
     """

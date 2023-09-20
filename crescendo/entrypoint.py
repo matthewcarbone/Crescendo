@@ -45,7 +45,6 @@ def train(config):
     utils.omegaconf_to_yaml(config, yaml_path)
     console.log(f"Final config saved to {yaml_path}")
 
-    console.log(model)
     console.log(OmegaConf.to_container(config))
 
     # This a PyTorch 2.0 special. Compiles the model if possible for faster
@@ -54,7 +53,6 @@ def train(config):
     model = utils.compile_model(config, model)
 
     # Fit the model, of course!
-    console.log(f"checkpoint path is {config.get('ckpt_path')}")
     trainer.fit(
         model=model, datamodule=datamodule, ckpt_path=config.get("ckpt_path")
     )
@@ -63,11 +61,10 @@ def train(config):
     # tuning later. Requires that the .validate method is defined on the
     # model.
     best_ckpt = trainer.checkpoint_callback.best_model_path
+    console.log(f"Best checkpoint is {best_ckpt}")
     trainer.validate(model=model, datamodule=datamodule, ckpt_path=best_ckpt)
-    val_metric = trainer.callback_metrics
-    console.log(f"Validation metric: {val_metric}")
 
-    return val_metric["val/loss"].item()
+    return trainer.callback_metrics["val/loss"].item()
 
 
 def entrypoint():
