@@ -8,7 +8,8 @@ last_batch_norm: False
 optimizer:
   _target_: torch.optim.Adam
   _partial_: true
-  log10_lr: -3
+  lr: 0.001
+  # Can add log10_lr instead!
   weight_decay: 0.0
 
 scheduler:
