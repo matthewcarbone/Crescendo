@@ -1,6 +1,0 @@
-_target_: crescendo.models.gnn.MessagePassingNeuralNetwork
-
-architecture: 3
-
-defaults:
-  - gnn_default.yaml
