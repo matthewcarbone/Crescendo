@@ -233,7 +233,9 @@ def _update_optimizer_lr(config):
         # Then log10_lr is set
         with open_dict(config):
             log10_lr = config.model["optimizer"].pop("log10_lr")
-            config.model["optimizer"]["lr"] = 10.0**log10_lr
+            new_lr = 10.0**log10_lr
+            config.model["optimizer"]["lr"] = new_lr
+        _log(f"Optimizer lr set from log10_lr to {new_lr:.02e}")
     else:
         # The lr is set and log10_lr doesn't exist. Do nothing
         pass
