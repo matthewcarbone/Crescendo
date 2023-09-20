@@ -1,4 +1,4 @@
-_target_: crescendo.data.ArrayRegressionDataModule
+_target_: crescendo.data.array.ArrayRegressionDataModule
 
 ensemble_split_index: null
 feature_select: null
