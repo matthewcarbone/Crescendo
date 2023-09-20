@@ -4,7 +4,7 @@ a bold yellow output style."""
 
 import lightning as L
 import numpy as np
-from omegaconf import DictConfig, ListConfig
+from omegaconf import DictConfig, ListConfig, open_dict
 from rich.console import Console
 
 
@@ -207,6 +207,36 @@ def update_architecture_in_out_(config, datamodule):
             )
 
         _update_architecture_(config, "n_tasks", "output_dims")
+
+
+def _update_optimizer_lr(config):
+    """This function checks the lr parameter of the optimizer, but also
+    checks against another possible parameter, log10_lr. If one is provided,
+    it is set at the lr, with appropriate conversions. If neither is provided
+    or both are provided, an error is thrown.
+
+    Parameters
+    ----------
+    config : omegaconf.dictconfig.DictConfig
+        The configuration file which will be modified in-place.
+    """
+
+    lr = config.model["optimizer"].get("lr", None)
+    log10_lr = config.model["optimizer"].get("log10_lr", None)
+
+    if lr is not None and log10_lr is not None:
+        raise ValueError("You must only provide one of lr and log10_lr")
+    if lr is None and log10_lr is None:
+        raise ValueError("Either lr or log10_lr must be provided")
+
+    if lr is None:
+        # Then log10_lr is set
+        with open_dict(config):
+            log10_lr = config.model["optimizer"].pop("log10_lr")
+            config.model["optimizer"]["lr"] = 10.0**log10_lr
+    else:
+        # The lr is set and log10_lr doesn't exist. Do nothing
+        pass
 
 
 def compile_model(config, model):

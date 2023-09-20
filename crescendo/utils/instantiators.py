@@ -1,5 +1,5 @@
 """Container for various LightningModule models
-Code is modified based off of 
+Code is modified based off of
 https://github.com/ashleve/lightning-hydra-template/blob/
 89194063e1a3603cfd1adafa777567bc98da2368/src/utils/instantiators.py
 
@@ -26,7 +26,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-
 import hydra
 from omegaconf import DictConfig
 from rich.console import Console
@@ -35,6 +34,7 @@ import torch
 from crescendo.utils.modifiers import (
     seed_everything,
     update_architecture_in_out_,
+    _update_optimizer_lr,
 )
 
 
@@ -131,6 +131,7 @@ def instantiate_all_(config, log=False):
     seed_everything(config)
     datamodule = instantiate_datamodule(config, log=log)
     update_architecture_in_out_(config, datamodule)
+    _update_optimizer_lr(config)
     model = instantiate_model(config, log=log)
     callbacks = instantiate_callbacks(config, log=log)
     loggers = instantiate_loggers(config, log=log)
