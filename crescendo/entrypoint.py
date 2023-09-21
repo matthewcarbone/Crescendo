@@ -71,7 +71,7 @@ def _train(config):
     trainer.validate(model=model, datamodule=dm, ckpt_path=best_ckpt)
     val_metric = trainer.callback_metrics
 
-    return val_metric["val/loss"].item()
+    return {"val_metric": val_metric["val/loss"].item()}
 
 
 def _log_warnings(warnings_caught, config):
@@ -112,8 +112,9 @@ def train(config):
     """
 
     with warnings.catch_warnings(record=True) as warnings_caught:
-        _train(config)
+        state = _train(config)
     _log_warnings(warnings_caught, config)
+    return state["val_metric"]
 
 
 def entrypoint():
