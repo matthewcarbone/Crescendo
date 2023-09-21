@@ -5,15 +5,8 @@ a bold yellow output style."""
 import lightning as L
 import numpy as np
 from omegaconf import DictConfig, ListConfig, open_dict
-from rich.console import Console
 
-
-CONSOLE = Console()
-OUTPUT_STYLE = "bold yellow"
-
-
-def _log(msg):
-    CONSOLE.log(msg, style=OUTPUT_STYLE)
+from crescendo import logger
 
 
 def seed_everything(config):
@@ -26,7 +19,7 @@ def seed_everything(config):
 
     if config.get("seed"):
         L.seed_everything(config.seed, workers=True)
-        _log(f"Config seed set: {config.seed}")
+        logger.success(f"Config seed set: {config.seed}")
 
 
 def _update_architecture_linear_ramp_(config, input_dims_key, output_dims_key):
@@ -48,7 +41,9 @@ def _update_architecture_linear_ramp_(config, input_dims_key, output_dims_key):
     y_interp = np.interp(x_eval, x, y).astype(int).tolist()
 
     config.model["architecture"] = y_interp
-    _log(f"Architecture set to {y_interp} given n_layers=={n_interior}")
+    logger.success(
+        f"Architecture set to {y_interp} given n_layers=={n_interior}"
+    )
 
 
 def _update_architecture_(config, input_dims_key, output_dims_key):
@@ -116,7 +111,7 @@ def _update_architecture_(config, input_dims_key, output_dims_key):
     y = [n_in, n_out]
     x_eval = np.linspace(1, n_interior, n_interior)
     y_interp = np.interp(x_eval, x, y)
-    _log(
+    logger.success(
         "Using randomized architecture: from parameters "
         f"neurons_range={neurons_range} and ramp_std={ramp_std:.05f}. "
         f"Interior architecture before noise: {y_interp.tolist()}"
@@ -126,7 +121,7 @@ def _update_architecture_(config, input_dims_key, output_dims_key):
     y_interp = y_interp + np.random.normal(scale=ramp_std, size=len(y_interp))
     y_interp = y_interp.astype(int)
     y_interp[y_interp <= 0] = 1
-    _log(f"Architecture after noise: {y_interp}")
+    logger.success(f"Architecture after noise: {y_interp}")
 
     config.model["architecture"] = y_interp.tolist()
 
@@ -165,7 +160,7 @@ def update_architecture_in_out_(config, datamodule):
         n_features = datamodule.n_features
         if config.model["input_dims"] == "auto":
             config.model["input_dims"] = n_features
-            _log(
+            logger.success(
                 "Input MLP dimensions automatically set from dataloader "
                 f"to n_features={n_features}"
             )
@@ -173,7 +168,7 @@ def update_architecture_in_out_(config, datamodule):
         n_targets = datamodule.n_targets
         if config.model["output_dims"] == "auto":
             config.model["output_dims"] = n_targets
-            _log(
+            logger.success(
                 "Output MLP dimensions automatically set from dataloader "
                 f"to n_targets={n_targets}"
             )
@@ -185,7 +180,7 @@ def update_architecture_in_out_(config, datamodule):
         if config.model["output_dims"] == "auto":
             n_targets = datamodule.n_targets
             config.model["output_dims"] = n_targets
-            _log(
+            logger.success(
                 "Output GNN dimensions automatically set from dataloader "
                 f"to n_targets={n_targets}"
             )
@@ -193,7 +188,7 @@ def update_architecture_in_out_(config, datamodule):
         if config.model["node_in_feats"] == "auto":
             node_in_feats = datamodule.node_in_feats
             config.model["node_in_feats"] = node_in_feats
-            _log(
+            logger.success(
                 "GNN node size automatically set from dataloader "
                 f"to node_in_feats={node_in_feats}"
             )
@@ -201,7 +196,7 @@ def update_architecture_in_out_(config, datamodule):
         if config.model["edge_in_feats"] == "auto":
             edge_in_feats = datamodule.edge_in_feats
             config.model["edge_in_feats"] = edge_in_feats
-            _log(
+            logger.success(
                 "GNN edge size automatically set from dataloader "
                 f"to edge_in_feats={edge_in_feats}"
             )
@@ -235,7 +230,7 @@ def update_optimizer_lr(config):
             log10_lr = config.model["optimizer"].pop("log10_lr")
             new_lr = 10.0**log10_lr
             config.model["optimizer"]["lr"] = new_lr
-        _log(f"Optimizer lr set from log10_lr to {new_lr:.02e}")
+        logger.success(f"Optimizer lr set from log10_lr to {new_lr:.02e}")
     else:
         # The lr is set and log10_lr doesn't exist. Do nothing
         pass
@@ -246,7 +241,7 @@ def compile_model(config, model):
     acceleration. Will fail gracefully."""
 
     if not config.compile:
-        _log("Model compile==False")
+        logger.warning("PyTorch 2.0 model compile setting is False")
         return model
 
     import torch
@@ -254,5 +249,5 @@ def compile_model(config, model):
 
     _dynamo.config.suppress_errors = True
     model = torch.compile(model)
-    _log("Model compilation attempted... see logs above")
+    logger.warning("Model compilation attempted... see logs above")
     return model

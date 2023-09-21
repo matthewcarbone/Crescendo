@@ -11,7 +11,6 @@ current_directory=$(pwd)
 directories=(
     "00_xas_to_functional_groups/00a_hyperparameter_tune"
     "00_xas_to_functional_groups/00b_ensemble_training"
-    "01_graph_to_xas"
 )
 
 for d in "${directories[@]}"; do

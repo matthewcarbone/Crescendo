@@ -28,13 +28,12 @@ SOFTWARE.
 
 from time import perf_counter
 
-from rich.console import Console
 import torch
 from torch import nn
 from lightning import LightningModule
 from torchmetrics import MeanMetric
 
-console = Console()
+from crescendo import logger
 
 
 class FeedforwardLayer(nn.Module):
@@ -237,14 +236,14 @@ class MultilayerPerceptron(LightningModule):
         lr = self.optimizers().param_groups[0]["lr"]
 
         if self.current_epoch == 0:
-            console.log("Epoch  | t (s)  | T loss     | V loss     | LR      ")
-            console.log("----------------------------------------------------")
+            logger.info("Epoch  | t (s)  | T loss     | V loss     | LR      ")
+            logger.info("----------------------------------------------------")
 
         if (
             self.current_epoch == 0
             or self.current_epoch % self.hparams.print_every == 0
         ):
-            console.log(
+            logger.info(
                 f"{self.current_epoch:06d} | {dt:.02f}   | {avg_loss:.02e}   "
                 f"| {avg_val_loss:.02e}   | {lr:.02e}   "
             )
@@ -265,10 +264,10 @@ class MultilayerPerceptron(LightningModule):
 
     def configure_optimizers(self):
         optimizer = self.hparams.optimizer(params=self.parameters())
-        console.log(f"Optimizer configured {optimizer.__class__}")
+        logger.debug(f"Optimizer configured {optimizer.__class__}")
         if self.hparams.scheduler is not None:
             scheduler = self.hparams.scheduler(optimizer=optimizer)
-            console.log(f"Scheduler configured {scheduler.__class__}")
+            logger.debug(f"Scheduler configured {scheduler.__class__}")
             return {
                 "optimizer": optimizer,
                 "lr_scheduler": {

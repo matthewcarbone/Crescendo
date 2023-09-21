@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 from subprocess import Popen, PIPE
 from time import perf_counter
+import yaml
 
 from omegaconf import OmegaConf
 
@@ -61,3 +62,7 @@ def read_json(path):
     with open(path, "r") as infile:
         dat = json.load(infile)
     return dat
+
+
+def save_yaml(d, path):
+    yaml.dump(d, open(path, "w"))

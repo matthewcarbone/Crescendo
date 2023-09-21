@@ -6,7 +6,6 @@ from tempfile import TemporaryDirectory
 
 from lightning import LightningDataModule
 import numpy as np
-from rich.console import Console
 
 from crescendo.utils.datasets import download_california_housing_data
 
@@ -15,9 +14,6 @@ from crescendo.data._common import (
     ScaleXMixin,
     DataLoaderMixin,
 )
-
-
-console = Console()
 
 
 class ArrayRegressionDataModule(
