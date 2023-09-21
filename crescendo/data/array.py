@@ -97,8 +97,8 @@ class CaliforniaHousingDataset(
             download_california_housing_data(path)
             self._X_train = np.load(path / "X_train.npy")
             self._X_val = np.load(path / "X_val.npy")
+            self._X_test = np.load(path / "X_test.npy")
             self._Y_train = np.load(path / "Y_train.npy")
             self._Y_val = np.load(path / "Y_val.npy")
-            self._X_test = None
-            self._Y_test = None
+            self._Y_test = np.load(path / "Y_test.npy")
         self._setup_X_scaler()
