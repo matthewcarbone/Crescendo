@@ -1,18 +1,56 @@
 """Container for various common LightningDataModules mix-ins and other
 things."""
 
-from functools import cached_property
+from functools import cached_property, cache
 from pathlib import Path
 
 import numpy as np
-from rich.console import Console
 from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import KFold
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
-from crescendo.utils.other_utils import read_json
+from crescendo import logger
 
-console = Console()
+
+@cache
+def read_numpy_array_from_disk(path):
+    return np.load(path)
+
+
+@cache
+def _ensemble_split(
+    *, split_index, data_size, n_splits, shuffle, random_state=42
+):
+    """Returns a deterministic split given a dataset size and other
+    parameters.
+
+    Parameters
+    ----------
+    split_index : int
+        The index of the split. Must be < n_splits.
+    data_size : int
+        The size of the data to split. For array inputs, for example, this
+        would be X.shape[0].
+    n_splits : int
+        The total number of splits to make.
+    shuffle : bool
+        Whether or not to shuffle the indexes. Recommended to be true.
+    random_state : int, optional
+        The random seed. By default this is set to 42.
+
+    Returns
+    -------
+    list
+        A list of integers corresponding to the indexes to use for the
+        ensemble downsampling.
+    """
+
+    assert n_splits > 1
+    assert split_index < n_splits
+    kf = KFold(n_splits=n_splits, shuffle=shuffle, random_state=random_state)
+    L = list(range(data_size))
+    return [train_indexes for (train_indexes, _) in kf.split(L)][split_index]
 
 
 def check_batch_size(L_set, batch_size):
@@ -37,15 +75,50 @@ def check_batch_size(L_set, batch_size):
 
 
 class XYArrayPropertyMixin:
+    @cached_property
+    def n_train(self):
+        """Gets the number of training examples. This accounts for
+        production mode being enabled, and thus combining the training,
+        validation and testing splits.
+
+        Returns
+        -------
+        int
+        """
+
+        f = str(Path(self.hparams.data_dir) / "X_train.npy")
+        X_train = read_numpy_array_from_disk(f)
+        N = X_train.shape[0]
+
+        if self.hparams.production_mode:
+            f = str(Path(self.hparams.data_dir) / "X_val.npy")
+            X_val = read_numpy_array_from_disk(f)
+            N += X_val.shape[0]
+            f = str(Path(self.hparams.data_dir) / "X_test.npy")
+            X_test = read_numpy_array_from_disk(f)
+            N += X_test.shape[0]
+
+        return N
+
     def _apply_ensemble_split(self, data):
-        if self.hparams.ensemble_split_index is None:
+        if not self.hparams.ensemble_split["enable"]:
             return data
-        s = f"split-{self.hparams.ensemble_split_index}"
-        split = self.ensemble_splits[s]
+        split_index = self.hparams.ensemble_split["index"]
+        shuffle = self.hparams.ensemble_split["shuffle"]
+        random_state = self.hparams.ensemble_split["random_state"]
+        n_splits = self.hparams.ensemble_split["n_splits"]
+
+        split = _ensemble_split(
+            split_index=split_index,
+            data_size=self.n_train,
+            n_splits=n_splits,
+            shuffle=shuffle,
+            random_state=random_state,
+        )
         new_dat = data[split, :]
-        console.log(
-            f"Training data downsampled from {data.shape} -> {new_dat.shape}",
-            style="bold yellow",
+        logger.warning(
+            "Applying ensemble split: training data downsampled "
+            f"from {data.shape} -> {new_dat.shape}"
         )
         return new_dat
 
@@ -61,6 +134,7 @@ class XYArrayPropertyMixin:
 
         # For each entry, we split by the second delimiter, a :
         split = [np.array(xx.split(":")).astype(int).tolist() for xx in split]
+        logger.warning(f"Applying feature selection logic: {split}")
 
         # Edge case
         if len(split) == 1:
@@ -71,9 +145,9 @@ class XYArrayPropertyMixin:
 
     def _load_data(self, property_name):
         # Attempt to load from disk
-        fname = f"{property_name}.npy"
         if self.hparams.data_dir is not None:
-            return np.load(Path(self.hparams.data_dir) / fname)
+            f = Path(self.hparams.data_dir) / f"{property_name}.npy"
+            return read_numpy_array_from_disk(f)
 
         # If appropriate file does not exist, attempt to access the internal
         # value of the object
@@ -86,15 +160,10 @@ class XYArrayPropertyMixin:
         raise ValueError(f"_{attr_name} not initialized and dne on disk")
 
     @cached_property
-    def ensemble_splits(self):
-        path = Path(self.hparams.data_dir) / "splits.json"
-        if not path.exists():
-            return None
-        return read_json(path)
-
-    @cached_property
     def X_train(self):
         dat = self._load_data("X_train")
+        if self.hparams.production_mode:
+            dat = np.concatenate([dat, self.X_val, self.X_test], axis=0)
         dat = self._apply_ensemble_split(dat)
         return self._apply_feature_selection_logic(dat)
 
@@ -111,6 +180,8 @@ class XYArrayPropertyMixin:
     @cached_property
     def Y_train(self):
         dat = self._load_data("Y_train")
+        if self.hparams.production_mode:
+            dat = np.concatenate([dat, self.Y_val, self.Y_test], axis=0)
         return self._apply_ensemble_split(dat)
 
     @cached_property

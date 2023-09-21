@@ -41,4 +41,4 @@ ckpt_path: null
 seed: null
 
 # set the logging mode
-logging_mode: "debug"
+debug_mode: false

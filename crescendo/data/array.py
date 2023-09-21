@@ -8,12 +8,12 @@ from lightning import LightningDataModule
 import numpy as np
 
 from crescendo.utils.datasets import download_california_housing_data
-
 from crescendo.data._common import (
     XYArrayPropertyMixin,
     ScaleXMixin,
     DataLoaderMixin,
 )
+from crescendo import logger
 
 
 class ArrayRegressionDataModule(
@@ -46,12 +46,9 @@ class ArrayRegressionDataModule(
         If True, will standard-scale the input features to the standard normal
         distribution using the training set, and execute that transform on the
         other splits. These objects are stored in ``X_train_scaled``, etc.
-    ensemble_split_index : int
-        If not None, this is an integer referencing the file splits.json in the
-        same directory as the data. This json file contains keys such as
-        "split-0", "split-1", etc., with values corresponding to the training
-        set indexes of the split. You can use
-        ``crescendo.preprocess.array:ensemble_split`` to create this file.
+    ensemble_split : dict
+        Dictionary with the arguments for crescendo.data.ensemble_split.split.
+        By default, it is disabled (see its default config)
     feature_select : str
         If not None, this argument provides some custom functionality to select
         only a subset of the features provided in the data. For example,
@@ -66,13 +63,19 @@ class ArrayRegressionDataModule(
         self,
         data_dir,
         normalize_inputs,
-        ensemble_split_index,
+        ensemble_split,
         feature_select,
         dataloader_kwargs,
+        production_mode,
     ):
         super().__init__()
         self.save_hyperparameters(logger=False)
         self._setup_X_scaler()
+        if self.hparams.production_mode:
+            logger.warning(
+                "Production mode is set to True. Validation and testing data "
+                "will be combined with training data during model fitting."
+            )
 
 
 class CaliforniaHousingDataset(
@@ -84,9 +87,10 @@ class CaliforniaHousingDataset(
         dataloader_kwargs,
     ):
         super().__init__()
-        self.hparams.ensemble_split_index = None
+        self.hparams.ensemble_split = {"enable": False}
         self.hparams.data_dir = None
         self.hparams.feature_select = None
+        self.hparams.production_mode = False
         self.save_hyperparameters(logger=False)
         with TemporaryDirectory() as t:
             path = t / Path("california_housing_data")
