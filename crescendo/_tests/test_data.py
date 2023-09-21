@@ -19,7 +19,7 @@ class TestArrayRegressionDataModule:
                 data_dir=d,
                 normalize_inputs=False,
                 feature_select="0:5",
-                ensemble_split_index=None,
+                ensemble_split_index={"enable": False},
                 dataloader_kwargs={
                     "batch_size": 64,
                     "num_workers": 0,
@@ -35,7 +35,7 @@ class TestArrayRegressionDataModule:
                 data_dir=d,
                 normalize_inputs=False,
                 feature_select="0:3,6:9",
-                ensemble_split_index=None,
+                ensemble_split_index={"enable": False},
                 dataloader_kwargs={
                     "batch_size": 64,
                     "num_workers": 0,
