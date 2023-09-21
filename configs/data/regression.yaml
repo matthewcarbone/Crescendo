@@ -1,14 +1,4 @@
 _target_: crescendo.data.array.ArrayRegressionDataModule
 
-ensemble_split:
-  index: null  # User must select this manually
-  n_splits: 20
-  shuffle: true
-  random_state: 42  # Very important this not change from run to run
-  enable: false
-
-feature_select: null
-normalize_inputs: true
-
 defaults:
   - common_data.yaml

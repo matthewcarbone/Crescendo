@@ -1,6 +1,4 @@
 _target_: crescendo.data.array.CaliforniaHousingDataset
 
-normalize_inputs: True
-
 defaults:
   - common_data.yaml

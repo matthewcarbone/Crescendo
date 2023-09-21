@@ -1,5 +1,18 @@
+normalize_inputs: true
+
+ensemble_split:
+  index: null  # User must select this manually
+  n_splits: 20
+  shuffle: true
+  random_state: 42  # Very important this not change from run to run
+  enable: false
+
 dataloader_kwargs:
   batch_size: 64
   num_workers: 0
   pin_memory: False
   drop_last: True
+
+feature_select: null
+
+production_mode: false

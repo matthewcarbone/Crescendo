@@ -84,13 +84,13 @@ class CaliforniaHousingDataset(
     def __init__(
         self,
         normalize_inputs,
+        ensemble_split,
+        feature_select,
         dataloader_kwargs,
+        production_mode,
     ):
         super().__init__()
-        self.hparams.ensemble_split = {"enable": False}
         self.hparams.data_dir = None
-        self.hparams.feature_select = None
-        self.hparams.production_mode = False
         self.save_hyperparameters(logger=False)
         with TemporaryDirectory() as t:
             path = t / Path("california_housing_data")
