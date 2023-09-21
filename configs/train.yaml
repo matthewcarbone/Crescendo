@@ -32,7 +32,7 @@ task_name: "train"
 tags: []
 
 # compile model for faster training with pytorch 2.0
-compile: False
+compile: false
 
 # simply provide checkpoint path to resume training
 ckpt_path: null
@@ -40,5 +40,5 @@ ckpt_path: null
 # seed for random number generators in pytorch, numpy and python.random
 seed: null
 
-# if true will dump a lot of stuff to the console which you probably dont need
-log_locals: False
+# set the logging mode
+debug: false

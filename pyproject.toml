@@ -42,9 +42,7 @@ dependencies = [
     "scikit-learn",
     "rich",
     "dunamai",
-    "rdkit",
-    "dgl",
-    "dgllife"
+    "loguru",
 ]
 
 # Dynamic version reads __version__ directly from my_package.__init__

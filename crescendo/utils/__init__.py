@@ -11,7 +11,6 @@ from .modifiers import (  # noqa
     update_architecture_in_out_,
     compile_model,
 )
-from .wrappers import log_warnings  # noqa
 from .other_utils import (  # noqa
     remove_files_matching_patterns,
     omegaconf_to_yaml,
@@ -20,4 +19,5 @@ from .other_utils import (  # noqa
     save_json,
     read_json,
     Timer,
+    save_yaml,
 )

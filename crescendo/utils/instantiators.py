@@ -28,7 +28,6 @@ SOFTWARE.
 
 import hydra
 from omegaconf import DictConfig
-from rich.console import Console
 import torch
 
 from crescendo.utils.modifiers import (
@@ -36,22 +35,18 @@ from crescendo.utils.modifiers import (
     update_architecture_in_out_,
     update_optimizer_lr,
 )
+from crescendo import logger
 
 
-console = Console()
-
-
-def instantiate_datamodule(config, log=False):
+def instantiate_datamodule(config):
     datamodule = hydra.utils.instantiate(config.data)
-    if log:
-        console.log(f"Datamodule instantiated {datamodule.__class__}")
+    logger.debug(f"Datamodule instantiated {datamodule.__class__}")
     return datamodule
 
 
-def instantiate_model(config, checkpoint=None, log=False):
+def instantiate_model(config, checkpoint=None):
     model = hydra.utils.instantiate(config.model)
-    if log:
-        console.log(f"Model instantiated {model.__class__}")
+    logger.debug(f"Model instantiated {model.__class__}")
     if checkpoint is not None:
         try:
             model = model.__class__.load_from_checkpoint(checkpoint)
@@ -59,21 +54,19 @@ def instantiate_model(config, checkpoint=None, log=False):
             model = model.__class__.load_from_checkpoint(
                 checkpoint, map_location=torch.device("cpu")
             )
-        if log:
-            console.log(f"Model loaded from checkpoint {checkpoint}")
+        logger.debug(f"Model loaded from checkpoint {checkpoint}")
     return model
 
 
-def instantiate_trainer(config, callbacks, loggers, log=False):
+def instantiate_trainer(config, callbacks, loggers):
     trainer = hydra.utils.instantiate(
         config.trainer, callbacks=callbacks, logger=loggers
     )
-    if log:
-        console.log(f"Trainer instantiated {trainer.__class__}")
+    logger.debug(f"Trainer instantiated {trainer.__class__}")
     return trainer
 
 
-def instantiate_callbacks(config, log=False):
+def instantiate_callbacks(config):
     """Instantiates callbacks from config."""
 
     callbacks_cfg = config.get("callbacks")
@@ -90,15 +83,14 @@ def instantiate_callbacks(config, log=False):
         if isinstance(cb_conf, DictConfig) and "_target_" in cb_conf:
             callbacks.append(hydra.utils.instantiate(cb_conf))
 
-    if log:
-        for callback in callbacks:
-            console.log(f"Callbacks instantiated {callback.__class__}")
+    for callback in callbacks:
+        logger.debug(f"Callbacks instantiated {callback.__class__}")
     del callback  # Remove from locals
 
     return callbacks
 
 
-def instantiate_loggers(config, log=False):
+def instantiate_loggers(config):
     """Instantiates loggers from config."""
 
     logger_cfg = config.get("logger")
@@ -115,26 +107,25 @@ def instantiate_loggers(config, log=False):
         if isinstance(lg_conf, DictConfig) and "_target_" in lg_conf:
             _logger.append(hydra.utils.instantiate(lg_conf))
 
-    if log:
-        for ll in _logger:
-            console.log(f"Logger instantiated {ll.__class__}")
+    for ll in _logger:
+        logger.debug(f"Logger instantiated {ll.__class__}")
     del ll
 
     return _logger
 
 
-def instantiate_all_(config, log=False):
+def instantiate_all_(config):
     """Core utility which instantiates the datamodule, model, callbacks,
     loggers and trainer from the hydra config. This makes modifications to the
     config where appropriate."""
 
     seed_everything(config)
-    datamodule = instantiate_datamodule(config, log=log)
+    datamodule = instantiate_datamodule(config)
     update_architecture_in_out_(config, datamodule)
     update_optimizer_lr(config)
-    model = instantiate_model(config, log=log)
-    callbacks = instantiate_callbacks(config, log=log)
-    loggers = instantiate_loggers(config, log=log)
-    trainer = instantiate_trainer(config, callbacks, loggers, log=log)
+    model = instantiate_model(config)
+    callbacks = instantiate_callbacks(config)
+    loggers = instantiate_loggers(config)
+    trainer = instantiate_trainer(config, callbacks, loggers)
 
     return datamodule, model, callbacks, loggers, trainer
