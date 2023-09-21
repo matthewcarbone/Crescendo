@@ -26,6 +26,7 @@ class TestArrayRegressionDataModule:
                     "pin_memory": False,
                     "drop_last": True,
                 },
+                production_mode=False,
             )
             assert datamodule.X_train.shape[1] == 5
             for ii, column in enumerate(datamodule.X_train.T):
@@ -42,6 +43,7 @@ class TestArrayRegressionDataModule:
                     "pin_memory": False,
                     "drop_last": True,
                 },
+                production_mode=False,
             )
 
             assert datamodule.X_train.shape[1] == 6
