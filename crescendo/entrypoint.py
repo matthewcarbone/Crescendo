@@ -29,7 +29,7 @@ WARNINGS_ATTR = [
 
 
 def _train(config):
-    if config.debug:
+    if config.logging_mode == "debug":
         configure_loggers()
     else:
         configure_loggers(levels=NO_DEBUG_LEVELS)
@@ -50,7 +50,7 @@ def _train(config):
     utils.omegaconf_to_yaml(config, yaml_path)
     logger.info(f"Final config saved to {yaml_path}")
 
-    if config.debug:
+    if config.logging_mode == "debug":
         logger.debug("OmegaConf config:")
         pprint(OmegaConf.to_container(config))
 
@@ -68,9 +68,10 @@ def _train(config):
     # tuning later. Requires that the .validate method is defined on the
     # model.
     best_ckpt = trainer.checkpoint_callback.best_model_path
-    logger.info(f"Best checkpoint is {best_ckpt}")
+    trainer.validate(model=model, datamodule=dm, ckpt_path=best_ckpt)
+    val_metric = trainer.callback_metrics
 
-    return trainer.callback_metrics["val/loss"].item()
+    return val_metric["val/loss"].item()
 
 
 def _log_warnings(warnings_caught, config):
@@ -87,6 +88,9 @@ def _log_warnings(warnings_caught, config):
             for w in warnings_caught
             if IGNORE_WARNINGS not in str(w)
         ]
+        if config.logging_mode == "debug":
+            logger.debug("Warnings below")
+            pprint(all_warnings)
         utils.save_yaml(all_warnings, warnings_path)
 
 
