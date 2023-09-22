@@ -4,13 +4,11 @@ and data."""
 from functools import cached_property, cache
 from pathlib import Path
 
-from dgl import batch as dgl_batch
 import numpy as np
 import pandas as pd
 from rich.jupyter import print
 import torch
 from yaml import safe_load
-from tqdm import tqdm
 
 from crescendo import utils
 
@@ -97,10 +95,15 @@ class Estimator:
     @cached_property
     def best_checkpoint(self):
         path = Path(self.results_dir) / "checkpoints"
-        paths = list(path.rglob("best*.ckpt"))
-        if len(paths) > 1:
-            raise RuntimeError("Only one checkpoint per run is allowed")
-        path = paths[0]
+        paths = sorted(list(path.rglob("*.ckpt")))
+
+        if self._use_checkpoint == "best_epoch":
+            path = paths[-2]
+        elif self._use_checkpoint == "last":
+            path = paths[-1]
+        else:
+            raise ValueError(f"Invalid use_checkpiont {self._use_checkpoint}")
+
         if not path.exists():
             print(
                 f"Note best_checkpoint path={path} does not exist! This will "
@@ -110,7 +113,6 @@ class Estimator:
             return None
         return str(path)
 
-    @utils.log_warnings()
     @cache
     def get_model(self, checkpoint=None):
         """Loads the model from the provided checkpoint file. If None, it will
@@ -193,29 +195,23 @@ class Estimator:
             str(Path(paths[0]).parent.resolve()), verbose=verbose, **kwargs
         )
 
-    def __init__(self, results_dir, data_dir=None, verbose=True):
+    def __init__(
+        self,
+        results_dir,
+        data_dir=None,
+        verbose=True,
+        use_checkpoint="best_epoch",
+    ):
         self._results_dir = results_dir
         self._data_dir = data_dir
         self._verbose = verbose
+        self._use_checkpoint = use_checkpoint
 
     @staticmethod
     def _predict_dnn(model, x):
         x = torch.Tensor(x).float()
         with torch.no_grad():
             return model.forward(x).detach().numpy()
-
-    @staticmethod
-    def _predict_gnn(model, x):
-        results = []
-        L = len(x)
-        with torch.no_grad():
-            for xx in tqdm(range(0, L, 32)):  # batch for storage reasons
-                batched_graphs = dgl_batch(x[xx : min(xx + 32, L)])
-                g = batched_graphs
-                n = batched_graphs.ndata["features"]
-                e = batched_graphs.edata["features"]
-                results.append(model.forward(g, n, e).detach().numpy())
-        return np.concatenate(results)
 
     def predict(self, x):
         """Runs forward prediction on the model.
@@ -243,9 +239,7 @@ class Estimator:
         model = self.get_model()
         model.eval()
 
-        if "crescendo.models.gnn" in model_type:
-            return self._predict_gnn(model, x)
-        elif "crescendo.models.mlp" in model_type:
+        if "crescendo.models.mlp" in model_type:
             return self._predict_dnn(model, x)
 
         raise ValueError(f"Model type {model_type} unknown")
@@ -258,7 +252,10 @@ class ModelSet:
 
         return [
             Estimator.from_root(
-                root, data_dir=self._data_dir, verbose=self._verbose
+                root,
+                data_dir=self._data_dir,
+                verbose=self._verbose,
+                use_checkpoint=self._use_checkpoint,
             )
             for root in self._results_dirs
         ]
@@ -277,10 +274,17 @@ class ModelSet:
         paths = [str(xx.parent) for xx in paths]
         return klass(paths, **kwargs)
 
-    def __init__(self, results_dirs, verbose=False, data_dir=None):
+    def __init__(
+        self,
+        results_dirs,
+        verbose=False,
+        data_dir=None,
+        use_checkpoint="best_epoch",
+    ):
         self._results_dirs = results_dirs
         self._data_dir = data_dir
         self._verbose = verbose
+        self._use_checkpoint = use_checkpoint
 
 
 class EnsembleValTestMixin:
@@ -339,7 +343,7 @@ class HPTunedSet(ModelSet, EnsembleValTestMixin):
             assert np.allclose(x1, x2)
         return self.estimators[0].X_test_scaled
 
-    def get_best_estimator(self, X, Y, metric=None):
+    def get_best_estimator(self, X=None, Y=None, metric=None):
         """Evaluates all found models on the validation set, and returns the
         estimator with the best performance.
 
@@ -362,6 +366,11 @@ class HPTunedSet(ModelSet, EnsembleValTestMixin):
 
             def metric(pred, truth):
                 return np.mean((pred - truth) ** 2)
+
+        if X is None:
+            X = self.X_val
+        if Y is None:
+            Y = self.Y_val
 
         preds = [est.predict(X) for est in self.estimators]
         results = [metric(pred, Y) for pred in preds]
