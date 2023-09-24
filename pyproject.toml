@@ -34,6 +34,7 @@ dependencies = [
     "hydra-colorlog==1.2.0",
     "hydra-optuna-sweeper==1.2.0",
     "pymatgen==2023.9.10",
+    "matgl==0.8.5",
     "pandas",
     "numpy",
     "pyrootutils",
