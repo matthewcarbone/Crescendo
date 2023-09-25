@@ -223,8 +223,6 @@ def _tune_cleanup(cache):
     if not p.exists():
         return
 
-    pprint(d)
-
     optimization_results = utils.read_yaml(p)
 
     res = [(key, value) for key, value in d["validation_results"].items()]
@@ -235,8 +233,6 @@ def _tune_cleanup(cache):
     optimization_results["best_model"] = best_result
 
     utils.save_yaml(optimization_results, p)
-
-    logger.info(">>>>>> Optimization results")
 
     if d["config"]["debug_mode"]:
         logger.debug("Optimization results:")
