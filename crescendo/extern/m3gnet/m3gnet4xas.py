@@ -11,7 +11,12 @@ from crescendo.extern.m3gnet._featurizer import (
 )
 
 
-GRIDS = {"FEFF": {"Ti": np.linspace(4965, 5075, 200)}}
+GRIDS = {
+    "FEFF": {
+        "Ti": np.linspace(4965, 5075, 200),
+        "Cu": np.linspace(8983, 9124, 200),
+    }
+}
 
 ALLOWED_ABSORBERS = ["Ti"]
 
