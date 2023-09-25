@@ -17,7 +17,7 @@ def seed_everything(config):
     config : omegaconf.dictconfig.DictConfig
     """
 
-    if config.get("seed"):
+    if config["seed"] > -1:
         L.seed_everything(config.seed, workers=True)
         logger.success(f"Config seed set: {config.seed}")
 
