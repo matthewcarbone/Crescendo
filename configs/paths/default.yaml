@@ -3,7 +3,8 @@ root_dir: "results"
 # Highly recommended to not change anything below!
 
 run_dir: ${paths.root_dir}/${task_name}/runs/${now:%Y-%m-%d}_${now:%H-%M-%S}
-sweep_run_dir: ${paths.root_dir}/${task_name}/multiruns/${now:%Y-%m-%d}_${now:%H-%M-%S}
+sweep_master_dir: ${paths.root_dir}/${task_name}/multiruns
+sweep_run_dir: ${paths.sweep_master_dir}/${now:%Y-%m-%d}_${now:%H-%M-%S}
 
 output_dir: ${hydra:runtime.output_dir}
 

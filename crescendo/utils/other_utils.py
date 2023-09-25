@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+from filelock import FileLock
 import json
 from pathlib import Path
 from subprocess import Popen, PIPE
@@ -66,3 +67,42 @@ def read_json(path):
 
 def save_yaml(d, path):
     yaml.dump(d, open(path, "w"))
+
+
+def read_yaml(path):
+    return yaml.safe_load(open(path, "r"))
+
+
+class GlobalCache:
+    """
+    Parameters
+    ----------
+    d : os.PathLike
+        Path to (likely a temp) directory containing the cache.
+    cache_name : str, optional
+        Name of the cache. Don't change this.
+    """
+
+    def __init__(self, d, cache_name=".crescendo_cache.yaml"):
+        self._path = Path(d) / cache_name
+
+    def read(self):
+        """Loads a cache yaml file which can be shared between different calls
+        of train from a provided directory.
+
+        Returns
+        -------
+        dict
+        """
+
+        if not Path(self._path).exists():
+            return {}
+
+        with FileLock(f"{self._path}.lock"):
+            d = read_yaml(self._path)
+
+        return d
+
+    def save(self, d):
+        with FileLock(f"{self._path}.lock"):
+            save_yaml(d, self._path)

@@ -156,7 +156,6 @@ def update_architecture_in_out_(config, datamodule):
     """
 
     if "crescendo.models.mlp" in config.model["_target_"]:
-
         n_features = datamodule.n_features
         if config.model["input_dims"] == "auto":
             config.model["input_dims"] = n_features
@@ -176,7 +175,6 @@ def update_architecture_in_out_(config, datamodule):
         _update_architecture_(config, "input_dims", "output_dims")
 
     elif "crescendo.models.gnn" in config.model["_target_"]:
-
         if config.model["output_dims"] == "auto":
             n_targets = datamodule.n_targets
             config.model["output_dims"] = n_targets
