@@ -45,7 +45,10 @@ def _configure_loggers(config):
     else:
         configure_loggers(levels=NO_DEBUG_LEVELS)
 
-    tsize = get_terminal_size().columns
+    try:
+        tsize = get_terminal_size().columns
+    except OSError:
+        tsize = 20
     msg = "NEW RUN"
     L = ((tsize - len(msg)) // 2) - 3
     arrows = ">" * L
