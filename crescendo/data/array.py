@@ -101,4 +101,9 @@ class CaliforniaHousingDataset(
             self._Y_train = np.load(path / "Y_train.npy")
             self._Y_val = np.load(path / "Y_val.npy")
             self._Y_test = np.load(path / "Y_test.npy")
+        if self.hparams.production_mode:
+            logger.warning(
+                "Production mode is set to True. Validation and testing data "
+                "will be combined with training data during model fitting."
+            )
         self._setup_X_scaler()

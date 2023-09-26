@@ -9,6 +9,9 @@ from omegaconf import DictConfig, ListConfig, open_dict
 from crescendo import logger
 
 
+LOGGER_PREFIX = "<modifier>"
+
+
 def seed_everything(config):
     """Runs the Lightning ``seed_everything`` method.
 
@@ -19,7 +22,7 @@ def seed_everything(config):
 
     if config["seed"] > -1:
         L.seed_everything(config.seed, workers=True)
-        logger.success(f"Config seed set: {config.seed}")
+        logger.success(f"{LOGGER_PREFIX} Config seed set: {config.seed}")
 
 
 def _update_architecture_linear_ramp_(config, input_dims_key, output_dims_key):
@@ -42,7 +45,8 @@ def _update_architecture_linear_ramp_(config, input_dims_key, output_dims_key):
 
     config.model["architecture"] = y_interp
     logger.success(
-        f"Architecture set to {y_interp} given n_layers=={n_interior}"
+        f"{LOGGER_PREFIX} Architecture set to {y_interp} "
+        f"given n_layers=={n_interior}"
     )
 
 
@@ -112,7 +116,7 @@ def _update_architecture_(config, input_dims_key, output_dims_key):
     x_eval = np.linspace(1, n_interior, n_interior)
     y_interp = np.interp(x_eval, x, y)
     logger.success(
-        "Using randomized architecture: from parameters "
+        f"{LOGGER_PREFIX} Using randomized architecture: from parameters "
         f"neurons_range={neurons_range} and ramp_std={ramp_std:.05f}. "
         f"Interior architecture before noise: {y_interp.tolist()}"
     )
@@ -121,7 +125,7 @@ def _update_architecture_(config, input_dims_key, output_dims_key):
     y_interp = y_interp + np.random.normal(scale=ramp_std, size=len(y_interp))
     y_interp = y_interp.astype(int)
     y_interp[y_interp <= 0] = 1
-    logger.success(f"Architecture after noise: {y_interp}")
+    logger.success(f"{LOGGER_PREFIX} Architecture after noise: {y_interp}")
 
     config.model["architecture"] = y_interp.tolist()
 
@@ -160,16 +164,16 @@ def update_architecture_in_out_(config, datamodule):
         if config.model["input_dims"] == "auto":
             config.model["input_dims"] = n_features
             logger.success(
-                "Input MLP dimensions automatically set from dataloader "
-                f"to n_features={n_features}"
+                f"{LOGGER_PREFIX} Input MLP dimensions automatically set "
+                f"from dataloader to n_features={n_features}"
             )
 
         n_targets = datamodule.n_targets
         if config.model["output_dims"] == "auto":
             config.model["output_dims"] = n_targets
             logger.success(
-                "Output MLP dimensions automatically set from dataloader "
-                f"to n_targets={n_targets}"
+                f"{LOGGER_PREFIX} Output MLP dimensions automatically set "
+                f"from dataloader to n_targets={n_targets}"
             )
 
         _update_architecture_(config, "input_dims", "output_dims")
@@ -179,30 +183,30 @@ def update_architecture_in_out_(config, datamodule):
             n_targets = datamodule.n_targets
             config.model["output_dims"] = n_targets
             logger.success(
-                "Output GNN dimensions automatically set from dataloader "
-                f"to n_targets={n_targets}"
+                f"{LOGGER_PREFIX} Output GNN dimensions automatically set "
+                f"from dataloader to n_targets={n_targets}"
             )
 
         if config.model["node_in_feats"] == "auto":
             node_in_feats = datamodule.node_in_feats
             config.model["node_in_feats"] = node_in_feats
             logger.success(
-                "GNN node size automatically set from dataloader "
-                f"to node_in_feats={node_in_feats}"
+                f"{LOGGER_PREFIX} GNN node size automatically set from "
+                f"dataloader to node_in_feats={node_in_feats}"
             )
 
         if config.model["edge_in_feats"] == "auto":
             edge_in_feats = datamodule.edge_in_feats
             config.model["edge_in_feats"] = edge_in_feats
             logger.success(
-                "GNN edge size automatically set from dataloader "
-                f"to edge_in_feats={edge_in_feats}"
+                f"{LOGGER_PREFIX} GNN edge size automatically set from "
+                f"dataloader to edge_in_feats={edge_in_feats}"
             )
 
         _update_architecture_(config, "n_tasks", "output_dims")
 
 
-def update_optimizer_lr(config):
+def update_optimizer_lr_(config):
     """This function checks the lr parameter of the optimizer, but also
     checks against another possible parameter, log10_lr. If one is provided,
     it is set at the lr, with appropriate conversions. If neither is provided
@@ -228,10 +232,36 @@ def update_optimizer_lr(config):
             log10_lr = config.model["optimizer"].pop("log10_lr")
             new_lr = 10.0**log10_lr
             config.model["optimizer"]["lr"] = new_lr
-        logger.success(f"Optimizer lr set from log10_lr to {new_lr:.02e}")
+        logger.success(
+            f"{LOGGER_PREFIX} Optimizer lr set from log10_lr to {new_lr:.02e}"
+        )
     else:
         # The lr is set and log10_lr doesn't exist. Do nothing
         pass
+
+
+def update_scheduler_based_on_production_mode_(config):
+    """If Crescendo is being run in production mode, this function changes
+    early stopping criteria's monitor to the training loss, and also
+    changes the scheduler's lr modifier to the training loss.
+
+    Parameters
+    ----------
+    config : omegaconf.dictconfig.DictConfig
+        The configuration file which will be modified in-place.
+    """
+
+    if not config.data["production_mode"]:
+        return
+
+    if "early_stopping" in config.callbacks.keys():
+        config.callbacks["early_stopping"]["monitor"] = "train/loss"
+        logger.success(
+            f"{LOGGER_PREFIX} Early stopping monitor set to train/loss"
+        )
+
+    config.model["lr_scheduler_kwargs"]["monitor"] = "train/loss"
+    logger.success(f"{LOGGER_PREFIX} lr scheduler monitor set to train/loss")
 
 
 def compile_model(config, model):
@@ -239,7 +269,9 @@ def compile_model(config, model):
     acceleration. Will fail gracefully."""
 
     if not config.compile:
-        logger.warning("PyTorch 2.0 model compile setting is False")
+        logger.warning(
+            f"{LOGGER_PREFIX} PyTorch 2.0 model compile setting is False"
+        )
         return model
 
     import torch
@@ -247,5 +279,7 @@ def compile_model(config, model):
 
     _dynamo.config.suppress_errors = True
     model = torch.compile(model)
-    logger.warning("Model compilation attempted... see logs above")
+    logger.warning(
+        f"{LOGGER_PREFIX} Model compilation attempted... see logs above"
+    )
     return model

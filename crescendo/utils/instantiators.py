@@ -33,7 +33,8 @@ import torch
 from crescendo.utils.modifiers import (
     seed_everything,
     update_architecture_in_out_,
-    update_optimizer_lr,
+    update_optimizer_lr_,
+    update_scheduler_based_on_production_mode_,
 )
 from crescendo import logger
 
@@ -122,9 +123,10 @@ def instantiate_all_(config):
     seed_everything(config)
     datamodule = instantiate_datamodule(config)
     update_architecture_in_out_(config, datamodule)
-    update_optimizer_lr(config)
+    update_optimizer_lr_(config)
     model = instantiate_model(config)
     callbacks = instantiate_callbacks(config)
+    update_scheduler_based_on_production_mode_(config)
     loggers = instantiate_loggers(config)
     trainer = instantiate_trainer(config, callbacks, loggers)
 

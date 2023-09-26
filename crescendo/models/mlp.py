@@ -138,6 +138,7 @@ class MultilayerPerceptron(LightningModule):
         scheduler,
         criterion,
         print_every,
+        lr_scheduler_kwargs,
     ):
         super().__init__()
 
@@ -272,9 +273,7 @@ class MultilayerPerceptron(LightningModule):
                 "optimizer": optimizer,
                 "lr_scheduler": {
                     "scheduler": scheduler,
-                    "monitor": "val/loss",
-                    "interval": "epoch",
-                    "frequency": 1,
+                    **self.hparams.lr_scheduler_kwargs,
                 },
             }
         return {"optimizer": optimizer}
