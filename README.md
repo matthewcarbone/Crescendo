@@ -48,6 +48,13 @@ This installs the `cr` command line executable which can be run anywhere on your
 cr model=mlp data=california_housing
 ```
 
+### Docker
+
+```
+docker build -t crescendo .
+docker run -it --entrypoint /bin/bash crescendo
+```
+
 # Acknowledgement
 
 This research is based upon work supported by the U.S. Department of Energy, Office of Science, Office Basic Energy Sciences, under Award Number FWP PS-030. This research used resources of the Center for Functional Nanomaterials (CFN), which is a U.S. Department of Energy Office of Science User Facility, at Brookhaven National Laboratory under Contract No. DE-SC0012704. This software is also based upon work supported by the U.S. Department of Energy, Office of Science, Office of Advanced Scientific Computing Research, Department of Energy Computational Science Graduate Fellowship under Award Number DE-FG02-97ER25308. 
