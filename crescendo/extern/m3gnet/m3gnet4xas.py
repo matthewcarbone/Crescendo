@@ -75,7 +75,9 @@ def get_predictor(
     absorber : str, optional
         The atom doing the absorbing.
     version : str, optional
-        The version of the model.
+        The version of the model. If there is a wildcard "*" in the version,
+        it will interpret this as an ensemble and will attempt a match for all
+        models of that type.
     directory : str, optional
         The directory in zoo in which the model is located. This allows us
         to resolve more precisely by training set (such as Ti-O vs Ti).
@@ -104,12 +106,19 @@ def get_predictor(
 
     # Model signatures will be very specific
     model_signature = f"{theory}-{xas_type}-{absorber}-v{version}.pt"
-    model_signature = ZOO_PATH / Path(directory) / model_signature
 
-    # Load the model
-    model = torch.load(model_signature)
+    # Ensemble
+    if "*" in version:
+        d = ZOO_PATH / Path(directory)
+        model_paths = d.glob(model_signature)
+        models = [torch.load(s) for s in model_paths]
 
-    def predictor(structure):
+    # Not an ensemble
+    else:
+        model_signature = ZOO_PATH / Path(directory) / model_signature
+        models = [torch.load(model_signature)]
+
+    def predictor(structure, site_resolved=True):
         features = featurizer(structure)
         indexes = [
             ii
@@ -117,7 +126,17 @@ def get_predictor(
             if site.specie.symbol == absorber
         ]
         features = torch.tensor(features[indexes, :])
-        preds = model(features).detach().numpy()
-        return {site: pred.squeeze() for site, pred in zip(indexes, preds)}
+        preds = np.array(
+            [m(features).detach().numpy() for m in models]
+        ).swapaxes(0, 1)
+
+        if site_resolved:
+            return {site: pred.squeeze() for site, pred in zip(indexes, preds)}
+        else:
+            mu = preds.mean(axis=1)  # (sites, nw)
+            sd = preds.std(axis=1)
+            true_mean = mu.mean(axis=0)
+            true_std = np.sqrt(np.sum(sd**2, axis=0))
+            return true_mean, true_std
 
     return predictor
