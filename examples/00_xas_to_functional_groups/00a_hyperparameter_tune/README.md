@@ -24,12 +24,12 @@ As follows, we will explain each of these options.
 
 ## Standard boilerplate
 
-- `model=mlp`: model is set to a MultiLayer Perceptron. This references a specific model in Crescendo: `crescendo.models.mlp:MultilayerPerceptron`. The input and output layers of the model are automatically determined from the structure of the data.
-- `data=regression`: indicates that the problem at hand is regression. This also references a specific object in Crescendo. In this case, a generic Lightning Datamodule: `crescendo.data:ArrayRegressionDataModule`.
-- `+data.data_dir=../data/C-XANES`: the `+` syntax is special to Hydra. It indicates to add a new attribute that isn't present by default in any of the configs. In this case, we're adding the `data_dir` attribute to the DataModule, which is required in order for the DataModule to know where to load the data from. Note that the directory we point to requires a certain structure. Particularly it needs to have `X_train.npy`, `Y_train.npy`, `X_val.npy` and `Y_val.npy` at minimum.
-- `trainer.max_epochs=10`: sets the maximum number of epochs to 10. Obviously you'll want to train this for real hyperparamter tuning.
-- `model.last_activation="{_target_: torch.nn.Sigmoid}"`: more Hydra-specific syntax for initializing an PyTorch object. In this case, it sets the `last_activation` attribute of the model to the `torch.nn.Sigmoid()` object. Hydra knows when it is passed the `_target_` key to try and initialize the provided value as an object.
-- `trainer.accelerator=cpu`: use the cpu as opposed to any other hardware that might be available.
+-   `model=mlp`: model is set to a MultiLayer Perceptron. This references a specific model in Crescendo: `crescendo.models.mlp:MultilayerPerceptron`. The input and output layers of the model are automatically determined from the structure of the data.
+-   `data=regression`: indicates that the problem at hand is regression. This also references a specific object in Crescendo. In this case, a generic Lightning Datamodule: `crescendo.data:ArrayRegressionDataModule`.
+-   `+data.data_dir=../data/C-XANES`: the `+` syntax is special to Hydra. It indicates to add a new attribute that isn't present by default in any of the configs. In this case, we're adding the `data_dir` attribute to the DataModule, which is required in order for the DataModule to know where to load the data from. Note that the directory we point to requires a certain structure. Particularly it needs to have `X_train.npy`, `Y_train.npy`, `X_val.npy` and `Y_val.npy` at minimum.
+-   `trainer.max_epochs=10`: sets the maximum number of epochs to 10. Obviously you'll want to train this for real hyperparamter tuning.
+-   `model.last_activation="{_target_: torch.nn.Sigmoid}"`: more Hydra-specific syntax for initializing an PyTorch object. In this case, it sets the `last_activation` attribute of the model to the `torch.nn.Sigmoid()` object. Hydra knows when it is passed the `_target_` key to try and initialize the provided value as an object.
+-   `trainer.accelerator=cpu`: use the cpu as opposed to any other hardware that might be available.
 
 ## Optuna settings
 
