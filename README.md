@@ -22,7 +22,7 @@ Crescendo provides a unified command line + API for training and evaluating Ligh
 
 🙏 Some of our boilerplate is based on the wonderful template by [ashleve](https://github.com/ashleve)! See [here](https://github.com/ashleve/lightning-hydra-template).
 
-# Summary
+## Summary
 
 ⭐️ Crescendo leverages the power of [Hydra](https://hydra.cc), [Lightning](https://lightning.ai) and the humble command line to make executing the training of neural networks as easy as possible.
 
@@ -30,7 +30,7 @@ Crescendo provides a unified command line + API for training and evaluating Ligh
 
 ⭐️ Loading your models will be handled with the `crescendo.analysis` API, so you can train your models via the command line on a supercomputer, then load the results in your local Jupyter notebook.
 
-# Install
+## Install
 
 You can easily install Crescendo via Pip!
 
@@ -44,7 +44,7 @@ Of particular note, this not only installs the `crescendo` module, but also the 
 cr model=mlp data=california_housing
 ```
 
-# Acknowledgement
+## Acknowledgement
 
 This research is based upon work supported by the U.S. Department of Energy, Office of Science, Office Basic Energy Sciences, under Award Number FWP PS-030. This research used resources of the Center for Functional Nanomaterials (CFN), which is a U.S. Department of Energy Office of Science User Facility, at Brookhaven National Laboratory under Contract No. DE-SC0012704. This software is also based upon work supported by the U.S. Department of Energy, Office of Science, Office of Advanced Scientific Computing Research, Department of Energy Computational Science Graduate Fellowship under Award Number DE-FG02-97ER25308.
 
