@@ -21,7 +21,7 @@ jobs:
 
     - name: Check lines exist
       run: |
-        grep -x "__version__ = ...  # semantic-version-placeholder" crescendo/__init__.py
+        grep -x '__version__ = "dev"  # semantic-version-placeholder' crescendo/__init__.py
 
   build_and_publish:
     # This workflow follows the best practices outlined here:

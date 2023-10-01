@@ -1,6 +1,6 @@
 from .logger import logger  # noqa
 
-__version__ = ...  # semantic-version-placeholder
+__version__ = "dev"  # semantic-version-placeholder
 
 # This works, but we're going with the rich.console for now
 
