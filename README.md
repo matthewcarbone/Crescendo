@@ -33,6 +33,8 @@ Crescendo provides a unified command line + API for training and evaluating Ligh
 
 ## Install
 
+⚠️ **Coming soon!**
+
 You can easily install Crescendo via Pip!
 
 ```bash
