@@ -26,7 +26,7 @@ classifiers = [
     "Intended Audience :: Science/Research",
 ]
 dependencies = [
-    "torch==2.0.0",
+    "torch==2.0.1",
     "torchvision==0.15.1",
     "lightning==2.0.2",
     "torchmetrics==0.11.4",
