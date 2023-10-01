@@ -37,7 +37,6 @@ dependencies = [
     "matgl==0.8.5",
     "pandas",
     "numpy",
-    "pyrootutils",
     "scikit-learn",
     "rich",
     "loguru",
