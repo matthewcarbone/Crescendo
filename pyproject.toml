@@ -68,12 +68,6 @@ doc = [
 [tool.setuptools]
 packages = ["crescendo"]
 
-[tool.flit.sdist]
-include = [
-    ".project_root",
-    "configs/"
-]
-
 [project.scripts]
 cr = "crescendo.entrypoint:entrypoint"
 
