@@ -1,3 +1,5 @@
+examples/01_m3gnet_for_xas
+crescendo_output
 results
 *.ipynb
 *.pyc
