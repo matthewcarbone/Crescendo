@@ -40,7 +40,6 @@ dependencies = [
     "pyrootutils",
     "scikit-learn",
     "rich",
-    "dunamai",
     "loguru",
 ]
 
