@@ -71,7 +71,7 @@ packages = ["crescendo"]
 [tool.flit.sdist]
 include = [
     ".project_root",
-    "configs"
+    "configs/"
 ]
 
 [project.scripts]
