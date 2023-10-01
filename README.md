@@ -2,7 +2,7 @@
 
 # Crescendo
 
-[![python](https://img.shields.io/badge/-Python_3.9+-blue?logo=python&logoColor=white)](https://github.com/pre-commit/pre-commit) 
+[![python](https://img.shields.io/badge/-Python_3.9+-blue?logo=python&logoColor=white)](https://github.com/pre-commit/pre-commit)
 [![pytorch](https://img.shields.io/badge/PyTorch_2.0+-ee4c2c?logo=pytorch&logoColor=white)](https://pytorch.org/get-started/locally/)
 [![lightning](https://img.shields.io/badge/-Lightning_2.0+-792ee5?logo=pytorchlightning&logoColor=white)](https://pytorchlightning.ai/)
 [![hydra](https://img.shields.io/badge/Config-Hydra_1.3-89b8cd)](https://hydra.cc/)
@@ -10,6 +10,7 @@
 [![image](https://github.com/matthewcarbone/crescendo/actions/workflows/smoke.yml/badge.svg)](https://github.com/matthewcarbone/crescendo/actions/workflows/smoke.yml)
 [![image](https://github.com/matthewcarbone/crescendo/actions/workflows/examples.yml/badge.svg)](https://github.com/matthewcarbone/crescendo/actions/workflows/examples.yml)
 [![image](https://github.com/matthewcarbone/crescendo/actions/workflows/unit.yml/badge.svg)](https://github.com/matthewcarbone/crescendo/actions/workflows/unit.yml)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/d43b1194e52f42339cc0b896f53b1ec8)](https://app.codacy.com/gh/matthewcarbone/Crescendo/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 
 
 Crescendo provides a unified command line + API for training and evaluating Lightning models
@@ -20,9 +21,9 @@ Crescendo provides a unified command line + API for training and evaluating Ligh
 
 ⚠️ **Crescendo is a work in progress and highly subject to change**
 
-🙏 Some of our boilerplate is based on the wonderful template by [ashleve](https://github.com/ashleve)! See here: [github.com/ashleve/lightning-hydra-template](https://github.com/ashleve/lightning-hydra-template).
+🙏 Some of our boilerplate is based on the wonderful template by [ashleve](https://github.com/ashleve)! See [here](https://github.com/ashleve/lightning-hydra-template).
 
-# Summary
+## Summary
 
 ⭐️ Crescendo leverages the power of [Hydra](https://hydra.cc), [Lightning](https://lightning.ai) and the humble command line to make executing the training of neural networks as easy as possible.
 
@@ -30,27 +31,25 @@ Crescendo provides a unified command line + API for training and evaluating Ligh
 
 ⭐️ Loading your models will be handled with the `crescendo.analysis` API, so you can train your models via the command line on a supercomputer, then load the results in your local Jupyter notebook.
 
-# Install
+## Install
 
-At the moment, the recommended way to use this work is to install in editable mode:
+⚠️ **Coming soon!**
+
+You can easily install Crescendo via Pip!
 
 ```bash
-git clone git@github.com:matthewcarbone/Crescendo.git
-cd Crescendo
-conda create -n py3.9-crescendo python=3.9 -y
-conda activate py3.9-crescendo
-pip install --editable .
+pip install crescendo
 ```
 
-This installs the `cr` command line executable which can be run anywhere on your computer, but still references the `crescendo/configs` files, which you can customize to your liking. A simple example to test that everything is working properly:
+Of particular note, this not only installs the `crescendo` module, but also the `cr` command line executable. A simple example to test that everything is working properly:
 
 ```bash
 cr model=mlp data=california_housing
 ```
 
-# Acknowledgement
+## Acknowledgement
 
-This research is based upon work supported by the U.S. Department of Energy, Office of Science, Office Basic Energy Sciences, under Award Number FWP PS-030. This research used resources of the Center for Functional Nanomaterials (CFN), which is a U.S. Department of Energy Office of Science User Facility, at Brookhaven National Laboratory under Contract No. DE-SC0012704. This software is also based upon work supported by the U.S. Department of Energy, Office of Science, Office of Advanced Scientific Computing Research, Department of Energy Computational Science Graduate Fellowship under Award Number DE-FG02-97ER25308. 
+This research is based upon work supported by the U.S. Department of Energy, Office of Science, Office Basic Energy Sciences, under Award Number FWP PS-030. This research used resources of the Center for Functional Nanomaterials (CFN), which is a U.S. Department of Energy Office of Science User Facility, at Brookhaven National Laboratory under Contract No. DE-SC0012704. This software is also based upon work supported by the U.S. Department of Energy, Office of Science, Office of Advanced Scientific Computing Research, Department of Energy Computational Science Graduate Fellowship under Award Number DE-FG02-97ER25308.
 
 The Software resulted from work developed under a U.S. Government Contract No. DE-SC0012704 and are subject to the following terms: the U.S. Government is granted for itself and others acting on its behalf a paid-up, nonexclusive, irrevocable worldwide license in this computer software and data to reproduce, prepare derivative works, and perform publicly and display publicly.
 

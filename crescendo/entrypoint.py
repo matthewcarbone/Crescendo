@@ -8,12 +8,13 @@ import warnings
 import hydra
 from omegaconf import OmegaConf
 from rich.pretty import pprint
-from pyrootutils import setup_root
+
+# from pyrootutils import setup_root
 
 from crescendo import utils, logger, __version__
 from crescendo.logger import configure_loggers, NO_DEBUG_LEVELS
 
-setup_root(__file__, indicator=".project-root", pythonpath=True)
+# setup_root(__file__, indicator=".project-root", pythonpath=True)
 
 IGNORE_WARNINGS = (
     "is an instance of `nn.Module` and is already saved during "
@@ -192,7 +193,7 @@ def _log_warnings(warnings_caught, config):
 
 
 @hydra.main(
-    version_base="1.3", config_path="../configs", config_name="train.yaml"
+    version_base="1.3", config_path="configs", config_name="train.yaml"
 )
 def train(config):
     """Executes training powered by Hydra, given the configuration file. Note

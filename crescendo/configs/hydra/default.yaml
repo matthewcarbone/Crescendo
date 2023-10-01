@@ -3,7 +3,7 @@
 # enable color logging
 defaults:
   # - override hydra_logging: colorlog
-  - override hydra_logging: disabled 
+  - override hydra_logging: disabled
   - override job_logging: disabled
 
 # output directory, generated dynamically on each run
