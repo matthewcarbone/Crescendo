@@ -10,6 +10,7 @@
 [![image](https://github.com/matthewcarbone/crescendo/actions/workflows/smoke.yml/badge.svg)](https://github.com/matthewcarbone/crescendo/actions/workflows/smoke.yml)
 [![image](https://github.com/matthewcarbone/crescendo/actions/workflows/examples.yml/badge.svg)](https://github.com/matthewcarbone/crescendo/actions/workflows/examples.yml)
 [![image](https://github.com/matthewcarbone/crescendo/actions/workflows/unit.yml/badge.svg)](https://github.com/matthewcarbone/crescendo/actions/workflows/unit.yml)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/d43b1194e52f42339cc0b896f53b1ec8)](https://app.codacy.com/gh/matthewcarbone/Crescendo/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 
 
 Crescendo provides a unified command line + API for training and evaluating Lightning models
