@@ -1,0 +1,16 @@
+name: CI/Test
+
+on:
+  push:
+    branches: ["master", "dev/*"]
+
+jobs:
+
+  examples:
+    uses: ./.github/workflows/examples.yml
+
+  smoke:
+    uses: ./.github/workflows/smoke.yml
+
+  unit:
+    uses: ./.github/workflows/unit.yml

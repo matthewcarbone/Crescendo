@@ -1,11 +1,7 @@
 name: Examples
 
 on:
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
-  workflow_dispatch:
+  workflow_call:
 
 jobs:
   build:
@@ -32,4 +28,4 @@ jobs:
       run: pip install --editable .
 
     - name: Test examples
-      run: bash scripts/run_examples.sh 
+      run: bash scripts/run_examples.sh
