@@ -33,6 +33,7 @@ dependencies = [
     "hydra-core==1.3.2",
     "hydra-colorlog==1.2.0",
     "hydra-optuna-sweeper==1.2.0",
+    "scikit-learn",
     "pandas",
     "numpy",
     "pymatgen",
@@ -63,7 +64,6 @@ doc = [
 m3gnet = [
     "pymatgen==2023.9.10",
     "matgl==0.8.5",
-    "scikit-learn",
 ]
 lightshow = [
     "pymatgen==2023.9.10",
