@@ -5,6 +5,7 @@ from pathlib import Path
 import random
 
 import numpy as np
+from PyAstronomy.pyasl import broadGaussFast
 from pymatgen.core.structure import Structure
 from scipy.interpolate import InterpolatedUnivariateSpline
 from sklearn.model_selection import train_test_split
@@ -73,7 +74,7 @@ def _load_feff_spectra(root, spectra_type="FEFF-XANES"):
     return spectra, errors
 
 
-def _load_vasp_data(root, element, purge_structures=[]):
+def _load_vasp_data(root, element, purge_structures=[], broadening=0.59):
     """Finds all mu2.txt files and loads them into numpy arrays. Also loads
     the structures since we need them for further processing."""
 
@@ -81,7 +82,7 @@ def _load_vasp_data(root, element, purge_structures=[]):
     structures = {}
     # metadata = {}
     errors = []
-    for d in tqdm(list(Path(root).iterdir())):
+    for d in tqdm(list(Path(root).iterdir())[:100]):
         if not d.is_dir():
             continue
         if str(d.name) in purge_structures:
@@ -115,7 +116,7 @@ def _load_vasp_data(root, element, purge_structures=[]):
             # prim = poscar.get_primitive_structure()
             # total_element_type = np.sum([xx.specie.symbol == element for
             # xx in prim])
-            # normalization = total_element_type / prim.volume
+            # normalization = 1.0 / prim.volume
 
             # Prendergast shift
             # delta_SCF = ECH - SCF
@@ -125,6 +126,11 @@ def _load_vasp_data(root, element, purge_structures=[]):
             delta = delta_SCF - efermi
             spectrum[:, 0] = spectrum[:, 0] + delta
             # spectrum[:, 1] = spectrum[:, 1] / normalization
+            if broadening is not None:
+                if broadening > 0.0:
+                    spectrum[:, 1] = broadGaussFast(
+                        spectrum[:, 0], spectrum[:, 1], broadening
+                    )
             spectra[name] = spectrum
             structures[name] = poscar
             # metadata[name] = {
@@ -290,11 +296,11 @@ def _prepare_feff_dataset(
 
 
 def _prepare_vasp_dataset(
-    path, grid, featurizer, element, purge_structures=[]
+    path, grid, featurizer, element, purge_structures, broadening
 ):
     print("Loading structures and spectra...")
     spectra, structures, spectra_errors = _load_vasp_data(
-        path, element, purge_structures
+        path, element, purge_structures, broadening
     )
     print("Interpolating spectra...")
     spec_interp = _interpolate_spectra(spectra, grid)
@@ -322,6 +328,7 @@ def prepare_dataset(
     element=None,
     spectra_type="FEFF-XANES",
     purge_structures=[],
+    broadening=None,
 ):
     """Summary
 
@@ -349,7 +356,7 @@ def prepare_dataset(
         )
     elif "VASP" == spectra_type:
         return _prepare_vasp_dataset(
-            path, grid, featurizer, element, purge_structures
+            path, grid, featurizer, element, purge_structures, broadening
         )
     else:
         raise ValueError(f"Unknown spectra type {spectra_type}")
