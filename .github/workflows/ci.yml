@@ -1,14 +1,19 @@
-name: Test / Deploy
+name: CI/Deploy
 
-# Run on all PR's and on pushes/merges to deploy and master
 on:
-  # pull_request:
-  #   branches: ['master', '!paper.md']
   push:
-    # branches: ['master', '!paper.md']
     tags: ["v*"]
 
 jobs:
+
+  examples:
+    uses: ./.github/workflows/examples.yml
+
+  smoke:
+    uses: ./.github/workflows/smoke.yml
+
+  unit:
+    uses: ./.github/workflows/unit.yml
 
   check_semantic_version_placeholder:
     name: Check semantic version placeholder exists in the __init__
@@ -39,6 +44,9 @@ jobs:
 
     needs:
       - check_semantic_version_placeholder
+      - examples
+      - smoke
+      - unit
 
     steps:
 

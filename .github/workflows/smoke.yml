@@ -1,11 +1,7 @@
 name: Smoke
 
 on:
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
-  workflow_dispatch:
+  workflow_call:
 
 jobs:
   build:
@@ -32,4 +28,4 @@ jobs:
       run: pip install --editable .
 
     - name: Smoke tests
-      run: bash scripts/smoke.sh 
+      run: bash scripts/smoke.sh

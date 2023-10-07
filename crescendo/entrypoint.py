@@ -9,12 +9,9 @@ import hydra
 from omegaconf import OmegaConf
 from rich.pretty import pprint
 
-# from pyrootutils import setup_root
-
 from crescendo import utils, logger, __version__
 from crescendo.logger import configure_loggers, NO_DEBUG_LEVELS
 
-# setup_root(__file__, indicator=".project-root", pythonpath=True)
 
 IGNORE_WARNINGS = (
     "is an instance of `nn.Module` and is already saved during "
