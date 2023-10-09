@@ -74,7 +74,7 @@ def _load_feff_spectra(root, spectra_type="FEFF-XANES"):
     return spectra, errors
 
 
-def _load_vasp_data(root, element, purge_structures=[], broadening=0.59):
+def _load_vasp_data(root, element, purge_structures=[]):
     """Finds all mu2.txt files and loads them into numpy arrays. Also loads
     the structures since we need them for further processing."""
 
@@ -82,7 +82,7 @@ def _load_vasp_data(root, element, purge_structures=[], broadening=0.59):
     structures = {}
     # metadata = {}
     errors = []
-    for d in tqdm(list(Path(root).iterdir())[:100]):
+    for d in tqdm(list(Path(root).iterdir())):
         if not d.is_dir():
             continue
         if str(d.name) in purge_structures:
@@ -126,11 +126,6 @@ def _load_vasp_data(root, element, purge_structures=[], broadening=0.59):
             delta = delta_SCF - efermi
             spectrum[:, 0] = spectrum[:, 0] + delta
             # spectrum[:, 1] = spectrum[:, 1] / normalization
-            if broadening is not None:
-                if broadening > 0.0:
-                    spectrum[:, 1] = broadGaussFast(
-                        spectrum[:, 0], spectrum[:, 1], broadening
-                    )
             spectra[name] = spectrum
             structures[name] = poscar
             # metadata[name] = {
@@ -141,7 +136,7 @@ def _load_vasp_data(root, element, purge_structures=[], broadening=0.59):
     return spectra, structures, errors
 
 
-def _interpolate_spectra(spectra, interpolation_grid):
+def _interpolate_spectra(spectra, interpolation_grid, broadening=0.59):
     """Interpolates the provided spectra onto a common grid. The left and right
     bounds are either provided or are set to the maximum of the minimum lower
     bound and the minimum of the maximum upper bound.
@@ -166,6 +161,13 @@ def _interpolate_spectra(spectra, interpolation_grid):
         ius = InterpolatedUnivariateSpline(s[:, 0], s[:, 1], k=3)
         interpolated_sp = ius(interpolation_grid)
         interpolated_sp[interpolated_sp < 0.0] = 0.0
+
+        if broadening is not None:
+            if broadening > 0.0:
+                interpolated_sp = broadGaussFast(
+                    interpolation_grid, interpolated_sp, broadening
+                )
+
         interpolated_spectra[key] = interpolated_sp
     return interpolated_spectra
 
@@ -300,10 +302,10 @@ def _prepare_vasp_dataset(
 ):
     print("Loading structures and spectra...")
     spectra, structures, spectra_errors = _load_vasp_data(
-        path, element, purge_structures, broadening
+        path, element, purge_structures
     )
     print("Interpolating spectra...")
-    spec_interp = _interpolate_spectra(spectra, grid)
+    spec_interp = _interpolate_spectra(spectra, grid, broadening)
     if element is not None:
         print("Double checking indexes...")
         for structure in structures.values():
