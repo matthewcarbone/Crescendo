@@ -11,18 +11,23 @@ from crescendo.extern.m3gnet._featurizer import (
 )
 
 
+N_GRID = 200
+
 GRIDS = {
     "FEFF": {
-        "Ti": np.linspace(4965, 5075, 200),
-        "Cu": np.linspace(8983, 9124, 200),
-    }
+        "Ti": np.linspace(4965, 5075, N_GRID),
+        "Cu": np.linspace(8983, 9124, N_GRID),
+    },
+    "VASP": {"Ti": np.linspace(4715, 4765, N_GRID)},
 }
-
-ALLOWED_ABSORBERS = ["Ti"]
 
 ALLOWED_XAS_TYPES = ["XANES"]
 
 ALLOWED_THEORY = ["FEFF"]
+
+ALLOWED_EDGES = ["K"]
+
+ALLOWED_ABSORBERS = ["Ti"]
 
 ZOO_PATH = Path(__file__).parent.resolve() / "zoo"
 
@@ -57,30 +62,29 @@ def predict_spectrum(structure, model, featurizer, absorber):
 
 
 def get_predictor(
-    theory="FEFF",
     xas_type="XANES",
+    theory="FEFF",
+    edge="K",
     absorber="Ti",
-    version="230925",
-    directory="Ti-O",
+    version="v230925-oxides-materials_split",
 ):
     """Returns a dictionary of the default configuration for predicting the
     XANES of materials.
 
     Parameters
     ----------
-    theory : str, optional
-        The level of theory at which the calculation was performed.
     xas_type : str, optional
         Either XANES or EXAFS.
+    theory : str, optional
+        The level of theory at which the calculation was performed.
+    edge : str, optional
+        Description
     absorber : str, optional
         The atom doing the absorbing.
     version : str, optional
         The version of the model. If there is a wildcard "*" in the version,
         it will interpret this as an ensemble and will attempt a match for all
         models of that type.
-    directory : str, optional
-        The directory in zoo in which the model is located. This allows us
-        to resolve more precisely by training set (such as Ti-O vs Ti).
 
     Returns
     -------
@@ -97,25 +101,28 @@ def get_predictor(
 
     if absorber not in ALLOWED_ABSORBERS:
         raise NotImplementedError(
-            f"Choose from absorber in {ALLOWED_ABSORBERS}"
+            f"Choose from absorber from {ALLOWED_ABSORBERS}"
         )
+
+    if edge not in ALLOWED_EDGES:
+        raise NotImplementedError(f"Choose edge from {ALLOWED_EDGES}")
 
     # Currently this is all that's implemented
     def featurizer(structure):
         return featurize_material(structure, model=_load_default_featurizer())
 
     # Model signatures will be very specific
-    model_signature = f"{theory}-{xas_type}-{absorber}-v{version}.pt"
+    directory = ZOO_PATH / xas_type / theory / f"{edge}-edge" / absorber
+    model_signature = f"{version}.pt"
 
     # Ensemble
     if "*" in version:
-        d = ZOO_PATH / Path(directory)
-        model_paths = d.glob(model_signature)
+        model_paths = directory.glob(model_signature)
         models = [torch.load(s) for s in model_paths]
 
     # Not an ensemble
     else:
-        model_signature = ZOO_PATH / Path(directory) / model_signature
+        model_signature = directory / model_signature
         models = [torch.load(model_signature)]
 
     def predictor(structure, site_resolved=True):

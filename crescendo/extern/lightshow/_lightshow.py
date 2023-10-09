@@ -5,13 +5,14 @@ from pathlib import Path
 import random
 
 import numpy as np
+from PyAstronomy.pyasl import broadGaussFast
 from pymatgen.core.structure import Structure
 from scipy.interpolate import InterpolatedUnivariateSpline
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
 
-def _load_structures(root):
+def _load_structures(root, purge_structures=None):
     """Finds all POSCAR files and loads them into Pymatgen Structure objects.
     Labels these structures by its parent directory's name. Assumes that the
     path's last piece (the filename) is the index for the material.
@@ -28,11 +29,22 @@ def _load_structures(root):
         pymatgen.core.structure.Structure objects.
     """
 
+    if purge_structures is None:
+        purge_structures = []
+
     materials = {}
     for d in tqdm(list(Path(root).iterdir())):
         if not d.is_dir():
             continue
-        materials[d.name] = Structure.from_file(d / "POSCAR")
+        if str(d.name) in purge_structures:
+            print(f"Purging {d.name}")
+            continue
+        try:
+            structure = Structure.from_file(d / "POSCAR")
+        except FileNotFoundError:
+            continue
+
+        materials[d.name] = structure
     return materials
 
 
@@ -47,7 +59,7 @@ def _load_feff_spectra(root, spectra_type="FEFF-XANES"):
         for site_directory in sorted(list((Path(d) / spectra_type).iterdir())):
             site = int(str(site_directory.stem).split("_")[0])
             try:
-                if "FEFF" in spectra_type:
+                if spectra_type not in ["FEFF-XANES", "FEFF-EXAFS"]:
                     feff_spectrum = np.loadtxt(
                         Path(site_directory) / "xmu.dat"
                     )
@@ -65,7 +77,72 @@ def _load_feff_spectra(root, spectra_type="FEFF-XANES"):
     return spectra, errors
 
 
-def _interpolate_spectra(spectra, interpolation_grid):
+def _load_vasp_data(root, element, purge_structures=None):
+    """Finds all mu2.txt files and loads them into numpy arrays. Also loads
+    the structures since we need them for further processing."""
+
+    if purge_structures is None:
+        purge_structures = []
+
+    spectra = {}
+    structures = {}
+    # metadata = {}
+    errors = []
+    for d in tqdm(list(Path(root).iterdir())):
+        if not d.is_dir():
+            continue
+        if str(d.name) in purge_structures:
+            print(f"Purging {d.name}")
+            continue
+        for site_directory in sorted(list((Path(d) / "VASP").iterdir())):
+            if "SCF" in str(site_directory):
+                continue
+            poscar = Structure.from_file(site_directory / "POSCAR")
+            site = int(str(site_directory.stem).split("_")[0])
+            try:
+                spectrum = np.loadtxt(Path(site_directory) / "mu2.txt")
+            except FileNotFoundError:
+                errors.append(str(site_directory))
+                continue
+
+            # If loading any of these failed, it's likely an indicator that
+            # the calculation did not converge.
+            scf = site_directory.parent / "SCF" / "scfenergy.txt"
+            try:
+                ecorehole = np.loadtxt(
+                    Path(site_directory) / "ecorehole.txt"
+                ).item()
+                efermi = np.loadtxt(Path(site_directory) / "efermi.txt").item()
+                e_scf = np.loadtxt(scf).item()
+            except (ValueError, FileNotFoundError):
+                errors.append(str(site_directory))
+                continue
+            name = f"{d.name}_{site}"
+
+            # prim = poscar.get_primitive_structure()
+            # total_element_type = np.sum([xx.specie.symbol == element for
+            # xx in prim])
+            # normalization = 1.0 / prim.volume
+
+            # Prendergast shift
+            # delta_SCF = ECH - SCF
+            # delta = delta_SCF - Efermi
+            # EV = EV + delta
+            delta_SCF = ecorehole - e_scf
+            delta = delta_SCF - efermi
+            spectrum[:, 0] = spectrum[:, 0] + delta
+            # spectrum[:, 1] = spectrum[:, 1] / normalization
+            spectra[name] = spectrum
+            structures[name] = poscar
+            # metadata[name] = {
+            #     "ecorehole": ecorehole,
+            #     "efermi": efermi,
+            #     "escf": e_scf
+            # }
+    return spectra, structures, errors
+
+
+def _interpolate_spectra(spectra, interpolation_grid, broadening=0.59):
     """Interpolates the provided spectra onto a common grid. The left and right
     bounds are either provided or are set to the maximum of the minimum lower
     bound and the minimum of the maximum upper bound.
@@ -90,6 +167,13 @@ def _interpolate_spectra(spectra, interpolation_grid):
         ius = InterpolatedUnivariateSpline(s[:, 0], s[:, 1], k=3)
         interpolated_sp = ius(interpolation_grid)
         interpolated_sp[interpolated_sp < 0.0] = 0.0
+
+        if broadening is not None:
+            if broadening > 0.0:
+                interpolated_sp = broadGaussFast(
+                    interpolation_grid, interpolated_sp, broadening
+                )
+
         interpolated_spectra[key] = interpolated_sp
     return interpolated_spectra
 
@@ -97,10 +181,10 @@ def _interpolate_spectra(spectra, interpolation_grid):
 def _double_check(structures, spectra_keys, element):
     for key in spectra_keys:
         mpid, index = key.split("_")
-        assert structures[mpid][int(index)].specie.symbol == element
+        assert structures[mpid][int(index)].specie.symbol == element, key
 
 
-def _prepare_dataset(structures, spectra_interp, featurizer):
+def _prepare_feff_arrays(structures, spectra_interp, featurizer):
     """Creates a dataset of materials and their spectra.
 
     Parameters
@@ -145,7 +229,117 @@ def _prepare_dataset(structures, spectra_interp, featurizer):
     )
 
 
-def prepare_dataset(path, grid, featurizer, element=None):
+def _prepare_vasp_arrays(structures, spectra_interp, featurizer):
+    """Unlike the feff data, the structures are keyed by materialid and site.
+
+    Parameters
+    ----------
+    structures : TYPE
+        Description
+    spectra_interp : TYPE
+        Description
+    featurizer : TYPE
+        Description
+
+    Returns
+    -------
+    TYPE
+        Description
+    """
+
+    returned_names = []
+    returned_features = []
+    returned_spectra = []
+
+    for key, I in tqdm(spectra_interp.items()):
+        material = structures[key]
+
+        # This is wasteful but I'd prefer to be careful
+        features = featurizer(material)
+
+        # Always index 0 for VASP supercell, since the absorber is always
+        # at the top!
+        returned_features.append(features[0, :])
+        returned_spectra.append(I)
+        returned_names.append(key)
+
+    return (
+        returned_names,
+        np.array(returned_features),
+        np.array(returned_spectra),
+    )
+
+
+def _prepare_feff_dataset(
+    path,
+    grid,
+    featurizer,
+    element=None,
+    spectra_type="FEFF-XANES",
+    purge_structures=None,
+):
+    if purge_structures is None:
+        purge_structures = []
+    print("Loading structures...")
+    structures = _load_structures(path, purge_structures)
+    print(f"Loading {spectra_type} spectra...")
+    if spectra_type in ["FEFF-XANES", "FEFF-EXAFS"]:
+        spectra, spectra_errors = _load_feff_spectra(path, spectra_type)
+    else:
+        raise ValueError(f"Unknown type of spectrum {spectra_type}")
+    print("Interpolating spectra...")
+    spec_interp = _interpolate_spectra(spectra, grid)
+    if element is not None:
+        print("Double checking indexes...")
+        _double_check(structures, spec_interp.keys(), element)
+    print("Converting to arrays...")
+    names, feats, spectra_final = _prepare_feff_arrays(
+        structures, spec_interp, featurizer
+    )
+    print("Done")
+    return {
+        "names": names,
+        "node_features": feats,
+        "spectra": spectra_final,
+        "spectra_errors": spectra_errors,
+    }
+
+
+def _prepare_vasp_dataset(
+    path, grid, featurizer, element, purge_structures, broadening
+):
+    print("Loading structures and spectra...")
+    spectra, structures, spectra_errors = _load_vasp_data(
+        path, element, purge_structures
+    )
+    print("Interpolating spectra...")
+    spec_interp = _interpolate_spectra(spectra, grid, broadening)
+    if element is not None:
+        print("Double checking indexes...")
+        for structure in structures.values():
+            assert structure[0].specie.symbol == element
+    print("Converting to arrays...")
+    names, feats, spectra_final = _prepare_vasp_arrays(
+        structures, spec_interp, featurizer
+    )
+    print("Done")
+    return {
+        "names": names,
+        "node_features": feats,
+        "spectra": spectra_final,
+        "spectra_errors": spectra_errors,
+    }
+
+
+def prepare_dataset(
+    path,
+    grid,
+    featurizer,
+    element=None,
+    spectra_type="FEFF-XANES",
+    purge_structures=None,
+    broadening=None,
+):
     """Summary
 
     Parameters
@@ -158,6 +352,7 @@ def prepare_dataset(path, grid, featurizer, element=None):
         Converts a material into a list of node features.
     element : str
         The element we double check against. If None, this check is skipped.
+    spectra_type : str, optional
 
     Returns
     -------
@@ -165,26 +360,19 @@ def prepare_dataset(path, grid, featurizer, element=None):
         The names, node features and spectra.
     """
 
-    print("Loading structures...")
-    structures = _load_structures(path)
-    print("Loading spectra...")
-    spectra, spectra_errors = _load_feff_spectra(path)
-    print("Interpolating spectra...")
-    spec_interp = _interpolate_spectra(spectra, grid)
-    if element is not None:
-        print("Double checking indexes...")
-        _double_check(structures, spec_interp.keys(), element)
-    print("Converting to arrays...")
-    names, feats, spectra_final = _prepare_dataset(
-        structures, spec_interp, featurizer
-    )
-    print("Done")
-    return {
-        "names": names,
-        "node_features": feats,
-        "spectra": spectra_final,
-        "spectra_errors": spectra_errors,
-    }
+    if purge_structures is None:
+        purge_structures = []
+
+    if "FEFF" in spectra_type:
+        return _prepare_feff_dataset(
+            path, grid, featurizer, element, spectra_type, purge_structures
+        )
+    elif "VASP" == spectra_type:
+        return _prepare_vasp_dataset(
+            path, grid, featurizer, element, purge_structures, broadening
+        )
+    else:
+        raise ValueError(f"Unknown spectra type {spectra_type}")
 
 
 def save_dataset(
