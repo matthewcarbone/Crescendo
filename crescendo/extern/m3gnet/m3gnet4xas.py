@@ -18,7 +18,7 @@ GRIDS = {
         "Ti": np.linspace(4965, 5075, N_GRID),
         "Cu": np.linspace(8983, 9124, N_GRID),
     },
-    "VASP": {"Ti": np.linspace(4.86247869e03, 4.93235713e03, N_GRID)},
+    "VASP": {"Ti": np.linspace(4715, 4765, N_GRID)},
 }
 
 ALLOWED_XAS_TYPES = ["XANES"]
