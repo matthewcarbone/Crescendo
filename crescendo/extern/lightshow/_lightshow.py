@@ -12,7 +12,7 @@ from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
 
-def _load_structures(root, purge_structures=[]):
+def _load_structures(root, purge_structures=None):
     """Finds all POSCAR files and loads them into Pymatgen Structure objects.
     Labels these structures by its parent directory's name. Assumes that the
     path's last piece (the filename) is the index for the material.
@@ -28,6 +28,9 @@ def _load_structures(root, purge_structures=[]):
         A dictionary keyed by the material identifier, and the values are the
         pymatgen.core.structure.Structure objects.
     """
+
+    if purge_structures is None:
+        purge_structures = []
 
     materials = {}
     for d in tqdm(list(Path(root).iterdir())):
@@ -74,9 +77,12 @@ def _load_feff_spectra(root, spectra_type="FEFF-XANES"):
     return spectra, errors
 
 
-def _load_vasp_data(root, element, purge_structures=[]):
+def _load_vasp_data(root, element, purge_structures=None):
     """Finds all mu2.txt files and loads them into numpy arrays. Also loads
     the structures since we need them for further processing."""
+
+    if purge_structures is None:
+        purge_structures = []
 
     spectra = {}
     structures = {}
@@ -270,8 +276,10 @@ def _prepare_feff_dataset(
     featurizer,
     element=None,
     spectra_type="FEFF-XANES",
-    purge_structures=[],
+    purge_structures=None,
 ):
+    if purge_structures is None:
+        purge_structures = []
     print("Loading structures...")
     structures = _load_structures(path, purge_structures)
     print(f"Loading {spectra_type} spectra...")
@@ -329,7 +337,7 @@ def prepare_dataset(
     featurizer,
     element=None,
     spectra_type="FEFF-XANES",
-    purge_structures=[],
+    purge_structures=None,
     broadening=None,
 ):
     """Summary
@@ -351,6 +359,9 @@ def prepare_dataset(
     dict
         The names, node features and spectra.
     """
+
+    if purge_structures is None:
+        purge_structures = []
 
     if "FEFF" in spectra_type:
         return _prepare_feff_dataset(
