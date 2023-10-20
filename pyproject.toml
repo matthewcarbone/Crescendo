@@ -67,6 +67,9 @@ doc = [
 [tool.setuptools]
 packages = ["crescendo"]
 
+[tool.flit.sdist]
+exclude = ["examples/", ".github/", "scripts/"]
+
 [project.scripts]
 cr = "crescendo.entrypoint:entrypoint"
 
