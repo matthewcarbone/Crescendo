@@ -1,12 +1,4 @@
-from dunamai import Version
-
-try:
-    version = Version.from_any_vcs()
-    __version__ = version.serialize()
-    del version
-except RuntimeError:
-    print("VCS not detected; setting __version__==0.0.0")
-    __version__ = "0.0.0"
+__version__ = "0.1.0"
 
 # __version__ = "0.0.1"
 
