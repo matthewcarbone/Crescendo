@@ -8,6 +8,7 @@ results
 .old/
 job_data/
 old_configs/
+pyrightconfig.json
 
 .DS_Store
 

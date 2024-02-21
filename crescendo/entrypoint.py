@@ -1,17 +1,16 @@
+import sys
+import warnings
 from datetime import datetime
 from os import get_terminal_size
 from pathlib import Path
-import sys
 from tempfile import TemporaryDirectory
-import warnings
 
 import hydra
 from omegaconf import OmegaConf
 from rich.pretty import pprint
 
-from crescendo import utils, logger, __version__
-from crescendo.logger import configure_loggers, NO_DEBUG_LEVELS
-
+from crescendo import __version__, logger, utils
+from crescendo.logger import NO_DEBUG_LEVELS, configure_loggers
 
 IGNORE_WARNINGS = (
     "is an instance of `nn.Module` and is already saved during "
