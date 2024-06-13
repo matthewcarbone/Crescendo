@@ -1,0 +1,11 @@
+input_channels: 3 
+num_classes: 10
+
+fc_architecture:
+  - in_features: 4096
+    out_features: 1024
+  - in_features: 1024
+    out_features: 256
+
+defaults:
+  - common_model.yaml
