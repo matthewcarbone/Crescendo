@@ -29,7 +29,7 @@ dependencies = [
     "torch==2.0.0",
     "torchvision==0.15.1",
     "lightning==2.0.2",
-    "torchmetrics==0.11.4",
+    "torchmetrics==1.2.1",
     "hydra-core==1.3.2",
     "hydra-colorlog==1.2.0",
     "hydra-optuna-sweeper==1.2.0",
